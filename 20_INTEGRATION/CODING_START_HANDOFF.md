@@ -2275,6 +2275,9 @@ READY TO RESUME            = **YES**（就绪，但**未**重跑）
           `sessionStorage` 不可用不再白屏；⑥⑦⑧ 草稿态不再丢失。
 🔴 `PSA-A = PASS` **必须**由**真实 PSA 重新执行**后取得，本轮**不得**代为置为 `PASS`。
 🔴 本轮**未**执行任何真实 Provider 调用、**未**使用任何真实 Key、**未**部署 Vercel、**未**自动恢复 PSA。
+🚩 就地补注（不改写 `PRE_SUBMISSION_DEPLOYMENT_ACCEPTANCE.md`）｜该登记表 §6 记的 `PSA-A baseline = fc472b0 ＋ bc2b13d
+   （HEAD 25ca05e）` 是**本轮合并之前**的基线；本轮 main 已推进到 `ceb993b`。🔴 登记表本身**未被改动**
+   （任务只授权 Integrator 更新本文件），**恢复 PSA-A 时应使用哪个 baseline 需人工确认**。
 ```
 
 ### 24.10 边界登记（🔴 本轮未做）
@@ -2301,5 +2304,35 @@ SAFE NEXT = PRE-SUBMISSION PSA-A（**READY TO RESUME**）
             ｜ TE-DEMO-LIVE-01 Full Rehearsal
             ｜ Billing Cap ≤ RMB 1
 🔴 未授权自动启动 —— 本次完成后停止（不得自动输入真实 Key / 不得自动启动真实 Provider / 不得自动开始 PSA）
+```
+
+### 24.11 Git（🔴 事实登记｜本节由紧随其后的 `chore:` commit 记录，不改动 24.1–24.10 任何一字）
+
+```
+main 提交序列（自 BASE 起）:
+  d3f51e1  Remove something                                            ← BASE（= 开工时 remote main）
+  1b00022  chore: repair .gitignore encoding and stop tracking .learnbuddy working memory   ← 预合并 prep（人工裁决 ④）
+  c70e6ab  fix: batch retrieval dimension judgments                    ← cherry-pick A（11a72f2）
+  1cbd7e2  fix: isolate frontend async state and record operations      ← cherry-pick B（bf996c5）
+  9226917  fix: align UI buttons with real workflow state               ← cherry-pick C（f3720e5）
+  a45c390  fix: harden workspace persistence and local build runtime    ← cherry-pick D（7d79109）
+  ceb993b  fix: integrate final pre-submission correctness fixes        ← 本次 Integration（10 files, +1711/−38）
+  <本 chore: commit>  docs: record FINAL-RAPID-INTEGRATION-01 handoff git facts
+fix commit  = ceb993b0cb987e826ecfb821576f8737a6980fa8
+  message   = 「fix: integrate final pre-submission correctness fixes」
+  files     = 10（M 20_INTEGRATION/CODING_START_HANDOFF.md / M src/tests/config/tsconfig-layout.test.ts /
+                 A src/tests/ui/final-integration-scenarios.test.ts / A src/tests/ui/hypothesis-draft-state.test.ts /
+                 A src/tests/ui/session-storage-unavailable.test.ts / M src/ui/bootstrap.ts /
+                 M src/ui/components/steps.ts / M src/ui/copy.ts / M src/ui/session/app-session.ts /
+                 A src/ui/settings/credential-capability.ts）
+  force     = **未使用**（🔴 禁止 force / --force-with-lease）
+  push      = PASS（`git push origin main` exit 0）
+remote      = refs/heads/main = ceb993b0cb987e826ecfb821576f8737a6980fa8（`git ls-remote origin refs/heads/main` **实核**）
+local HEAD  = ceb993b0cb987e826ecfb821576f8737a6980fa8
+local/remote= **MATCH**
+🔴 判定同步只看 `git rev-parse HEAD` + `git ls-remote origin refs/heads/main`；
+   **不依赖** `origin/main` tracking 状态（本机 remote-tracking ref 无法落盘，见 §21.3 与 §24.8 同类环境限制）。
+🚩 push 时 Git 打印若干 `LF will be replaced by CRLF` warning —— 属 `core.autocrlf` 正常工作提示
+   （仓库无 `.gitattributes`），**非错误**；blob 内容未受影响（`git diff --check` 为空）。
 ```
 
