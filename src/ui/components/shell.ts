@@ -11,8 +11,9 @@
  *    one section of it would misdescribe the page and read as a second entry.
  * 🔴 MODEL SETTINGS NEVER ASK FOR A PATH (task §11 / §13). The connection label is DISPLAYED, never
  *    chosen; the custom base URL field appears only for a preset that OFFERS one.
- * 🔴 THE API KEY IS A PASSWORD FIELD, THE FORM SAYS 「仅当前会话使用」, and there is NO "remember me",
- *    NO "save to workspace" and NO auto-restore control anywhere (task §12).
+ * 🔴 THE API KEY IS A PASSWORD FIELD, THE FORM SAYS 「仅当前浏览器会话使用；刷新后仍可用」
+ *    (`D-056` / `CORRECTION-01` - the note quotes the session boundary, NOT a refresh), and there is
+ *    NO "remember me", NO "save to workspace" and NO auto-restore control anywhere (task §12).
  * 🔴 EVERY CONTROL CARRIES AN EXPLICIT LOGICAL ID from `SETTINGS_CONTROL_IDS`. A control id is NEVER
  *    derived from a label: doing so produced duplicate ids (all-Chinese labels stripped to the same
  *    string) and made the whole-tree rebuild lose the user's focus on every keystroke. See

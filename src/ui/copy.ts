@@ -88,7 +88,28 @@ export const SETTINGS_SECTION_MODEL = '模型服务';
 export const SETTINGS_PROVIDER = 'Provider';
 export const SETTINGS_MODEL = 'Model';
 export const SETTINGS_API_KEY = 'API Key';
-export const SETTINGS_API_KEY_NOTE = '仅当前会话使用。刷新页面后需要重新填写。';
+/**
+ * The sentence under the API Key field - `D-056`｜Session-only Credential, stated exactly.
+ *
+ * 🔴 IT MUST MATCH `D-056`, NOT PARAPHRASE IT (`PRE-PSA-BLOCKER-01 / CORRECTION-01`). `D-056`'s
+ *    effective rule is: input → usable **for the current session** → **still usable after a page
+ *    refresh** → cleared when the tab / browser session ends → the next session must input again.
+ *    The sentence this replaces described the refresh as a LOSS of the credential, which contradicts
+ *    the rule the implementation actually follows - so a user who refreshed would read a false
+ *    statement printed directly beneath the field they had just filled in. The wording below states
+ *    all three bounds (session-scoped / survives refresh / ends with the session) and nothing else.
+ * 🔴 IT IS BACKED BY THE IMPLEMENTATION, NOT BY ASPIRATION: the carrier is the runtime's
+ *    `sessionStorage` (`createBrowserSessionStorage`, the only carrier the store is ever built over -
+ *    see `src/ui/bootstrap.ts`), which by definition survives a reload of the same tab and is
+ *    dropped when that tab / browser session ends. Refresh retention is asserted in the regression
+ *    suite (R1-R5), so this sentence cannot drift away from the behaviour again unnoticed.
+ * 🔴 THE THREE BANNED IMPLICATIONS STILL HOLD: no 「永久保存」 / 「记住」 / 「长期保存」 wording (there
+ *    is no remember-me toggle, and `AC-161` forbids the surface), and no wording that says a refresh
+ *    DISCARDS the key. The second half of the sentence names the session END as the expiry, which is
+ *    the true boundary - a shorter phrasing that omitted it would leave the user guessing.
+ */
+export const SETTINGS_API_KEY_NOTE =
+  '仅当前浏览器会话使用；刷新后仍可用，关闭标签页或浏览器后需要重新填写。';
 export const SETTINGS_CUSTOM_BASE_URL = 'Custom Base URL';
 export const SETTINGS_CUSTOM_BASE_URL_NOTE =
   '仅在你主动填写时使用，且只会用于浏览器直连的模型服务。';
