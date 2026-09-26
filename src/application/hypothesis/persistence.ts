@@ -19,7 +19,7 @@
  *     <hypothesis_id>.json               <- the machine source of truth (incl. evidence_refs[])
  *     <hypothesis_id>.md                 <- human-readable body + stable front-matter
  *     batches/
- *       <batch_id>.json                  <- the record of ONE explicit step ⑨ generation
+ *       <path-safe batch_id>.json        <- the record of ONE explicit step ⑨ generation
  *     operations/
  *       <operation_key>.json             <- the durable RECOVERY ANCHOR of one operation (§36)
  * ```
@@ -28,6 +28,9 @@
  *    `Hypothesis` belongs to the WORKSPACE, exactly like an `Insight` (§1.3 / `D-019` / `D-045`).
  * 🔴 IDENTITY TRAVELS INSIDE THE CONTENT (`hypothesis_id` in every file), so renaming or moving a file
  *    never breaks ID-based resolution (§3.2 / AC-137).
+ * 🔴 `PSA-A-CORRECTION-M9-PATH-01`: the batch FILE NAME is the module's own reversible `~HH` codec
+ *    applied to the logical `batch_id`, because a `:` (which `newHypothesisBatchId` really mints) is an
+ *    illegal Windows file-name character. The logical `batch_id` itself is unchanged everywhere.
  * 🔴 NO DATABASE, NO VERSION FIELD, NO ARCHIVE SNAPSHOT AND NO CREDENTIAL may be written. Every
  *    document is passed through the shared forbidden-key guard before it is written and after it is
  *    read.
@@ -57,7 +60,7 @@ import { findForbiddenPersistedKeys } from '../../workspace/schema/forbidden-key
 import { WorkspaceSchemaError } from '../../workspace/schema/schema-error.js';
 import { WORKSPACE_SCHEMA_VERSION } from '../../workspace/schema/workspace-metadata.js';
 import { findForbiddenNinthFieldKeys } from './structure.js';
-import { isHypothesisBatchId } from './identity.js';
+import { encodeOperationIdToken, isHypothesisBatchId } from './identity.js';
 import type {
   HypothesisGenerationBatch,
   HypothesisOperationAnchor,
@@ -91,12 +94,32 @@ export function hypothesisMarkdownPath(hypothesis_id: string): string {
   return `${HYPOTHESES_DIRECTORY}/${hypothesis_id}${MARKDOWN_EXTENSION}`;
 }
 
-/** Conventional path of a generation batch record. */
+/**
+ * Conventional path of a generation batch record.
+ *
+ * 🔴 `PSA-A-CORRECTION-M9-PATH-01`: `newHypothesisBatchId` mints
+ *    `ATT_…:hypothesis-batch:<ULID>` - the `:` is a LEGAL logical-id character but an ILLEGAL Windows
+ *    file-name character, so the verbatim interpolation could never be written on Windows (the SAME
+ *    SHAPE as the repaired step ⑧ defect). The physical name is therefore the module's own EXISTING,
+ *    REVERSIBLE `~HH` codec applied to the logical id: one codec, no second sanitising rule set, and
+ *    `decode(encode(x)) = x`.
+ * 🔴 WHAT DID NOT CHANGE: the `batch_id` VALUE everywhere (domain object, this document's own
+ *    `batch_id` field, the operation anchor, `planned_batch`, every reference), the directory layout,
+ *    the document schema, and the anchor path. Nothing is ever inferred FROM a file name: discovery
+ *    reads the `batch_id` inside the document, so a renamed or moved batch still resolves
+ *    (§3.2 rule 3 / AC-137).
+ */
 export function hypothesisBatchPath(batch_id: string): string {
-  return `${HYPOTHESIS_BATCHES_DIRECTORY}/${batch_id}${JSON_EXTENSION}`;
+  return `${HYPOTHESIS_BATCHES_DIRECTORY}/${encodeOperationIdToken(batch_id)}${JSON_EXTENSION}`;
 }
 
-/** Conventional path of the durable operation anchor (§36). */
+/**
+ * Conventional path of the durable operation anchor (§36).
+ *
+ * 🔴 `operation_key` arrives ALREADY encoded - `hypothesisOperationKey` applies the codec when it
+ *    builds `<source_attempt_id>__<encoded operation_id>`. It is therefore NOT encoded again here:
+ *    doing so would move every already-persisted anchor to a new path and orphan a pending recovery.
+ */
 export function hypothesisOperationAnchorPath(operation_key: string): string {
   return `${HYPOTHESIS_OPERATIONS_DIRECTORY}/${operation_key}${JSON_EXTENSION}`;
 }
