@@ -1811,3 +1811,150 @@ SAFE NEXT = PRE-SUBMISSION PSA-A
 🔴 未授权自动启动 —— 本次完成后停止（不得自动使用真实 API Key / 不得自动开始 PSA）
 ```
 
+### 23.9 CORRECTION-02 ｜ CREDENTIAL CLEAR SEMANTICS + REFRESH UX + COMMENT ALIGNMENT（🚩 `PRE-PSA-BLOCKER-01 / CORRECTION-02`，2026-09-26｜🔴 追加，不改写历史）
+
+> 🔴 **本节只做追加，不改动 §23.1–§23.8 及之前任何一字**（§23.8 登记的 `ADJACENT-03` 在本节记录为**已修**，§23.8 原文保持原样）。
+> 性质 = same-session blocker correction：**未新增任何产品机制**，只把两个**已命名**的行为变真，并修正注释口径。
+
+```
+PRE-PSA-BLOCKER-01 / CORRECTION-02 = DONE
+Credential Clear Semantics         = CLOSED
+Clear Removes Stored Credential    = PASS
+Refresh Existing-Key UX            = CLOSED
+Key Plaintext Rehydration          = ABSENT
+Focus Root Cause Comment Alignment = CLOSED
+Real Provider Calls                = 0
+PSA                                = PENDING
+Decision Added = 0   AC Added = 0   CCR = NO   Frozen Contract Modified = NO   BLOCKER = NO
+```
+
+**① ADJACENT-01｜清除按钮真的清除（§1 / §2）**
+
+```
+缺陷（§23.8 已登记）：`clearCredential()` 只 `set({ settings_draft: {…, api_key: ''} })` ⇒ 只清表单；
+  bootstrap 在表单为空时不 `put`，gateway 仍由 sessionStorage 解析出**旧 Key** ⇒ 按钮文案 ≠ 行为。
+修复：把 credential store 的**非机密**两面交给 AppSession（`AppSessionDeps.credentials`，`CORRECTION-02`）：
+  · `has(provider_id): boolean`   —— 面板据此停止索要「其实已经有的 Key」；
+  · `clear(provider_id): void`    —— 按下按钮时**移除该 provider 的凭据**。
+  🔴 **无 `resolve`、无 `put`**：secret 不进 UI 层，明文无从回填（§4）。
+  🔴 ref 一律由 `credentialRefForProvider(provider_id)` 推导（`bootstrap.ts` 内），**不遍历、无「清空全部」**⇒ 碰不到别的 provider。
+连带（§2）：清除后 **`port = null` + `provider.status = 'unconfigured'`**（复用既有 canonical 状态与
+  `SETTINGS_STATUS_UNCONFIGURED`「模型服务未配置」，**未新造状态**）；命令路径随之走既有 `ai_requires_model`；
+  `read_port` 与 `workspace` **不动**（浏览历史记录不受影响）。
+```
+
+**② ADJACENT-02｜刷新后「已有 Key」的呈现（§3）**
+
+```
+新增 **一条** 文案 `SETTINGS_KEY_PRESENT_IN_SESSION` =
+  「当前浏览器会话已有 API Key，可直接保存配置；如需替换，请重新输入。」
+规则（`settingsWarnings(draft, { session_credential_present })`，纯函数，仍**非阻断**）：
+  表单有 Key            ⇒ 无提示
+  表单为空 + 会话有 Key  ⇒ 「当前浏览器会话已有 API Key…」（**替代**原文案）
+  表单为空 + 会话无 Key  ⇒ 原「请填写 API Key（仅当前会话使用）。」
+事实来源 = 新增**布尔**状态 `settings_key_in_session`（开面板 / 切 provider / 保存 / 清除 四处刷新）——
+  🔴 只存**布尔**，不存 Key；`api_key` 输入在刷新后**保持为空**（§4，明文回填 = ABSENT）。
+```
+
+**③ ADJACENT-03｜注释口径对齐（§7，🔴 只改注释，不改行为）**
+
+```
+口径（= §23.2 已确认结论）：
+  Observed root cause      = 未授权 render path `replaceChildren` 后 **early return → restoreFocus 未执行**（M1）
+  Control identity         = **preventive hardening**（label 派生 id 是潜在重复 id 制造器；实际发布的 label 为 ASCII，**当时并未相撞**）
+修正 3 处把「重复 control id」写成本次症状根因的源码注释：
+  M src/ui/app-root.ts         头注释改为**两条事实分开陈述**（observed cause / preventive hardening）
+  M src/ui/components/shell.ts 头注释 + `LabelInputSpec` 注释同样改为分开陈述
+  （`src/ui/settings/control-identity.ts` 原文已含 FACTUAL PRECISION 段，**未改**）
+🔴 `D-056` / `Decision` / `AC` / 冻结合同**均未改动**；Handoff **只追加本节**。
+```
+
+**④ 测试（新增 16 例，全部 `IMPLEMENTATION INVARIANT`；🔴 `AC Added = 0`）**
+
+```
+A src/tests/ui/session-credential-clear.test.ts（K1–K10 + U1–U10 + N1–N3）
+  K1 保存 DeepSeek 假 Key｜K2 `has` = true｜K3 clear 后 `has` = false｜K4 `resolve` = null｜K5 input = ''｜
+  K6 provider 不再 ready（= `unconfigured`，且命令路径回到 `ai_requires_model`）｜K7 Workspace 仍 connected 且
+  **授权次数恒为 1**（未重选目录）｜K8 预存的**其它 provider** 凭据不被删除｜K9 clear 后同一 adapter
+  **拒绝发送**（`PROVIDER_CREDENTIAL_MISSING`，transport 调用数不增 ⇒ 不可能带旧 Authorization）｜
+  K10 clear → 输入新 Key → 恢复 ready，且仍是**单个** credential slot
+  U1–U5 保存 / 同 tab 刷新 / 凭据存活 / 字段为空 / 会话有凭据｜U6 **不**出现「请填写 API Key」｜U7 出现「已有 Key」句｜
+  U8 明文回填 ABSENT（运行期 state 无 Key + `src/ui/**` **无** `.resolve(` / `revealCredentialSecret` / `credentialSecret`）｜
+  U9 空字段直接保存成功｜U10 新 Key **精确覆盖**（整值比较，非 substrings）
+  N1–N3 新 tab：凭据不存在、要求填写 Key、且**不**声称已有 Key
+M src/tests/ui/session-credential-refresh.test.ts  harness 补上同一个 two-method port（保持与 bootstrap 一致）
+```
+
+**⑤ 验证（🔴 全部实测）**
+
+```
+npm run typecheck / typecheck:core / typecheck:browser / typecheck:server / typecheck:web  = PASS
+npm run build / npm run build:web（144 modules + 1 stylesheet）                            = PASS
+npm test                     = **1041 passed / 0 failed**（基线 1025；本轮 +16 = K/U/N）
+npm run test:proxy           = 15 passed / 0 failed
+Secret Scan（555 个非产物文件）= PASS —— 34 命中：32 条为显式假值 `sk-fixture-*`；
+  另 2 条为 `api_key: 'settings-api-key'`（**DOM 控件 id**，非凭据）⇒ **真实 credential = 0**（如实登记分类口径）
+Visual Smoke（本机真实 Chrome 154.0.8037.57，headless=new + CDP）**A–L 全 PASS（36/36 判据 true）**
+  · fixture = `demo-workspace/**` 的 %TEMP% 副本（21 文件）；**未写入**提交基线
+  · 🔴 **仅替换 `showDirectoryPicker` 一个函数**；FSA 读写 / 应用逻辑 / 渲染 / 事件 / **真实键鼠输入** /
+    **真实 `Page.reload`** 全部为生产代码
+  · A 配置 DeepSeek + 逐字符输入假 Key（29 字符）→ 保存 ⇒ 面板关闭，badge = `DeepSeek｜deepseek-flash｜连接方式：浏览器直连`
+  · B 刷新 ⇒ `#settings-api-key` 值 **= ""**（input 为空）；sessionStorage 仍有该凭据
+  · C 设置面板**实测**出现「当前浏览器会话已有 API Key，可直接保存配置；如需替换，请重新输入。」，
+        且**不含**「请填写 API Key」⇒ 刷新后的假提示 = ABSENT
+  · D **不重新输入 Key** 直接保存 ⇒ 面板关闭、badge 恢复 ⇒ 会话里的 Key 被真正使用
+  · E 点击「清除本次会话的 API Key」⇒ sessionStorage **只剩** `…/index = "[]"`（`…/provider%3Adeepseek` **已消失**）
+  · F 顶栏模型状态 = 「模型服务未配置」（**不再**出现 DeepSeek / 浏览器直连）；Workspace 仍 `已连接本地工作区｜smoke-ws`
+  · G 重新打开设置 ⇒ **无**「已有 Key」提示；面板改为「请填写 API Key（仅当前会话使用）。」⇒ H 的提示成立
+  · I 输入新假 Key `sk-fixture-NOT-A-REAL-KEY-PSA-2` → 保存 ⇒ badge 恢复，且该 provider **只有一个** slot（整值 = 新 Key）
+  · J Workspace **8 条记录全程保留**（A/B/D/F/I 各检查点均为 8）
+  · K 出站请求合计 317：**`llm_endpoint = 0`**、`other_external = 0`、页面脚本错误 0；
+        36 条属装机安全套件 `gc.kis.v2.scr.kaspersky-labs.com`，**单独归类，不计为 Provider Call**
+  · L `localStorage = {}`、IndexedDB `databases() = []`、`caches = []`、cookie `""`；工作区扫描 **21 文件 / 0 命中**；
+        sessionStorage 内**唯一**的 provider slot 值 = 当前 Key（整值比较）⇒ fake Key 未进入任何持久载体
+  · 证据：%TEMP%\psa-correction02-smoke\out\（smoke-report.json + 8 张截图，均 > 147KB）
+  · ⚠️ 探针 v1 的 2 个 FAIL **全部是探针自身断言错误**（① 把 `…/index` 记账键当成凭据残留；
+        ② `…-PSA` 是 `…-PSA-2` 的**前缀**，误用 substring 比较）⇒ **产品缺陷 = 0**；修正后复跑得 36/36。
+```
+
+**⑥ Git（🔴 事实登记）**
+
+```
+fix commit = 8c146f2c2ceb0254a986df5482007ca43a80d129
+  message  = 「fix: make session credential clearing truthful before PSA」
+  files    = 8（A src/tests/ui/session-credential-clear.test.ts +562 /
+              M src/ui/session/app-session.ts +126 / M src/ui/components/shell.ts ±30 /
+              M src/ui/settings/provider-presets.ts ±27 / M src/ui/copy.ts +26 /
+              M src/ui/bootstrap.ts ±23 / M src/tests/ui/session-credential-refresh.test.ts +10 /
+              M src/ui/app-root.ts ±9）
+  force    = **未使用**（🔴 禁止 force / force-with-lease）
+  push     = PASS（首次即成功）
+  remote   = refs/heads/main = 8c146f2c2ceb0254a986df5482007ca43a80d129（`git ls-remote origin` 实核）
+  local/remote = MATCH
+本节的 handoff 记录与 session memory 由紧随其后的 `chore:` commit 记录（不改动上述 fix commit）。
+```
+
+**⑦ 本轮新观测、🔴 未修、待人工裁决（§4 之外）**
+
+- ⭐ `ADJACENT-04`｜**清除后再次「保存配置」可把 badge 重新变回 ready**（即使没有 Key）。
+  事实（真实浏览器实测 + `O1` 记录）：清除后 provider = `unconfigured`（符合 §2）；但若用户再次点「保存配置」且
+  **不填 Key**，`validateSettingsDraft` 按**既有刻意规则**不把缺 Key 视为阻断 ⇒ 组合成功、badge 回到
+  `DeepSeek｜deepseek-flash｜浏览器直连`，而会话中**没有**该凭据（真发请求会以 `PROVIDER_CREDENTIAL_MISSING` 失败，K9 已证）。
+  冲突点：这与 §2「不得继续伪装 ready」的**意图**存在张力，但**改掉它等于修改产品语义**——
+  `provider-presets.ts` 明确写着「A missing API KEY IS NOT A BLOCKING ERROR」（缺 Key 也要能读工作区）。
+  ⇒ 🔴 **未修，等人工裁决**。候选：(a) 保持现状（badge 只表示「有受支持的组合」）；(b) 缺 Key 时把保存判为阻断；
+  (c) 缺 Key 时允许保存但 badge 改为「已配置（未提供 API Key）」之类的**新状态**（= 新产品机制，需 Decision）。
+
+🔴 **本节追加禁写项**：不得写「清除按钮本来就调用 store.remove」；不得把 `ADJACENT-04` 写成已修或不存在；
+不得把本轮 providerless 视觉冒烟写成「真实浏览器人工验收已通过」/「Chrome / FSA verified」；
+不得把 DeepSeek 候选配置写成「已验证 / 可用 / CORS 已支持」；不得把「明文 Key 未回填」写成「已加密存储」；
+不得改写 §23.1–§23.8 任何一字（`ADJACENT-03` 的修复只在本节记录）。
+
+```
+SAFE NEXT = PRE-SUBMISSION PSA-A
+            ｜ Real Chrome + Real Workspace FSA + DeepSeek Browser Direct
+            ｜ TE-DEMO-LIVE-01 Full Rehearsal
+            ｜ Billing Cap ≤ RMB 1
+🔴 未授权自动启动 —— 本次完成后停止（不得自动使用真实 API Key / 不得自动开始 PSA）
+```
+
