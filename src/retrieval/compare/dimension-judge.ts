@@ -76,6 +76,20 @@ const JUDGE_INSTRUCTION_TEXT = [
   '你只判定一个 Level A 维度上的两个取值是否构成严格语义重叠。',
   '只允许输出 verdict = matched 或 compared_not_matched。',
   'reason 用一句话给出离散的判定理由，不得包含任何数值、百分比、等级或权重。',
+  /*
+   * 🔴 CORRECTION-02: the prompt MUST say "json" out loud.
+   *
+   *    DeepSeek is registered with `structured_output: 'json_object'`, and `request.ts` turns that
+   *    into `response_format: { type: 'json_object' }` on every call. DeepSeek REJECTS such a
+   *    request with HTTP 400 unless the prompt itself contains the word "json":
+   *      「Prompt must contain the word 'json' in some form to use 'response_format' of type
+   *       'json_object'.」
+   *    The ② and ④ prompts already say so; this one did not - which is exactly why every ⑥
+   *    retrieval failed with 400 while ② and ④ succeeded, and why no comparison was ever produced.
+   *    Saying it is therefore not a trick: it is the provider's documented precondition for the
+   *    structured-output mode this product configures.
+   */
+  '以 JSON 对象输出，并且只输出这个 JSON 对象本身，不要输出任何其它文字或代码块标记。',
 ].join('\n');
 
 export interface DimensionJudgeInput {
