@@ -1,14 +1,22 @@
 /**
- * S01-06 ｜ The App Shell chrome: Top Bar, workspace entry, model settings and the notice strip.
+ * PRE-PSA-BLOCKER-01 ｜ The App Shell chrome: Top Bar, workspace entry, the Settings Center and the
+ * notice strip.
  *
  * 🔴 WHAT THE TOP BAR MAY SHOW (task §8): the product name, the workspace status and the model
  *    connection status, plus the settings entry point. It shows NO token count, NO prompt text, NO
  *    latency, NO internal request id and NO runtime stack - there is no field for one, and the
  *    notices it renders are the service's own fixed sentences.
+ * 🔴 THERE IS EXACTLY ONE SETTINGS ENTRY, AND IT IS CALLED 「设置」 (`PRE-PSA-BLOCKER-01` §4). The
+ *    panel it opens is a Settings Center whose first section is 「模型服务」; a top-bar button naming
+ *    one section of it would misdescribe the page and read as a second entry.
  * 🔴 MODEL SETTINGS NEVER ASK FOR A PATH (task §11 / §13). The connection label is DISPLAYED, never
- *    chosen; the custom base URL field appears only for a preset whose capability is browser-direct.
+ *    chosen; the custom base URL field appears only for a preset that OFFERS one.
  * 🔴 THE API KEY IS A PASSWORD FIELD, THE FORM SAYS 「仅当前会话使用」, and there is NO "remember me",
  *    NO "save to workspace" and NO auto-restore control anywhere (task §12).
+ * 🔴 EVERY CONTROL CARRIES AN EXPLICIT LOGICAL ID from `SETTINGS_CONTROL_IDS`. A control id is NEVER
+ *    derived from a label: doing so produced duplicate ids (all-Chinese labels stripped to the same
+ *    string) and made the whole-tree rebuild lose the user's focus on every keystroke. See
+ *    `src/ui/settings/control-identity.ts` for the defect and the rule.
  *
  * DOM scope only.
  */
@@ -28,17 +36,24 @@ import {
   SETTINGS_API_KEY,
   SETTINGS_API_KEY_NOTE,
   SETTINGS_BASE_URL_FORBIDDEN,
+  SETTINGS_CANCEL,
   SETTINGS_CLEAR_KEY,
+  SETTINGS_CLOSE,
+  SETTINGS_CONNECTION_ROW,
   SETTINGS_CUSTOM_BASE_URL,
   SETTINGS_CUSTOM_BASE_URL_NOTE,
+  SETTINGS_ERRORS_HEADING,
   SETTINGS_EXPLAIN,
   SETTINGS_MODEL,
   SETTINGS_OPEN,
   SETTINGS_PROVIDER,
   SETTINGS_SAVE,
+  SETTINGS_SECTION_MODEL,
   SETTINGS_STATUS_UNCONFIGURED,
   SETTINGS_TITLE,
   SETTINGS_UNSUPPORTED,
+  SETTINGS_UNSUPPORTED_HEADING,
+  SETTINGS_UNSUPPORTED_HINT,
   WORKSPACE_ENTRY_EXPLAIN,
   WORKSPACE_ENTRY_TITLE,
   WORKSPACE_PICK_BUTTON,
@@ -46,6 +61,7 @@ import {
   WORKSPACE_REGANT_BUTTON,
 } from '../copy.js';
 import { workspaceStatusLabel } from '../presenters/rail.js';
+import { SETTINGS_CONTROL_IDS } from '../settings/control-identity.js';
 import {
   PROVIDER_PRESETS,
   connectionLabelOf,
@@ -102,7 +118,10 @@ export function topBar(context: ViewContext): HTMLElement {
     el(
       'div',
       { class: 'top-bar-actions' },
-      button(SETTINGS_OPEN, () => session.openSettings(), { class: 'btn btn-ghost' }),
+      button(SETTINGS_OPEN, () => session.openSettings(), {
+        class: 'btn btn-ghost',
+        attrs: { 'data-action': 'open-settings' },
+      }),
     ),
   );
 }
@@ -163,10 +182,24 @@ export function heroCard(context: ViewContext): HTMLElement {
 }
 
 /* ------------------------------------------------------------------ *
- * Model settings (tasks §11 / §12 / §13 / §14)
+ * Settings Center (tasks §11 / §12 / §13 / §14 ｜ PRE-PSA-BLOCKER-01 §4-§8)
  * ------------------------------------------------------------------ */
 
-export function modelSettings(context: ViewContext): HTMLElement | null {
+/**
+ * The Settings Center - the ONE settings surface (task §5).
+ *
+ * 🔴 A GENERAL PANEL WITH SECTIONS, NOT A ONE-FIELD FORM. V1 ships exactly one section, 「模型服务」;
+ *    the header / section / footer shape is deliberately the simple container a second section would
+ *    slot into later. No account, theme, language, cloud-sync or telemetry section exists and none is
+ *    invented here.
+ * 🔴 IT CAN ALWAYS BE LEFT. The header carries a 「×」 and the footer a 「取消」, and BOTH call
+ *    `session.closeSettings()` - the same intent the Escape key uses. Closing exits the panel only:
+ *    the draft is kept as it stands, no credential is touched and no request is started (task §6).
+ * 🔴 SAVE FEEDBACK IS ALWAYS INSIDE THIS PANEL (task §7). The validation reasons and the
+ *    composition-failure reason are rendered as blocks in the form itself, because the panel is a
+ *    full-height overlay and anything outside it is invisible while the form is open.
+ */
+export function settingsCenter(context: ViewContext): HTMLElement | null {
   const { state, session } = context;
   if (!state.settings_open) {
     return null;
@@ -175,42 +208,103 @@ export function modelSettings(context: ViewContext): HTMLElement | null {
   const preset = findPreset(draft.provider_id);
   const blocking = validateSettingsDraft(draft);
   const warnings = settingsWarnings(draft);
+  const offers_base_url = preset === null || preset.allows_custom_base_url;
 
   return el(
     'section',
-    { class: 'card card-settings', attrs: { role: 'dialog', 'aria-label': SETTINGS_TITLE } },
-    el('h2', { class: 'section-title', text: SETTINGS_TITLE }),
+    {
+      class: 'card card-settings',
+      attrs: { role: 'dialog', 'aria-modal': 'true', 'aria-label': SETTINGS_TITLE },
+    },
+    /* ── header: the title and the visible way out ─────────────────── */
+    el(
+      'div',
+      { class: 'settings-head' },
+      el('h2', { class: 'section-title', text: SETTINGS_TITLE }),
+      button('×', () => session.closeSettings(), {
+        class: 'btn btn-ghost settings-close',
+        attrs: {
+          id: SETTINGS_CONTROL_IDS.close,
+          'aria-label': SETTINGS_CLOSE,
+          title: SETTINGS_CLOSE,
+          'data-action': 'close-settings',
+        },
+      }),
+    ),
     note(SETTINGS_EXPLAIN),
+
+    /* ── section: 模型服务 ─────────────────────────────────────────── */
+    el('h3', { class: 'sub-title', text: SETTINGS_SECTION_MODEL }),
     preset === null ? null : row(SETTINGS_PROVIDER, presetSelector(context)),
     preset === null
       ? null
       : el(
           'div',
           { class: 'kv' },
-          el('div', { class: 'kv-key', text: '连接方式' }),
+          el('div', { class: 'kv-key', text: SETTINGS_CONNECTION_ROW }),
           el('div', { class: 'kv-value', text: connectionLabelOf(preset.capability) }),
         ),
-    labelInput(SETTINGS_MODEL, 'text', draft.model, (value) =>
-      session.updateSettingsDraft({ model: value }),
-    ),
-    labelInput(SETTINGS_API_KEY, 'password', draft.api_key, (value) =>
-      session.updateSettingsDraft({ api_key: value }),
-    ),
+    /* 🔴 The preset's own note is where 「待 PSA 验证」 is said, so it is never merely decorative. */
+    preset === null ? null : note(preset.note),
+    labelInput({
+      id: SETTINGS_CONTROL_IDS.model,
+      label: SETTINGS_MODEL,
+      type: 'text',
+      value: draft.model,
+      onChange: (value) => session.updateSettingsDraft({ model: value }),
+    }),
+    labelInput({
+      id: SETTINGS_CONTROL_IDS.api_key,
+      label: SETTINGS_API_KEY,
+      type: 'password',
+      value: draft.api_key,
+      onChange: (value) => session.updateSettingsDraft({ api_key: value }),
+    }),
     note(SETTINGS_API_KEY_NOTE),
-    preset === null || preset.allows_custom_base_url
-      ? labelInput(SETTINGS_CUSTOM_BASE_URL, 'text', draft.custom_base_url, (value) =>
-          session.updateSettingsDraft({ custom_base_url: value }),
-        )
+    offers_base_url
+      ? labelInput({
+          id: SETTINGS_CONTROL_IDS.base_url,
+          label: SETTINGS_CUSTOM_BASE_URL,
+          type: 'text',
+          value: draft.custom_base_url,
+          onChange: (value) => session.updateSettingsDraft({ custom_base_url: value }),
+        })
       : note(SETTINGS_BASE_URL_FORBIDDEN),
-    preset === null || !preset.allows_custom_base_url ? null : note(SETTINGS_CUSTOM_BASE_URL_NOTE),
-    ...blocking.map((message) => noticeLine(message, 'gate')),
-    ...warnings.map((message) => noticeLine(message, 'runtime')),
+    /* 🔴 A note for a field that is NOT on screen would be a sentence about nothing. */
+    !offers_base_url || preset === null ? null : note(SETTINGS_CUSTOM_BASE_URL_NOTE),
+
+    /* ── save feedback: A (input) and C (composition) ──────────────── */
+    blocking.length === 0
+      ? null
+      : feedbackBlock(SETTINGS_ERRORS_HEADING, blocking, null, 'gate'),
+    state.settings_save_error === null
+      ? null
+      : feedbackBlock(
+          SETTINGS_UNSUPPORTED_HEADING,
+          [state.settings_save_error],
+          SETTINGS_UNSUPPORTED_HINT,
+          'runtime',
+        ),
+    warnings.length === 0 ? null : feedbackBlock(null, warnings, null, 'runtime'),
+
+    /* ── footer: save + the second way out ─────────────────────────── */
     el(
       'div',
-      { class: 'action-row' },
-      button(SETTINGS_SAVE, () => {
-        void session.saveSettings();
-      }, { class: 'btn btn-primary' }),
+      { class: 'action-row settings-actions' },
+      button(
+        SETTINGS_SAVE,
+        () => {
+          void session.saveSettings();
+        },
+        {
+          class: 'btn btn-primary',
+          attrs: { id: SETTINGS_CONTROL_IDS.save, 'data-action': 'save-settings' },
+        },
+      ),
+      button(SETTINGS_CANCEL, () => session.closeSettings(), {
+        class: 'btn btn-ghost',
+        attrs: { id: SETTINGS_CONTROL_IDS.cancel, 'data-action': 'cancel-settings' },
+      }),
       button(SETTINGS_CLEAR_KEY, () => session.clearCredential(), { class: 'btn btn-ghost' }),
     ),
   );
@@ -219,6 +313,7 @@ export function modelSettings(context: ViewContext): HTMLElement | null {
 function presetSelector(context: ViewContext): HTMLElement {
   const select = el('select', {
     class: 'input',
+    attrs: { id: SETTINGS_CONTROL_IDS.provider, 'aria-label': SETTINGS_PROVIDER },
     props: { value: context.state.settings_draft.provider_id },
     on: {
       change: (event) => {
@@ -241,37 +336,48 @@ function presetSelector(context: ViewContext): HTMLElement {
   return select;
 }
 
-/** One labelled input. `label` is associated with the control so a screen reader can name it. */
-export function labelInput(
-  label: string,
-  type: 'text' | 'password',
-  value: string,
-  onChange: (value: string) => void,
-  options: { readonly rows?: number } = {},
-): HTMLElement {
-  const id = `field-${label.replace(/[^A-Za-z0-9]/gu, '')}-${type}`;
+/**
+ * One labelled input.
+ *
+ * 🔴 `id` IS A REQUIRED, EXPLICIT PARAMETER AND IS NEVER DERIVED FROM `label`. This is the whole fix
+ *    for the lost-focus defect: the id is the control's identity for focus restoration, while the
+ *    label is text a human reads - and the two must be able to change independently. Deriving one
+ *    from the other is what produced duplicate ids and dropped the caret once per keystroke.
+ * 🔴 `label` is still associated through `for=`, so the control keeps its accessible name.
+ */
+export interface LabelInputSpec {
+  /** The control's logical identity. 🔴 Never computed from `label`, never re-used across controls. */
+  readonly id: string;
+  readonly label: string;
+  readonly type: 'text' | 'password';
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+  readonly rows?: number;
+}
+
+export function labelInput(spec: LabelInputSpec): HTMLElement {
   const control =
-    options.rows === undefined
+    spec.rows === undefined
       ? el('input', {
           class: 'input',
-          attrs: { id, type },
-          props: { value },
+          attrs: { id: spec.id, type: spec.type },
+          props: { value: spec.value },
           on: {
-            input: (event) => onChange((event.target as HTMLInputElement).value),
+            input: (event) => spec.onChange((event.target as HTMLInputElement).value),
           },
         })
       : el('textarea', {
           class: 'input input-area',
-          attrs: { id, rows: String(options.rows) },
-          props: { value },
+          attrs: { id: spec.id, rows: String(spec.rows) },
+          props: { value: spec.value },
           on: {
-            input: (event) => onChange((event.target as HTMLTextAreaElement).value),
+            input: (event) => spec.onChange((event.target as HTMLTextAreaElement).value),
           },
         });
   return el(
     'div',
     { class: 'form-row' },
-    el('label', { class: 'form-label', attrs: { for: id }, text: label }),
+    el('label', { class: 'form-label', attrs: { for: spec.id }, text: spec.label }),
     control,
   );
 }
@@ -280,12 +386,30 @@ export function labelInput(
  * Notices (tasks §44 / §45)
  * ------------------------------------------------------------------ */
 
-function noticeLine(message: string, tone: 'gate' | 'runtime'): HTMLElement {
-  return el('p', {
-    class: `notice notice-${tone}`,
-    attrs: { role: tone === 'gate' ? 'status' : 'alert' },
-    text: message,
-  });
+/**
+ * One inline feedback block - the only shape a save outcome is ever reported in inside the panel.
+ *
+ * 🔴 `gate` IS "PLEASE ADD SOMETHING" AND `runtime` IS "THE SYSTEM DID NOT FINISH"; the two never
+ *    share a heading, and neither is ever re-worded from a raw error (task §44 / §7).
+ * 🔴 EVERY MESSAGE IS AN EXISTING PRODUCT SENTENCE. Nothing here composes text from a thrown value,
+ *    a status code or a provider body.
+ */
+function feedbackBlock(
+  heading: string | null,
+  messages: readonly string[],
+  hint: string | null,
+  tone: 'gate' | 'runtime',
+): HTMLElement {
+  return el(
+    'div',
+    {
+      class: `notice notice-${tone}`,
+      attrs: { role: tone === 'gate' ? 'status' : 'alert' },
+    },
+    heading === null ? null : el('div', { class: 'notice-heading', text: heading }),
+    ...messages.map((message) => el('div', { class: 'notice-message', text: message })),
+    hint === null ? null : el('div', { class: 'notice-hint', text: hint }),
+  );
 }
 
 /**

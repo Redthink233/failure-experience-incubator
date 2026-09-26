@@ -1512,3 +1512,171 @@ SAFE NEXT = PRE-SUBMISSION PSA
 🔴 未授权自动启动 —— 本次完成后停止（不得自动开始 PSA）
 ```
 
+---
+
+## 23. PRE-PSA-BLOCKER-01 ｜ SETTINGS CENTER + MODEL CONFIGURATION USABILITY FIX（🚩 `PRE-PSA-BLOCKER-01`，2026-09-26｜🔴 追加，不改写历史）
+
+> 阶段 = `PRE-SUBMISSION`｜类型 = `Blocking Bug Fix / UI Integration Fix`｜执行方式 = 单机串行。
+> 🔴 **本节不改动 §22 及之前任何内容**。
+
+### 23.1 状态
+
+```
+PRE-PSA-BLOCKER-01 = DONE
+Git Baseline（开工 HEAD） = 701134183842ae2f1ab182263985ea658c610815
+   └ parent = d2196019f4371a875db62e14b450f954bd75d0f1（预期上一正式产品 commit）
+   └ 7011341 的**唯一**改动 = 删除 1 个 .docx 二进制（赛事手册(4).docx），**0 行产品源码**
+   └ 判定 = 其后无未解释的产品源码 drift ⇒ **未触发 STATE DRIFT**
+Settings Input Focus Bug   = CLOSED
+Settings Exit              = CLOSED
+Settings Consolidation     = CLOSED
+Save Feedback              = CLOSED
+DeepSeek PSA Candidate     = CONFIGURED / **NOT VERIFIED**
+DeepSeek Browser Direct    = PENDING REAL PSA
+DeepSeek CORS              = PENDING REAL PSA
+Real Provider Calls        = 0
+PSA                        = PENDING
+Vercel                     = NOT DEPLOYED
+Decision Added = 0   AC Added = 0   Frozen Contract Modified = NO   CCR = NO   BLOCKER = NO
+```
+
+### 23.2 根因（🔴 两个机制；**事实 / 推断分离**）
+
+```
+【M1｜已观测到的缺陷（真实浏览器已复现修复效果）】
+  app-root.ts 有**两条** render path；`if (!authorized)` 那条在 `root.replaceChildren(shell)` 之后
+  直接 `return`，**从未调用 restoreFocus**。而该分支同样渲染 Settings Center ⇒
+  首次运行（先开设置、尚未选工作区）时：每敲一个字符 → session state 变 → 整树重建 → 焦点无处可还。
+  这正是用户报告的「输入一个字符就掉焦点」。
+  修复：两条 render path **都必须**恢复捕获到的焦点（已固化为断言：split('root.replaceChildren(shell);')
+        后 2 段各自 160 字符内必须出现 restoreFocus( ）。
+
+【M2｜潜在机制（同一轮一并消除）】
+  控件 id 由**用户可见 label 推导**：`field-${label.replace(/[^A-Za-z0-9]/gu,'')}-${type}`。该方案是重复 id 的
+  制造器：纯中文 label（如「模型」「结果」）一律塌缩为 `field--text`；ASCII 骨架相同的两个 label 同样相撞。
+  ⚠️ **事实性澄清**：**实际发布**的 label 是 ASCII（Model / Custom Base URL / API Key），三者 id 分别为
+  `field-Model-text` / `field-CustomBaseURL-text` / `field-APIKey-password`，**当前并未相撞**。
+  因此 M2 是「方案本身的缺陷 + 任何未来非 ASCII label 的隐患」，**未**被确立为本次症状的原因；M1 是。
+  修复：id 改为显式产品常量（`SETTINGS_CONTROL_IDS`），label 与身份彻底解耦。
+```
+
+### 23.3 六项交付（逐项）
+
+```
+A｜设置入口归并（§4）     顶栏唯一入口 = 「设置」（`SETTINGS_OPEN`）。独立「模型设置」入口**已消失**；
+                          Workspace 状态 badge 与 模型状态 badge **保留**。
+B｜Settings Center（§5）   `modelSettings()` → `settingsCenter()`：标题 + × 关闭 + 「模型服务」section
+                          （Provider / 连接方式 / Model / API Key / Base URL）+ 预设说明 + footer。
+                          只留 section 容器形态，**未**新增 账户/主题/语言/云同步/遥测。
+C｜稳定控件身份（§3）       `SETTINGS_CONTROL_IDS` = settings-provider / -model / -api-key / -base-url /
+                          -save / -cancel / -close；`labelInput({ id, label, type, value, onChange })`
+                          **id 为必填**，不再由 label 推导。
+D｜退出（§6）              ×（右上）/ 取消（底部）/ Escape 三者都调用 `session.closeSettings()`；
+                          Escape 监听器在 mount 期绑定一次、卸载时移除，且**不**清 Key / **不**保存 /
+                          **不**触工作区。关闭**不**新增任何持久 draft（draft 语义不变）。
+E｜保存反馈（§7/§8）       三种结果严格区分且**全部渲染在面板内**：
+                          A 输入不合法 ⇒ `settings_errors` inline（面板保持打开，不调用 gateway）
+                          B 组合成功   ⇒ provider ready + 面板自动关闭 + 顶栏 badge
+                          C 组合不受支持 ⇒ `settings_save_error` inline（面板保持打开，新增**瞬时**状态）
+                          （C 的原因不再只出现在被 overlay 遮住的页面外部 notice）
+F｜DeepSeek 预设（§9/§10）  default_model `deepseek-chat` → **`deepseek-flash`**；capability → browser_direct
+                          （thin_proxy = false，json_object）；fixed_base_url =
+                          `https://api.deepseek.com/chat/completions`（BrowserDirectAdapter verbatim POST，
+                          故值必须已是终点 route）；allows_custom_base_url = false；
+                          note =「浏览器直连，实际可用性待 PSA 验证。」（**未**写已验证 / CORS 已支持）
+                          自定义（浏览器直连）预设**保留**，仍 Browser-Direct-Only。
+```
+
+### 23.4 真实浏览器冒烟**发现的一处真实文案缺陷**（🔴 v1 → v2 修正）
+
+```
+缺陷 : `SETTINGS_BASE_URL_FORBIDDEN` 原文「这个 Provider **只能通过受支持的代理连接访问**，不能填写
+       Custom Base URL。」——对 thin_proxy 预设成立，但对**浏览器直连**的 DeepSeek **为假**。
+       两个预设渲染同一句 ⇒ 必然有一边被写成假话。
+修复 : →「这个 Provider 的访问地址由产品提供，不能填写 Custom Base URL。」（对两类预设同时成立）
+性质 : 产品文案缺陷，本轮修复；断言已固化（D4 §10）。
+```
+
+### 23.5 变更文件
+
+```
+M src/ui/copy.ts                              SETTINGS_OPEN/TITLE = 「设置」；新增 SETTINGS_SECTION_MODEL /
+                                              _CLOSE / _CANCEL / _CONNECTION_ROW / _ERRORS_HEADING /
+                                              _UNSUPPORTED_HEADING / _UNSUPPORTED_HINT；SETTINGS_SAVE →
+                                              「保存配置」；SETTINGS_BASE_URL_FORBIDDEN 改为不写假的连接路径
+A src/ui/settings/control-identity.ts         SETTINGS_CONTROL_IDS + captureFocus / restoreFocus（框架中立，
+                                              含 M1/M2 根因与「事实性澄清」的完整登记）
+M src/ui/settings/provider-presets.ts         DeepSeek 预设收敛为 PSA 候选；allows_custom_base_url 语义说明更正
+M src/ui/components/shell.ts                  modelSettings→settingsCenter（header/section/footer + inline 反馈）；
+                                              labelInput 改 spec 对象且 id 必填；noticeLine→feedbackBlock
+M src/ui/app-root.ts                          焦点规则改为调用 control-identity；**补齐未授权分支的
+                                              restoreFocus**；新增 Escape → closeSettings（含卸载）
+M src/ui/session/app-session.ts               新增瞬时字段 settings_save_error；三种保存结果分别落位
+M src/ui/styles/app.css                       仅 Settings 头部/关闭钮/section/footer 布局（未重做整体 UI）
+M src/tests/ui/static-audit.test.ts           API Key password 断言适配新调用形态 + 新增「id 不得由 label 推导」
+A src/tests/ui/settings-usability.test.ts     F1–F8 / C1–C6 / S1–S6 / D1–D7 + §4/§5/§19-V1（44 例）
+```
+
+### 23.6 验证（🔴 全部实测）
+
+```
+typecheck ×5（tsconfig / core / browser / server / web）  = PASS
+build（tsconfig.build）                                  = PASS
+build:web（144 modules + 1 stylesheet）                  = PASS
+npm test                                                = 1015 passed / 0 failed（基线 970；本轮 +45）
+npm run test:proxy                                      = 15 passed / 0 failed
+Secret Scan（553 个非产物文件）                          = PASS
+  命中 27 项**全部**为显式假值 fixture（`sk-fixture-NOT-A-REAL-KEY-0000000000` /
+  `sk-fixture-OTHER-*` / `sk-fixture-A|B-*` / `sk-fixture-NOT-A-REAL-KEY-PSA`）与
+  `control-identity.ts` 的 `api_key: 'settings-api-key'`（DOM id，非凭据）⇒ **真实 credential = 0**
+Visual Smoke（本机真实 Chrome 154.0.8037.57，headless=new，DevTools Protocol）
+  · fixture = 仓库 demo-workspace/** 的 %TEMP% **副本**（21 文件）；**未写入**提交基线
+  · 🔴 **仅替换 `showDirectoryPicker` 一个函数**（原生选择器无法自动化，句柄为 Chromium 真实 OPFS
+    目录句柄）；其余 FSA 读写 / 应用逻辑 / 渲染 / 事件 / **真实键鼠输入**全部为生产代码
+  · V1  顶栏 button 集合 = `["设置"]`，hasModelSettingsEntry = **false** ⇒ PASS
+  · V2  设置面板打开 ⇒ PASS
+  · V3  `#settings-close` = 「×」(aria-label 关闭) + `#settings-cancel` = 「取消」；× 点击后面板关闭 ⇒ PASS
+  · A（**根因路径**：尚未选工作区时）逐字符输入 Model 14 字符，**逐字符** `activeElement.id === "settings-model"`，
+       值完整 ⇒ PASS（M1 修复的真实浏览器证据）
+  · V4/V5/V6 先清空再逐字符输入：Model 14 / Base URL 41 / API Key 29 字符，**逐字符**焦点与 caret 均在本字段，
+       末尾 `selectionStart === selectionEnd === value.length` ⇒ PASS
+  · DeepSeek 预设：model = `deepseek-flash`；Custom Base URL 字段**消失**；note 含「实际可用性待 PSA 验证」；
+       **不含**「已验证 / CORS 已支持」；**不含**「只能通过受支持的代理连接访问」⇒ PASS
+  · V7  点击「保存配置」⇒ 面板关闭，顶栏 badge = `DeepSeek｜deepseek-flash｜连接方式：浏览器直连` ⇒ PASS
+  · V8  重新打开 →「取消」关闭 → 再打开 → Escape 关闭，均正常 ⇒ PASS
+  · V9  Workspace 保持连接（`已连接本地工作区｜smoke-ws`，左栏 8 条不变）；provider badge 保持 DeepSeek ⇒ PASS
+  · V10 **LLM endpoint 请求 = 0**（全量 0；保存窗口内增量 0 条 app 请求；增量仅为杀毒套件自身轮询）
+        `console` 未捕获异常 = 0 ⇒ PASS
+        （唯一出站来自本机安全套件 `gc.kis.v2.scr.kaspersky-labs.com`，**单独归类**，不计为 Provider Calls）
+  · 证据：%TEMP%\psa-blocker01-smoke\out\（smoke-report.json + 7 张截图 + secret-scan.json）
+        🔴 探针 v1 的 4 个 FAIL **全部**是探针自身断言错误（值未先清空 / 徽章含工作区名 / 未记录增量 URL），
+        不是产品缺陷；v2 已逐项修正并如实登记。
+```
+
+### 23.7 边界登记（🔴 本轮未做）
+
+```
+❌ 未改：D9 产品机制 / Retrieval / EvidenceRef / Attempt schema / Workspace schema / source_type / 冻结合同
+❌ 未新增 Decision / AC / CCR；未改 `AC` 口径
+❌ **未**开始真实 Provider 调用（0 次）；**未**开始 PSA；**未**部署 Vercel
+❌ 未实现 §14 的 API Key「显示 / 隐藏」toggle（任务标注为非强制，且会引入新的会话状态，故不做）
+❌ 未实现 Generic Arbitrary URL Proxy；自定义 Base URL 仍为 Browser-Direct-Only
+❌ 未做整体 UI redesign（仅 Settings 必要的 header/section/footer 布局）
+❌ DeepSeek 的 CORS / 真实响应 / JSON 输出 —— 全部 **PENDING REAL PSA**（本任务只落地配置候选）
+❌ 真实浏览器**人工**验收（真实目录句柄 + 权限生命周期）—— 仍 PENDING PSA
+```
+
+🔴 **本节追加禁写项**：不得把 `deepseek-flash` / 固定 endpoint 写成「已验证 / 可用 / CORS 已支持 /
+Browser Direct 已通过」；不得把本轮 providerless 视觉冒烟写成「真实浏览器人工验收已通过」/「Chrome / FSA
+verified」；不得写「PSA 已通过」「Real Provider Verified」「Vercel 已部署」；不得把 `setting_save_error`
+说成新的持久状态；不得把 M2（label 派生 id）写成「当时确实产生了重复 id 并因此掉焦点」——那是**推断**，
+已观测到的机制是 M1。
+
+```
+SAFE NEXT = PRE-SUBMISSION PSA-A
+            ｜ Real Chrome + Real Workspace FSA + DeepSeek Browser Direct
+            ｜ TE-DEMO-LIVE-01 Full Rehearsal
+            ｜ Billing Cap ≤ RMB 1
+🔴 未授权自动启动 —— 本次完成后停止（不得自动使用真实 API Key / 不得自动开始 PSA）
+```
+

@@ -164,9 +164,19 @@ describe('S01-06 ｜ IMPLEMENTATION INVARIANT｜the session-only credential (U4,
 
   it('IMPLEMENTATION INVARIANT (U4/§12): the API key field is a password input and the key never enters a `ProviderConfig`', () => {
     const shell = readRepoFile('src/ui/components/shell.ts');
+    /*
+     * 🔴 `PRE-PSA-BLOCKER-01` §3: the call shape changed from positional arguments to one spec
+     *    object, because the control id became an EXPLICIT parameter. The invariant is unchanged -
+     *    the API key is still a password field - and it is now also asserted that it carries its own
+     *    stable id instead of one derived from its Chinese label.
+     */
     assert.ok(
-      /labelInput\(\s*SETTINGS_API_KEY,\s*'password'/u.test(shell),
-      'the API key input must be a password field',
+      /id:\s*SETTINGS_CONTROL_IDS\.api_key,\s*label:\s*SETTINGS_API_KEY,\s*type:\s*'password'/u.test(shell),
+      'the API key input must be a password field under the stable `settings-api-key` id',
+    );
+    assert.ok(
+      !/replace\(\/\[\^A-Za-z0-9\]/u.test(stripComments(shell)),
+      'a control id must never be derived from a label',
     );
 
     /* 🔴 The strongest form of the rule: build a config FROM a key and watch the key disappear. */

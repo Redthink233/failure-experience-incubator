@@ -1,10 +1,19 @@
 /**
- * S01-06 ｜ The root renderer: one state change, one re-render, and the focus that survives it.
+ * PRE-PSA-BLOCKER-01 ｜ The root renderer: one state change, one re-render, and the focus that
+ * survives it.
  *
  * 🔴 THE ENTIRE TREE IS REBUILT ON EVERY STATE CHANGE. That is affordable here (a few hundred nodes)
  *    and it removes the whole class of "the view and the model disagree" bugs. The ONE piece of state
  *    that must outlive a rebuild is the user's place in the form, so it is captured and restored
- *    explicitly below - a focused textarea keeps focus and its caret, a focused button keeps focus.
+ *    explicitly below - a focused text field keeps focus and its caret, a focused button keeps focus.
+ * 🔴 THE RULE ITSELF IS NOT HERE (task §3). `captureFocus` / `restoreFocus` are the framework-neutral
+ *    functions in `./settings/control-identity.js`; this file only supplies the two-method DOM adapter
+ *    (`document.activeElement` / `root.querySelector`). Keeping the rule out of the DOM scope is what
+ *    makes "the focused control is the one the snapshot names" testable without a browser - and that
+ *    property is the fix for the lost-focus defect, which was a duplicated control id.
+ * 🔴 ESCAPE CLOSES THE SETTINGS PANEL AND NOTHING ELSE (task §6). The listener is bound once for the
+ *    lifetime of the shell - not per render, and not on the panel - so it cannot accumulate; it acts
+ *    only while the panel is open, and it cannot clear a key, save a draft or touch the workspace.
  * 🔴 THE NOTICE STRIP IS FED FROM THE SESSION AND THE SNAPSHOT, and its recovery buttons run the
  *    EXISTING workflow commands (task §45). No retry loop, no timer, no background queue is built
  *    here - or anywhere else in this App Shell.
@@ -15,7 +24,7 @@
  */
 
 import { clear, el } from './dom.js';
-import { noticeStrip, modelSettings, modelRequiredNotice, topBar, workspaceEntry, heroCard } from './components/shell.js';
+import { noticeStrip, settingsCenter, modelRequiredNotice, topBar, workspaceEntry, heroCard } from './components/shell.js';
 import type { ViewContext } from './components/shell.js';
 import { leftRail } from './components/left-rail.js';
 import { evidenceRail } from './components/evidence-rail.js';
@@ -23,6 +32,8 @@ import { workbench } from './components/steps.js';
 import { noticeViewOf, noticeViewsOf, retryLabel, shellRuntimeNoticeView } from './presenters/notices.js';
 import type { NoticeView } from './presenters/notices.js';
 import { workspaceAllowsRead } from './presenters/rail.js';
+import { captureFocus, restoreFocus } from './settings/control-identity.js';
+import type { CaretControl, FocusScope } from './settings/control-identity.js';
 import type { AppSession, AppSessionState } from './session/app-session.js';
 
 export interface AppShellDeps {
@@ -31,43 +42,48 @@ export interface AppShellDeps {
   readonly pickWorkspace: () => void;
 }
 
-interface FocusSnapshot {
-  readonly id: string;
-  readonly start: number | null;
-  readonly end: number | null;
-}
-
-function captureFocus(root: HTMLElement): FocusSnapshot | null {
-  const active = document.activeElement;
-  if (!(active instanceof HTMLElement) || !root.contains(active) || active.id.length === 0) {
-    return null;
-  }
-  const textarea = active as HTMLTextAreaElement;
-  const selectable = typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number';
+/**
+ * Reduces ONE rendered node to what focus preservation needs.
+ *
+ * 🔴 A CONTROL WITH NO TEXT HAS NO CARET (`text_length: null`): a button or a `<select>` keeps focus
+ *    across a rebuild and is never given an invented selection range.
+ */
+function caretControlOf(node: HTMLElement): CaretControl {
+  const field = node as HTMLInputElement | HTMLTextAreaElement;
+  const selectable =
+    typeof field.value === 'string' &&
+    typeof field.selectionStart === 'number' &&
+    typeof field.selectionEnd === 'number';
   return {
-    id: active.id,
-    start: selectable ? textarea.selectionStart : null,
-    end: selectable ? textarea.selectionEnd : null,
+    id: node.id,
+    text_length: selectable ? field.value.length : null,
+    selection_start: selectable ? (field.selectionStart as number) : null,
+    selection_end: selectable ? (field.selectionEnd as number) : null,
+    focus() {
+      node.focus();
+    },
+    set_selection_range(start, end) {
+      field.setSelectionRange(start, end);
+    },
   };
 }
 
-function restoreFocus(root: HTMLElement, snapshot: FocusSnapshot | null): void {
-  if (snapshot === null) {
-    return;
-  }
-  const target = root.querySelector<HTMLElement>(`#${CSS.escape(snapshot.id)}`);
-  if (target === null) {
-    return;
-  }
-  target.focus();
-  if (snapshot.start === null || snapshot.end === null) {
-    return;
-  }
-  const field = target as HTMLTextAreaElement;
-  if (typeof field.setSelectionRange === 'function') {
-    const end = Math.min(snapshot.end, field.value.length);
-    field.setSelectionRange(Math.min(snapshot.start, end), end);
-  }
+/** The DOM adapter for the focus rule: "what is focused in this tree" and "who carries this id". */
+function focusScopeOf(root: HTMLElement): FocusScope {
+  return {
+    focused() {
+      const active = document.activeElement;
+      /* 🔴 A node outside the re-rendered tree - or an anonymous one - is not a restorable control. */
+      if (!(active instanceof HTMLElement) || !root.contains(active) || active.id.length === 0) {
+        return null;
+      }
+      return caretControlOf(active);
+    },
+    named(id) {
+      const node = root.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+      return node === null ? null : caretControlOf(node);
+    },
+  };
 }
 
 function noticesOf(state: AppSessionState): readonly NoticeView[] {
@@ -85,7 +101,7 @@ function noticesOf(state: AppSessionState): readonly NoticeView[] {
 export function mountAppShell(root: HTMLElement, deps: AppShellDeps): () => void {
   function render(): void {
     const state = deps.session.getState();
-    const focus = captureFocus(root);
+    const focus = captureFocus(focusScopeOf(root));
     const context: ViewContext = {
       state,
       session: deps.session,
@@ -107,6 +123,15 @@ export function mountAppShell(root: HTMLElement, deps: AppShellDeps): () => void
       shell.appendChild(layout);
       shell.appendChild(settingsOverlay(context));
       root.replaceChildren(shell);
+      /*
+       * 🔴 THE FOCUS IS RESTORED HERE TOO, AND THAT IS THE FIX FOR THE REPORTED DEFECT
+       *    (`PRE-PSA-BLOCKER-01` §2). This path renders the Settings Center as well, and it used to
+       *    `return` BEFORE restoring - so a user configuring a model with no workspace chosen yet
+       *    (the normal first run) lost the caret on every single keystroke: the keystroke changed the
+       *    session state, the tree was rebuilt, and nothing put the focus back. A render path that
+       *    can show a form MUST restore the focus it captured.
+       */
+      restoreFocus(focusScopeOf(root), focus);
       return;
     }
 
@@ -143,16 +168,33 @@ export function mountAppShell(root: HTMLElement, deps: AppShellDeps): () => void
     shell.appendChild(settingsOverlay(context));
 
     root.replaceChildren(shell);
-    restoreFocus(root, focus);
+    restoreFocus(focusScopeOf(root), focus);
   }
 
+  /**
+   * Escape leaves the Settings Center.
+   *
+   * 🔴 ONE listener for the whole shell lifetime, and it does nothing unless the panel is open.
+   */
+  function onKeyDown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape' || !deps.session.getState().settings_open) {
+      return;
+    }
+    event.preventDefault();
+    deps.session.closeSettings();
+  }
+
+  document.addEventListener('keydown', onKeyDown);
   const unsubscribe = deps.session.subscribe(() => render());
   render();
-  return unsubscribe;
+  return () => {
+    document.removeEventListener('keydown', onKeyDown);
+    unsubscribe();
+  };
 }
 
 function settingsOverlay(context: ViewContext): HTMLElement {
-  const panel = modelSettings(context);
+  const panel = settingsCenter(context);
   return el('div', { class: `settings-layer ${panel === null ? 'is-hidden' : ''}` }, panel);
 }
 

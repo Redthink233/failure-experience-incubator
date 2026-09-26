@@ -43,12 +43,22 @@ export interface ProviderPreset {
   readonly capability: ProviderCapability;
   /** The registered fixed base URL, or `null` when the user must supply one. */
   readonly fixed_base_url: string | null;
-  /** 🔴 Exactly `capability.browser_direct`: a custom URL is meaningless on the proxy path. */
+  /**
+   * Whether the panel OFFERS the custom Base URL field for this preset.
+   *
+   * 🔴 IT IS NOT SIMPLY `capability.browser_direct`. A preset may be browser-direct and still pin a
+   *    PRODUCT-REGISTERED endpoint - `DeepSeek` does exactly that (`PRE-PSA-BLOCKER-01` §10) - in
+   *    which case a custom URL is not offered even though the path is browser-direct. The two facts
+   *    are separate on purpose: `capability` decides the PATH, this flag decides the FORM.
+   * 🔴 IT MUST NEVER BE `true` ON A PROXY PRESET: a user-supplied URL on the proxy path is the
+   *    generic-URL-proxy that AC-147 forbids, and `validateSettingsDraft` refuses that draft.
+   */
   readonly allows_custom_base_url: boolean;
   /** Why this preset is shaped the way it is - shown next to the connection label. */
   readonly note: string;
 }
 
+/** `json_object` structured output over the browser-direct path. */
 const JSON_OBJECT: ProviderCapability = {
   structured_output: 'json_object',
   browser_direct: true,
@@ -64,10 +74,13 @@ const PROXY_ONLY: ProviderCapability = {
 /**
  * The presets.
  *
- * 🔴 `browser-direct-custom` is the ONLY preset that can be made to work fully inside a browser
- *    session: the user supplies both the endpoint and the key, and the request never leaves the
- *    browser. Everything else is marked `thin_proxy` because an in-browser call to a hosted vendor
- *    endpoint depends on CORS behaviour this task does NOT verify.
+ * 🔴 TWO PRESETS ARE BROWSER-DIRECT: `browser-direct-custom` (the user supplies both endpoint and
+ *    key) and `deepseek` (a product-registered endpoint). Everything else is marked `thin_proxy`
+ *    because an in-browser call to a hosted vendor endpoint depends on CORS behaviour this task does
+ *    NOT verify.
+ * 🔴 BEING BROWSER-DIRECT IS A CONFIGURATION SHAPE, NOT A REACHABILITY CLAIM. `deepseek`'s CORS
+ *    behaviour has NOT been tested, its `note` says so verbatim, and no code here asserts that the
+ *    endpoint answers (`PRE-PSA-BLOCKER-01` §9 / §11).
  */
 export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
   {
@@ -80,13 +93,22 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     note: '请求由浏览器直接发往你填写的地址，密钥只保留在当前会话里。',
   },
   {
+    /*
+     * 🔴 THE PSA CANDIDATE, AND NOTHING MORE THAN A CANDIDATE (PRE-PSA-BLOCKER-01 §9 / §10).
+     *    `deepseek-flash` and the endpoint below are the values the NEXT phase will exercise with a
+     *    real key in a real browser. This file states the configuration; it does NOT state that the
+     *    endpoint is reachable, CORS-enabled or verified - those all stay PENDING REAL PSA.
+     * 🔴 THE ENDPOINT IS THE FULL CHAT-COMPLETIONS URL ON PURPOSE: the browser-direct adapter POSTs
+     *    `config.base_url` VERBATIM and never appends a path, so the value must already name the
+     *    route the request goes to.
+     */
     provider_id: providerId('deepseek'),
     display_name: 'DeepSeek',
-    default_model: 'deepseek-chat',
-    capability: PROXY_ONLY,
-    fixed_base_url: null,
+    default_model: 'deepseek-flash',
+    capability: JSON_OBJECT,
+    fixed_base_url: 'https://api.deepseek.com/chat/completions',
     allows_custom_base_url: false,
-    note: '通过受支持的代理连接访问，目标地址不由页面决定。',
+    note: '浏览器直连，实际可用性待 PSA 验证。',
   },
   {
     provider_id: providerId('moonshot'),

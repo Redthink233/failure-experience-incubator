@@ -69,13 +69,22 @@ export const WORKSPACE_PICKER_UNSUPPORTED =
 export const WORKSPACE_PICKER_CANCELLED = '你取消了目录选择，当前仍没有工作区。';
 
 /* ------------------------------------------------------------------ *
- * 3. Model settings (task §11 / §12 / §13 / §14)
+ * 3. Settings Center (task §11 / §12 / §13 / §14 ｜ PRE-PSA-BLOCKER-01)
  * ------------------------------------------------------------------ */
 
-export const SETTINGS_OPEN = '模型设置';
-export const SETTINGS_TITLE = '模型设置';
+/**
+ * The ONE settings entry point, in the top bar.
+ *
+ * 🔴 IT IS 「设置」, NOT 「模型设置」. The panel is a general Settings Center whose first section is
+ *    「模型服务」; a top-bar button that names one section of it would misdescribe the page and leave
+ *    a second-looking entry behind (`PRE-PSA-BLOCKER-01` §4).
+ */
+export const SETTINGS_OPEN = '设置';
+/** The panel's own title - the same word as the entry that opens it, so the two read as one place. */
+export const SETTINGS_TITLE = '设置';
 export const SETTINGS_EXPLAIN =
   '配置这次会话可用的模型服务。连接方式由服务本身的能力决定，你不需要选择网络路径。';
+export const SETTINGS_SECTION_MODEL = '模型服务';
 export const SETTINGS_PROVIDER = 'Provider';
 export const SETTINGS_MODEL = 'Model';
 export const SETTINGS_API_KEY = 'API Key';
@@ -83,15 +92,48 @@ export const SETTINGS_API_KEY_NOTE = '仅当前会话使用。刷新页面后需
 export const SETTINGS_CUSTOM_BASE_URL = 'Custom Base URL';
 export const SETTINGS_CUSTOM_BASE_URL_NOTE =
   '仅在你主动填写时使用，且只会用于浏览器直连的模型服务。';
-export const SETTINGS_SAVE = '保存设置';
+export const SETTINGS_SAVE = '保存配置';
 export const SETTINGS_CLEAR_KEY = '清除本次会话的 API Key';
+/** The top-right 「×」. Rendered as an icon, so this string is its accessible name. */
+export const SETTINGS_CLOSE = '关闭';
+export const SETTINGS_CANCEL = '取消';
+export const SETTINGS_CONNECTION_ROW = '连接方式';
 export const SETTINGS_UNSUPPORTED = '当前配置无法建立受支持的模型连接。';
+
+/**
+ * The inline 「what is still missing」 block (task §7 A).
+ *
+ * 🔴 IT IS PART OF THE PANEL, NOT A NOTICE BEHIND IT. The panel is a full-height overlay, so a
+ *    statement rendered anywhere else is invisible while the user is looking at the form - which is
+ *    exactly the feedback gap the task fixes.
+ */
+export const SETTINGS_ERRORS_HEADING = '还不能保存';
+/**
+ * The inline 「the configuration could not be composed」 block (task §7 C).
+ *
+ * 🔴 A DIFFERENT STATEMENT FROM THE ONE ABOVE. "Please fill this in" and "this configuration has no
+ *    supported connection" are two different outcomes with two different remedies, so they never
+ *    share a heading.
+ */
+export const SETTINGS_UNSUPPORTED_HEADING = '模型连接未能建立';
+export const SETTINGS_UNSUPPORTED_HINT = '配置未保存；工作区与已有记录不受影响。';
+
 export const SETTINGS_CONNECTION_DIRECT = '连接方式：浏览器直连';
 export const SETTINGS_CONNECTION_PROXY = '连接方式：受支持的代理连接';
 export const SETTINGS_STATUS_UNCONFIGURED = '模型服务未配置';
 export const SETTINGS_BASE_URL_REQUIRED = '这个 Provider 需要填写 Custom Base URL。';
+/**
+ * Shown instead of the custom-URL field, for a preset whose address the page does not accept.
+ *
+ * 🔴 IT MUST BE TRUE FOR EVERY PRESET THAT USES IT (`PRE-PSA-BLOCKER-01` §10). Two very different
+ *    presets render it: a `thin_proxy` provider (whose target the server registry decides) and
+ *    `DeepSeek`, which is BROWSER-DIRECT with a product-registered fixed endpoint. The earlier
+ *    wording - 「只能通过受支持的代理连接访问」 - was accurate for the first and FALSE for the
+ *    second, and a false statement is worse than a vague one. The wording below is the common truth:
+ *    the address comes from the product, so the page does not offer a field for it.
+ */
 export const SETTINGS_BASE_URL_FORBIDDEN =
-  '这个 Provider 只能通过受支持的代理连接访问，不能填写 Custom Base URL。';
+  '这个 Provider 的访问地址由产品提供，不能填写 Custom Base URL。';
 export const SETTINGS_KEY_REQUIRED = '请填写 API Key（仅当前会话使用）。';
 export const SETTINGS_MODEL_REQUIRED = '请填写 Model。';
 

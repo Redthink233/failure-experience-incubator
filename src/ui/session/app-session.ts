@@ -122,7 +122,26 @@ export interface AppSessionState {
   readonly notices: readonly WorkflowNotice[];
   readonly settings_open: boolean;
   readonly settings_draft: SettingsDraft;
+  /**
+   * The INPUT-side reasons the draft cannot be saved - 「请填写 Model。」 and friends.
+   *
+   * 🔴 It is cleared the moment the user edits the draft, because it describes the draft as it was.
+   */
   readonly settings_errors: readonly string[];
+  /**
+   * The reason a save COMPOSED NOTHING - the frozen unsupported sentence, or "no workspace yet".
+   *
+   * 🔴 WHY THIS IS A SECOND FIELD AND NOT PART OF `settings_errors`: "please fill this in" and "this
+   *    configuration has no supported connection" are different outcomes with different remedies
+   *    (task §7 A vs §7 C), and the panel renders them as two different blocks.
+   * 🔴 WHY IT EXISTS AT ALL: the settings panel is a full-height overlay, so a statement rendered
+   *    outside it is invisible while the user is looking at the form. Without this field the save
+   *    appeared to do nothing at all (task §7 C "不允许错误只出现在被 overlay 遮住的页面外部
+   *    notice").
+   * 🔴 TRANSIENT UI STATE. It is never persisted, never sent to the workspace and never a product
+   *    field - exactly like `retrieval_expanded` / `ai_requires_model`.
+   */
+  readonly settings_save_error: string | null;
   readonly retrieval_expanded: boolean;
   readonly evidence: EvidenceState | null;
   readonly flash: string | null;
@@ -172,6 +191,7 @@ function initialState(draft: SettingsDraft = EMPTY_SETTINGS_DRAFT): AppSessionSt
     settings_open: false,
     settings_draft: draft,
     settings_errors: [],
+    settings_save_error: null,
     retrieval_expanded: false,
     evidence: null,
     flash: null,
@@ -429,10 +449,14 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
        * 🔴 AN UNSUPPORTED / FAILED MODEL CONFIGURATION IS CONFINED TO THE COMMAND PATH. The workspace
        *    stays authorized, the rail keeps its records and existing records stay openable - the two
        *    capabilities are separate on purpose (S01-06B §11 / §13).
+       * 🔴 THE PANEL STAYS OPEN AND SAYS SO WHERE THE USER IS LOOKING (task §7 C). The reason travels
+       *    in `settings_save_error`, which the panel renders as its own inline block; the top-bar
+       *    badge states the same thing for AFTER the panel is closed.
        */
       port = null;
       set({
         settings_errors: [],
+        settings_save_error: result.message,
         provider: {
           status: 'unsupported',
           provider_id: String(config.provider_id),
@@ -448,6 +472,7 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
     port = result.gateway.port;
     set({
       settings_errors: [],
+      settings_save_error: null,
       settings_open: false,
       ai_requires_model: false,
       provider: {
@@ -547,15 +572,22 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
 
     openSettings() {
       /* 🔴 Opening the panel IS the user following the guidance, so the prompt is cleared. */
-      set({ settings_open: true, settings_errors: [], ai_requires_model: false });
+      set({ settings_open: true, settings_errors: [], settings_save_error: null, ai_requires_model: false });
     },
 
     closeSettings() {
-      set({ settings_open: false, settings_errors: [] });
+      /*
+       * 🔴 CLOSING EXITS THE PANEL AND NOTHING ELSE (task §6). The DRAFT is kept as it stands - there
+       *    is no persistent settings draft to write and none is introduced - a configured provider is
+       *    left exactly as it was, and no credential is touched. It follows that closing cannot clear
+       *    an API key and cannot start a request.
+       */
+      set({ settings_open: false, settings_errors: [], settings_save_error: null });
     },
 
     updateSettingsDraft(patch) {
-      set({ settings_draft: { ...state.settings_draft, ...patch }, settings_errors: [] });
+      /* 🔴 A draft edit invalidates BOTH statements: they described the previous draft. */
+      set({ settings_draft: { ...state.settings_draft, ...patch }, settings_errors: [], settings_save_error: null });
     },
 
     chooseSettingsPreset(provider_id) {
@@ -563,10 +595,23 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (preset === null) {
         return;
       }
-      set({ settings_draft: draftForPreset(preset, state.settings_draft), settings_errors: [] });
+      set({
+        settings_draft: draftForPreset(preset, state.settings_draft),
+        settings_errors: [],
+        settings_save_error: null,
+      });
     },
 
     async saveSettings() {
+      /*
+       * 🔴 THE ONE USER-VISIBLE SAVE PATH, WITH EXACTLY THREE OUTCOMES (task §7 / §8):
+       *    A. the draft is invalid          ⇒ `settings_errors` is set, the panel stays OPEN;
+       *    B. the gateway composes          ⇒ the provider becomes `ready`, the panel CLOSES;
+       *    C. the composition is unsupported ⇒ `settings_save_error` is set, the panel stays OPEN.
+       *    There is no fourth outcome and no silent one: every click lands in A, B or C.
+       * 🔴 IT STILL MAKES NO PROVIDER CALL. Composing an adapter is not calling a model; the fake
+       *    gateway in the tests records zero invocations across a save.
+       */
       await composeGateway();
     },
 
