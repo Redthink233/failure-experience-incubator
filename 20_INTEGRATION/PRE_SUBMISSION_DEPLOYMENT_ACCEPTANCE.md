@@ -169,7 +169,7 @@ BILLING AUTH REQUIRED                : NO（本轮未创建任何 Vercel / 付�
 | `PSA-04` | ✅ `PASS` | 真实读取该工作区，并在 UI 对 `DEMO-01` 逐项核对：①原文正确／②结构化字段正确／`result_status = Failed`／无预置原因／已 `Formal`／baseline 无 Retrieval |
 | `PSA-05` | ✅ `PASS`（🔴 口径注记） | 产品写入的 2 条 Live 对象**磁盘实测存在**：`ATT_01M3E78D3H54V8NDMN3E44VEM0.{json,md}`（14:56:24）、`ATT_01M3E8KS1WZXDFSGKR7K82EDTR.{json,md}`（15:15:33）。🔴 口径偏差 = 以**目录枚举 ＋ mtime** 替代「文件资源管理器肉眼确认」；如需补足，为一步可选动作 |
 | `PSA-06` | 🟡 `IN PROGRESS` | 既有对象**被真实修改**的证据已具备：`ATT_…EDTR` 内部 `created_at = 15:06:59` → `updated_at = 15:15:33`，且内容含 3 条 `accepted / rejected / accepted` 裁决。🔴 **是否据此判 `PASS` 需人工裁量**；更干净的口径（对既有记录做 归档 → 取消归档，**0 真实调用、可逆**）尚未执行 |
-| `PSA-07` | ✅ `PASS`（记录 = **①**） | 真实刷新（`navigationType = "reload"`、`timeOrigin = 15:16:32`）之后：工作区**无需重新授权**仍可读（列表正常渲染 Live / Demo 卡片）、会话凭据仍在（`sessionStorage` 的 `…/session-credential/index` ＋ `…/provider:deepseek`）；`localStorage` **0 键**／`indexedDB.databases()` = **[]**／`document.cookie` 长度 **0** |
+| `PSA-07` | ✅ `PASS`（记录 = **② 需重新选择目录** · 🔴 已更正，初稿曾记 ①） | **受控观测（2026-09-26 16:20）**：一次干净的 `Page.reload`（`settled=load`、`readyState=complete`）之后，页面显示 `未选择工作区`，全页只剩「设置」「选择本地工作区」两个按钮 ⇒ **刷新会丢失 Workspace 连接，必须由用户原生手势重新选择目录**。机制已核对：应用**没有**持久化目录 handle 的地方（`localStorage` 0 键 ／ `indexedDB.databases()` = `[]` ／ cookie 长度 0）⇒ 重载后无法自行恢复。🔴 **更正说明**：初稿记「① 可直接继续使用」的依据是 15:16:32 刷新后 15:24 的连通快照 —— 但那次之间**用户很可能已手工重选目录**（上一轮日志即写明「重载后需用户重新原生选择工作区」，且 15:03 的现场记录为「重载 + **重配** + 点开记录」）⇒ 该快照为**受混杂证据**，不足以支撑 ①。✅ **会话凭据**不受刷新影响（`sessionStorage` 的 `…/session-credential/index` ＋ `…/provider:deepseek` 仍在，D-056 成立）。 |
 | `PSA-X2` | 🟡 `IN PROGRESS` | Chrome 版本已记录（154.0.8037.57）；`PSA-02`（Vercel）／`PSA-08`／`PSA-09`／`PSA-10` **尚未执行** |
 | `PSA-X4` | ✅ `PASS` | picker 由**真实用户手势**唤起成功（与 `PSA-03` 同源）；取消 / 重试路径未单独记录 |
 | `PSA-X5` | 🟡 `IN PROGRESS` | `read` ✅（`PSA-04`）／`write` ✅（`PSA-05`）／`refresh` ✅（`PSA-07`）／`reopen` ❌ 未执行（`PSA-08`） |
@@ -187,7 +187,8 @@ BILLING AUTH REQUIRED                : NO（本轮未创建任何 Vercel / 付�
 
 ### 7.3 本轮登记的两个产品级缺陷（🔴 未修，另行登记；**不属产品 `AC`**）
 
-1. 🔴 **⑥ 空态缺失「发起检索」的一致性入口**（🔴 **本节初稿曾写作「检索产物不落盘 / 根因 = 实现缺口」——该根因已被推翻，此处更正**）：
+1. 🔴 **⑥ 空态缺失「发起检索」的一致性入口**（🔴 **本节初稿曾写作「检索产物不落盘 / 根因 = 实现缺口」——该根因已被推翻，此处更正**）
+   - 🔴 **状态（2026-09-26 16:20）：已实施**，见 `CORRECTION-04`（commit `24184e0`，已推送 `origin/main`）。改动 = 纯渲染层 + 一个 presenter 标志：`presenters/retrieval.ts` 新增 `start_offered`（**只问 `M15` 的 `available_actions`，不自行推断门槛**）＋ `steps.ts` 空态渲染「开始检索」按钮（走既有 `session.rerunRetrieval()`）。**不改 `stale` 语义、不改 `D-051`、不新增字段、不新增 `AC`**。闸门：`tsc` ×5 exit=0；`npm test` **1056/1056 PASS**（+2 = 本次新增用例）。🔴 **浏览器内验证待办**：需用户先原生重选工作区（刷新会掉线，见 `PSA-07`）。：
    - ✅ **更正后的代码事实**：检索产物**是会落盘的** —— `retrievals/<ATT_id>.json`（`object_type = 'RetrievalDerivation'`），由 `retrieval-service.ts:251` → `retrieval-derivation-repository.ts:147` 写入**与 `attempts` 同一个 FSA `WorkspaceStorage`**（`workflow-composition.ts:124,133`）；读回路径 = `workspace-read.ts:125`，并有重开后可读回的测试覆盖（`corpus-admission.test.ts:172`）。工作区里没有该文件，是因为**那一次 `⑥` 从未跑完**（24 笔 `200`、第 25 笔被刷新打断 ⇒ `replaceCurrent` 从未执行；运行期失败**什么都不写**，以保住上一份成功产物）。
    - 🔴 **仍然成立的真实缺口**：一条 `Formal` 记录若**从未成功完成 `⑥`**，则**刷新 / 重新选择记录之后在本会话内没有任何入口**能再触发 `⑥`（`steps.ts:658-670` 只在 `view.stale` 时渲染「重新检索」，而 `stale` 需要**已存比较**）。
    - **影响**：演示/评审现场一旦刷新，未检索的 `Formal` 记录即无法继续推进 `⑦–⑩`。
