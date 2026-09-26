@@ -1002,4 +1002,38 @@ SAFE NEXT = PRE-SUBMISSION PSA｜Real Browser + Real Provider｜TE-DEMO-LIVE-01 
 
 - 🔴 **禁写（不变 + 新增）**：上述全部禁写项继续有效；🔴 新增：不得把本轮 smoke 写成「真实浏览器人工验收已通过」「PSA PASS」；不得写「`Formal` 历史视图已通过真实浏览器验收」；不得写「`DEMO-08` 文案已修正」（**未改**）。
 
+## E. 工程硬约束细则（第七次压缩：2026-09-26 由 `MEMORY.md` §4 原样下沉）
+
+> 本节与 §B 同源互补；§B 偏工具可用性，本节偏实现/验证口径。
+
+- 🔴 **`Bash` 含中文路径必崩** ⇒ 命令走 **PowerShell**；文件列举用 `Glob`/`Grep`；行号只信 `Read`/`Grep`。
+- 🔴 命令 **stdout 不回显**（`git` 同，其 stderr 被裹成 `NativeCommandError`）⇒ `& <cmd> 2>&1 | Out-File -LiteralPath $log -Encoding utf8` 落盘后 `Read`；stderr 的 `fatal:` 常是判定依据。**多段写同一 log，每行都要 `-Append`**，漏一处静默从头覆盖。
+- 🔴 沙箱**禁止写工作区**（`dist/**` 报 `EPERM`）⇒ `build`/`build:web`/`test`/`test:proxy`/`demo:*` 先试、`EPERM` 再提权；`typecheck`、`Write`/`Edit`、`git add|commit|push` 未受限。
+- 🔴 PowerShell 里 `tsc` 裸命令**静默不生效** ⇒ `node node_modules/typescript/bin/tsc`。
+- 🔴 `typecheck`/`test` **不含** `src/ui/components/**`（DOM scope）⇒ 回归必须跑满 5 个 typecheck。
+- 🔴 `tsconfig.test.json` **无 DOM lib** 且不含 `src/ui/**` ⇒ **测试不能 import DOM-scope 文件**（`components/**`、`dom.ts`、`app-root.ts`）；要可测的逻辑**必须**放**框架中立**模块（如 `src/ui/settings/control-identity.ts`）。
+- 🔴 `src/tests/domain/ac-reference-guard.test.ts` 硬门：**每个测试文件 + 每条 `it(...)` 标题**都必须含 `IMPLEMENTATION INVARIANT`（或 `AC-n` / `AC-Q06-n`）。
+- 🔴 真实 DOM 交互验证（点击 / Escape / 逐字符输入）走 **CDP `Input.dispatchMouseEvent` + `Input.dispatchKeyEvent`**（真实输入管线，含 focus/caret）；清空字段用 `Ctrl+A`（`modifiers:2`）+ `Backspace`。断言「输入等于 X」前**必须先清空**，否则拿到旧值拼接的假 FAIL。喂 ES module 的静态服务器**必须**给 `.js` `Content-Type: text/javascript`。
+- 🔴 CDP 截图 `clip` 是**页坐标**（需滚动元素会截出空白条）⇒ `scrollIntoView` + 截整视口；`selectAttempt` **异步** ⇒ 等**工作台内容**变化。
+- 🔴 冒烟**顺序**：`bootstrap.createGateway` 在**无工作区**时返回 `unsupported` ⇒ 点「保存配置」**必须排在「选择本地工作区」之后**；把它当 FAIL 是探针缺陷。探针里写 `out.shot_x.png = …` 抛 `Cannot set properties of undefined (setting 'png')` 同理属**笔误**。
+- 🚩 跨 `Page.reload` 统计出站请求**要用 CDP `Network.requestWillBeSent`**（Node 侧累加 + `Page.frameNavigated` 分文档）；页面内计数器会被 `addScriptToEvaluateOnNewDocument` 重新注入而清零。会话级存储模型：**刷新 = 新 `Storage` 对象 + 同一份 backing**；**新 session = 新 backing**。
+- 🔴 `sessionStorage` 的 `…/credential/index` 记账键**永远在**（`remove()` 后变 `"[]"` 而不删）⇒ 判「凭据已清除」要看「**无 `…/provider` slot** + index == `"[]"`」，**不能**看「credential 键数为 0」。
+- 🔴 假值 Key **不要构造前缀关系**（`sk-fixture-…-PSA` ⊂ `sk-fixture-…-PSA-2`）⇒ `includes()` 断言会把两者混为一谈，**必须整值比较**。清除按钮无 `id`，冒烟按**可见文案**定位后发真实鼠标事件。
+- 🔴 其它零散：`fs.cpSync` 源路径含中文让 Node 崩 ⇒ 逐文件复制；命令里的 `%` 判为 cmd 变量 ⇒ 用 `git rev-parse HEAD`；`Remove-Item` 用 `-LiteralPath`；`Write` >600 行静默截断 ⇒ 分块写；追加章节后 `git diff --check` 会报 `new blank line at EOF` ⇒ 尾行不留空。
+- 🔴 本地 `refs/remotes/origin/main` **无法落盘** ⇒ `git branch -vv` 的 `[origin/main: gone]` **不代表**远端异常；同步只看 `git rev-parse HEAD` + `git ls-remote origin refs/heads/main`。
+- 🔴 本机无模型 API 凭据；Secret Scan 命中全为凭据禁用口径文档文本 + 假值 fixture（`sk-fixture-*`）。Spike 产物不入 `src/`。
+
+## F. 禁写清单全文（第七次压缩：2026-09-26 由 `MEMORY.md` §6 原样下沉）
+
+- 🔴 通用：`Vercel 已验证/已部署/Production Ready`｜`Local-first 已可行/已完成浏览器验收`｜`Chrome/Edge/FSA verified`｜`real provider verified`｜把 `PSA-*` 当 `AC`｜把 `SP-06` 历史改 `PASS`｜未授权新增 `Decision`/`AC`/`CCR`｜把未确认项写成 `CONFIRMED`｜改写历史文本。
+- 🔴 各阶段追加项 → §C-M9 §M9-5、§C-M15 §M15-6、§C-S0106 §S0106-7、§C-S0106B §S0106B-6、§C-M16 §M16-6、§C-PREPSA §PREPSA-7。
+- 🔴 `GIT-RECOVERY-01`：不得写「原 Git history 已恢复」／旧 hash 属当前 repo。
+- 🔴 `REMOTE-BACKUP-01`：不得写「Open Source Submission Complete」／改写 HANDOFF §20。
+- 🔴 `RECOVERY-POLISH-01`：不得把静态检查写成 REAL 0-HIT VERIFIED；不得把 providerless 冒烟写成「真实浏览器人工验收已通过」；不得写 `-03` 已恢复。
+- 🔴 `PRE-PSA-BLOCKER-01`：不得把 DeepSeek 候选配置写成「已验证/可用/CORS 已支持/Browser Direct 已通过」；不得把 `settings_save_error` 说成持久状态；🔴 **不得把 M2 写成「当时确实产生重复 id 并因此掉焦点」**（那是推断；已观测机制只有 M1）→ HANDOFF §23.7。
+- 🔴 `PRE-PSA-BLOCKER-01 / CORRECTION-01`：不得写成「实现与 `D-056` 冲突」（实测为 A）；不得写「刷新后需要重新填写仍成立」；不得把 `ADJACENT-01/02/03` 写成已修 → HANDOFF §23.8。
+- 🔴 `PRE-PSA-BLOCKER-01 / CORRECTION-02`：不得写「清除按钮本来就调 `store.remove()`」；不得把 `ADJACENT-04` 写成已修或不存在；不得把「明文未回填」写成「已加密存储」→ HANDOFF §23.9。
+- 🔴 `PRE-PSA-BLOCKER-01 / CORRECTION-03`：不得写成「新增了 Credential 校验机制」（只是把**已决** `PSA-D2` 落到保存门槛）；不得写「缺 Key 现在也阻止 Workspace 浏览」；不得把 `ADJACENT-04` 写成 OPEN；不得把 `PSA-D2` 写成 AI 自行决定；🔴 不得写「`PRE-PSA-BLOCKER-01` 之后仍可继续追加普通产品修复」（该任务已 **CLOSED**）→ HANDOFF §23.10。
+- 🔴 `PRE-SUBMISSION PSA-A`（2026-09-26）：不得把本地 Chrome PASS 写成 Vercel/Edge PASS；不得把 `X7` 外部 curl/Node 成功替代浏览器成功；不得把静态检查写成 REAL 0-HIT VERIFIED；不得为让 PSA PASS 临场改产品代码。
+
 
