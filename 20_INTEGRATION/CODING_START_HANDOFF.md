@@ -1282,3 +1282,82 @@ SAFE NEXT = 解除阻断（用户浏览器建空 PUBLIC 仓库 → 交回 URL）
 🔴 未授权自动启动 —— 本次完成后停止
 ```
 
+---
+
+## 21. REMOTE-BACKUP-01 ｜ ESTABLISHMENT AFTER BLOCKER RESOLUTION（🚩 `REMOTE-BACKUP-01` 续跑，2026-09-26｜🔴 追加，不改写历史）
+
+> 本节是 **§20 的续跑登记**。§20 的 `BLOCKED` 记录**原样保留、未修改、未删除**（它是事实历史）。
+
+### 21.1 状态表
+
+```
+task                   : REMOTE-BACKUP-01（BLOCKER 解除后续跑）
+phase                  : PRE-SUBMISSION
+type                   : Repository Remote / Backup Task
+Primary Remote         : GitHub
+Repository             : Redthink233/failure-experience-incubator
+Visibility             : PUBLIC（用户本人于 GitHub 网页手工创建，非 AI 创建）
+Origin                 : https://github.com/Redthink233/failure-experience-incubator.git
+Remote Initially Empty : YES（push 前 `git ls-remote` = exit 0 / 0 refs）
+Force Push             : NO（普通 new-branch push；未用 --force / --force-with-lease）
+Recovery Root          : 207902b326a43ad6cde7c20b8b722ffa957ad07c（仍为 root，无 parent）
+Pre-loss hashes        : AUDIT REFERENCES ONLY（仍未进入当前 DAG）
+Local / Remote         : MATCH
+LICENSE                : PENDING HUMAN DECISION
+README Final           : PENDING SUBMISSION PACKAGE
+PSA                    : PENDING
+Real Provider          : NOT EXECUTED
+Vercel                 : NOT DEPLOYED
+REMOTE-BACKUP-01       : DONE
+```
+
+### 21.2 实测取证
+
+```
+push 前远端空态        : git ls-remote <url> → exit 0 / 0 refs（§2 硬门 PASS，未假设为空）
+push                   : git push -u origin main → exit 0
+GitHub 浏览器授权      : PASS（本机 Git Credential Manager 授权流程由用户本人完成；AI 未接触任何 token）
+local HEAD             : 637cf4bd51126c3c09f05b0fdf4cbeacc312d952
+remote refs/heads/main : 637cf4bd51126c3c09f05b0fdf4cbeacc312d952
+远程存在性确认         : git ls-remote（匿名读，credential helper 关闭）→ refs/heads/main + HEAD 均指向 637cf4b
+远端 main tree         : 561 files（= 本地 tracked 561，逐项一致）
+20_INTEGRATION/GIT_RECOVERY_MANIFEST.md → 已在远端 main（PASS）
+20_INTEGRATION/CODING_START_HANDOFF.md  → 已在远端 main（PASS）
+远端禁止路径           : node_modules/｜dist/｜dist-web/｜dist-test/｜dist-proxy-test/｜.env｜
+                         .chrome-profile｜smoke-evidence → 全部 0 命中
+git rev-list --count main = 3 ｜ git log --reverse --oneline = 207902b → 12d0793 → 637cf4b
+git rev-list --parents --max-parents=0 main = 207902b（root 保持不变）
+旧 pre-loss hash       : 3696d7d｜aa8e89f｜9e710d3｜a1ff737｜d885ab4 仍全部 `fatal: Not a valid object name`
+```
+
+### 21.3 🔴 环境限制登记（如实登记，非 repo 缺陷）
+
+```
+现象 : 本地 remote-tracking ref `refs/remotes/origin/main` 无法落盘 ⇒ `git branch -vv` 显示 `[origin/main: gone]`
+实测 : ① git push -u / git fetch 均 exit 0（fetch 打印 "* [new branch] main -> origin/main"）
+       ② git update-ref refs/remotes/origin/main <hash> → exit 0，但 Test-Path 仍 False
+       ③ 直写 .git/refs/remotes/origin/main → 报 ok，Test-Path 仍 False
+       ⇒ 该路径上的写入被执行环境**静默丢弃**（`.git/refs/heads/**` 与 `.git/` 顶层文件正常）
+影响 : 仅影响本地显示与 ahead/behind 便利信息。tracking 配置本身正确：
+       branch.main.remote = origin｜branch.main.merge = refs/heads/main ⇒ push / pull 目标正确。
+       **不影响**远端状态，也**不影响**「local HEAD = remote refs/heads/main」的判定（由 `git ls-remote` 权威确认）。
+判定 : 按任务 §6，🔴 **不因此把本任务判为 BLOCKED**。
+```
+
+### 21.4 边界登记（🔴 本轮未做）
+
+```
+❌ LICENSE 选择（MIT / Apache-2.0 / GPL 均未添加）  ❌ submission README 定稿
+❌ GitHub Actions / CI / branch protection / Release / Tag / Issue / PR / GitHub Pages
+❌ PSA（仍 PENDING）  ❌ Real Provider 调用（0）  ❌ Vercel 部署  ❌ RECOVERY-POLISH-01（已登记，未修）
+```
+
+🔴 **本节追加禁写项（持续）**：不得写「Open Source Submission Complete」（LICENSE 尚未人工选择）；
+不得写「Production Ready」「Vercel Deployed」「PSA Passed」「Real Provider Verified」；
+不得因 §21.3 的本地 ref 限制而声称远端异常或任务未完成。
+
+```
+SAFE NEXT = RECOVERY-POLISH-01
+🔴 未授权自动启动 —— 本次完成后停止
+```
+
