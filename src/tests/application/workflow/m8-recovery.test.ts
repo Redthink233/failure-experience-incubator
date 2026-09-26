@@ -411,8 +411,17 @@ describe('M15 ｜ IMPLEMENTATION INVARIANT｜M8-HARDENING-01 · regeneration and
     /* The anchor and the single batch record name the same batch. */
     const anchor = anchorDocumentOf(harness);
     assert.equal(anchor.status, 'complete');
+    /*
+     * 🔴 BY CONTENT, NOT BY FILE NAME (`PSA-A-CORRECTION-M8-PATH-01` / AC-137): the physical batch name
+     *    is the path-safe ENCODING of the logical id, so the identity is read from inside the document
+     *    - which is also what makes a renamed batch still resolve.
+     */
+    const stored_batch_ids = harness
+      .batchFiles()
+      .map((path) => JSON.parse(harness.peek(path) ?? '{}') as { readonly batch_id?: string })
+      .map((document) => document.batch_id);
     assert.equal(
-      harness.peek(`insights/batches/${anchor.batch_id}.json`) !== undefined,
+      stored_batch_ids.includes(anchor.batch_id),
       true,
       'the anchor names a batch record that really exists',
     );

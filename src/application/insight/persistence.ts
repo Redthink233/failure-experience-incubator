@@ -18,7 +18,7 @@
  *     <insight_id>.json                 <- the machine source of truth (incl. evidence_refs[])
  *     <insight_id>.md                   <- human-readable body + stable front-matter
  *     batches/
- *       <batch_id>.json                 <- the record of ONE explicit step ⑧ generation
+ *       <encoded batch_id>.json          <- the record of ONE explicit step ⑧ generation
  *   events/
  *     insight-state-events.jsonl        <- product-layer behaviour trace (§11.3)
  * ```
@@ -30,6 +30,19 @@
  *    project the user never created. This mirrors `M6`'s `retrievals/`.
  * 🔴 IDENTITY TRAVELS INSIDE THE CONTENT (`insight_id` in both files), so renaming or moving a file
  *    never breaks ID-based resolution (§3.2 / AC-137).
+ * 🔴 `PSA-A-CORRECTION-M8-PATH-01` - THE PHYSICAL BATCH NAME IS ENCODED; THE LOGICAL ID IS NOT.
+ *    A batch id is minted as `ATT_…:insight-batch:<ULID body>`, and `:` is a legal LOGICAL character
+ *    but an ILLEGAL Windows file-name character (`/ \ : * ? " < > |`). Embedding the id verbatim made
+ *    the step ⑧ batch write impossible on Windows: the interrupted PSA-A run left `insights/batches/`
+ *    EMPTY while the operation anchor stayed `in_progress`, so step ⑧ could never become `done`. The
+ *    file name is now the module's existing REVERSIBLE `~HH` codec (`encodePathSafeToken`) applied to
+ *    the id - one codec, no second sanitising rule set, and `decode(encode(x)) = x`.
+ *    🔴 WHAT DID NOT CHANGE: the `batch_id` VALUE anywhere (domain object, this document's own
+ *    `batch_id` field, the operation anchor, `planned_batch`, references), the directory layout, the
+ *    document schema, and the anchor path - `insightOperationAnchorPath` receives an ALREADY encoded
+ *    `operation_key`, so encoding it again would move every existing anchor and break a pending
+ *    recovery. Nothing is ever inferred FROM a file name: discovery reads the `batch_id` inside the
+ *    document, so a renamed or moved batch still resolves (§3.2 rule 3 / AC-137).
  * 🔴 NO DATABASE, NO VERSION FIELD, NO ARCHIVE SNAPSHOT AND NO CREDENTIAL may be written. The
  *    documents are passed through the shared forbidden-key guard before they are written and after
  *    they are read.
@@ -59,6 +72,11 @@ import { parseContentItem } from '../../workspace/schema/attempt-record.js';
 import { findForbiddenPersistedKeys } from '../../workspace/schema/forbidden-keys.js';
 import { WorkspaceSchemaError } from '../../workspace/schema/schema-error.js';
 import { WORKSPACE_SCHEMA_VERSION } from '../../workspace/schema/workspace-metadata.js';
+/*
+ * 🔴 The ONE reversible path codec of this module. Imported, never re-implemented: a second,
+ *    differently-behaving encoder would either be lossy or collide two logical ids onto one file.
+ */
+import { encodePathSafeToken } from './identity.js';
 import type { InsightGenerationBatch, InsightMeta, InsightOperationAnchor, InsightOperationAnchorStatus, InsightRecord } from './types.js';
 import { INSIGHT_EXIT_ROUTES } from './types.js';
 
@@ -91,12 +109,40 @@ export function insightMarkdownPath(insight_id: string): string {
   return `${INSIGHTS_DIRECTORY}/${insight_id}${MARKDOWN_EXTENSION}`;
 }
 
-/** Conventional path of a generation batch record. */
+/**
+ * Conventional path of a generation batch record.
+ *
+ * 🔴 THE PHYSICAL NAME IS ENCODED, THE LOGICAL ID IS NOT (`PSA-A-CORRECTION-M8-PATH-01`).
+ *
+ * `newInsightBatchId` mints `ATT_…:insight-batch:<ULID body>`. The `:` is part of the LOGICAL id and
+ * must stay part of it - it is what makes "this batch belongs to that record" structurally checkable.
+ * A `:` is, however, an ILLEGAL Windows file-name character, so the id is passed through the module's
+ * existing REVERSIBLE `~HH` codec to become a legal name:
+ *
+ * ```
+ * ATT_…0A:insight-batch:…0B   ->   ATT_…0A~3Ainsight-batch~3A…0B.json
+ *        (logical batch_id)              (physical file name)
+ * ```
+ *
+ * 🔴 THIS IS A NAME-ONLY MAPPING. The `batch_id` written INSIDE the document is still the original
+ *    logical value, and `discoverBatches` resolves by that value - the file name is never identity
+ *    (§3.2 rule 3 / AC-137), so a renamed batch still resolves.
+ * 🔴 The codec is INJECTIVE, so two different logical ids can never share one physical file.
+ * 🔴 WHY NOT A UUID OR A HASHED NAME: either would change the logical id's shape or make the mapping
+ *    lossy, and the id would stop being the thing the user's data is keyed by (§3.2 rule 1).
+ */
 export function insightBatchPath(batch_id: string): string {
-  return `${INSIGHT_BATCHES_DIRECTORY}/${batch_id}${JSON_EXTENSION}`;
+  return `${INSIGHT_BATCHES_DIRECTORY}/${encodePathSafeToken(batch_id)}${JSON_EXTENSION}`;
 }
 
-/** Conventional path of the durable operation anchor (`M8-HARDENING-01`). */
+/**
+ * Conventional path of the durable operation anchor (`M8-HARDENING-01`).
+ *
+ * 🔴 `operation_key` arrives ALREADY encoded - `insightOperationKey` applies the codec when it builds
+ *    `<source_attempt_id>__<encoded operation_id>`. It is therefore NOT encoded again here: doing so
+ *    would move every already-persisted anchor to a new path and orphan a pending recovery
+ *    (`PSA-A-CORRECTION-M8-PATH-01`).
+ */
 export function insightOperationAnchorPath(operation_key: string): string {
   return `${INSIGHT_OPERATIONS_DIRECTORY}/${operation_key}${JSON_EXTENSION}`;
 }

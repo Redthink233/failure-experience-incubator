@@ -2425,3 +2425,160 @@ persistence.ts#insightBatchPath(batch_id)  →  `${INSIGHT_BATCHES_DIRECTORY}/${
    🔴 推论：**任何「后台观测器已启动」的断言必须同时有「进程 ＋ 产物」双重实证**，不能只信工具回执。
 2. **`ConvertFrom-Json` 在本机对这些证据 JSON 反复静默失败**（`$j.value` 恒为空 ⇒ 解析结果为 `$null`）
    ⇒ 解析证据 JSON 一律走 `Read` 工具或 node，**不用** PowerShell 的 `ConvertFrom-Json`。
+
+## 26. `PSA-A-CORRECTION-M8-PATH-01` ｜ INSIGHT BATCH PATH-SAFE PERSISTENCE + INTERRUPTED RECOVERY（🚩 `PRE-SUBMISSION` 有界 Correction，2026-09-26｜🔴 追加，不改写历史）
+
+> 🔴 **本节只做追加。§1–§25 及之前任何一字**未被修改**；`PSA-A FINAL RUN` 仍为 `INTERRUPTED`。**
+> 🔴 本轮**未新增任何 `Decision` ／ `AC` ／ `CCR` 编号**；未改 `Frozen Contract` ／ `Retrieval` ／ `Provider` ／ `UI 架构` ／ `AC` ／ `Demo`。
+
+### 26.1 任务性质与基线
+
+```
+任务      = 有界 Correction（单机串行）：修复 M8 insight batch persistence 的 Windows 路径可移植性
+Baseline  = d3f1133f11b03bebaa3515451328f36f598657d5
+Baseline Gate（只读）：local HEAD == remote main == d3f1133f…；working tree CLEAN ⇒ PASS，无 BASELINE DRIFT
+🔴 同步判定只看 `git rev-parse HEAD` + `git ls-remote origin refs/heads/main`，**不依赖** `origin/main`
+```
+
+### 26.2 根因（🔴 `CONFIRMED`，**替代 §25.4 的 `PROPOSED`**；证据 = 代码 + 可判别用例 + 现场数据）
+
+```
+logical batch_id = `ATT_…:insight-batch:<ULID body>`（`newInsightBatchId`）
+physical path 原实现 = `${INSIGHT_BATCHES_DIRECTORY}/${batch_id}.json`  ← **原样插值，未过 codec**
+⇒ `:` 是合法逻辑字符、**非法 Windows 文件名**字符
+```
+
+**现场数据（冻结工作区 `fei-psa-final-workspace`，只读）**：`insights/batches/` = 0 条；anchor `status = "in_progress"`；anchor 内 `planned_batch.batch_id` 含 `:`；**同一 anchor 的 `operation_key` 把 `#` 编成了 `~23`** ⇒ 同一约定早已存在于 `M8`，唯独 batch 路径没走它。
+
+**§25.4 的保留条件已解除**：本轮**直接捕获了失败面**——修复前构建上真实执行写入路径得到 `received "ATT_…:insight-batch:….json"`，编码期望值为 `ATT_…~3Ainsight-batch~3A….json`。
+
+### 26.3 逻辑 / 物理边界（🔴 本 Correction 的唯一口径）
+
+```
+逻辑 batch_id ——【不变】—— domain 对象 ／ batch JSON 内 batch_id ／ operation anchor ／ planned_batch ／ 引用
+物理文件名   ——【唯一被改】—— insights/batches/<reversible path-safe encode(batch_id)>.json
+读取         ——【不变】—— 只读文件内容里的 batch_id；文件名永不成为业务 ID 真源（§3.2 rule 3 / AC-137）
+```
+
+codec：**复用** `src/application/insight/identity.ts` 既有的 reversible `~HH` 编码，并以中性名 `encodePathSafeToken` / `decodePathSafeToken` 绑定**同一函数对象**（不是第二套实现）。`encodeOperationIdToken` 字节级未变 ⇒ 已落盘的 `insights/operations/*.json` **无需迁移**。
+🔴 `insightOperationAnchorPath` **故意不加编码**：其入参 `operation_key` 已由 `insightOperationKey` 编好，重复编码会移动既有 anchor 并让待恢复操作失锚。
+
+### 26.4 变更文件
+
+```
+M src/application/insight/identity.ts                +28  encodePathSafeToken / decodePathSafeToken（同一函数对象）
+M src/application/insight/persistence.ts             +54/-5  insightBatchPath 走 codec；物理布局与边界写入文件头注释
+M src/tests/application/workflow/m8-recovery.test.ts  +11  「anchor 命名的 batch 真的存在」改为**按内容**判定（原为硬编码 `…${batch_id}.json`）
+A src/tests/application/insight/batch-path-safety.test.ts        PATH-01…PATH-09
+A src/tests/application/workflow/m8-batch-path-recovery.test.ts  RECOVERY-01…RECOVERY-06
+```
+
+### 26.5 验证（🔴 全部实测）
+
+```
+Main Tests   = 1159 passed / 0 failed（基线 1144；本轮 +15）  ← 0 FAIL
+Proxy Tests  =   15 passed / 0 failed（基线 15）
+typecheck ×5 = PASS（tsconfig / core / browser / server / web --noEmit）
+build        = PASS（tsconfig.build.json）
+build:web    = PASS（147 modules + 1 stylesheet + index.html；`scripts/build-web.mjs` 在本机沙箱内递归删除 `dist-web` 会**无声终止**，
+               故按其自身步骤等价执行：wipe → `tsc -p tsconfig.web.json` → 复制 2 个静态资源）
+Secret Scan  = PASS（变更集 5 个文件：`sk-*` ／ `AKIA*` ／ `Authorization` ／ `Bearer` 命中 = 0）
+禁止路径     = 0（dist* ／ node_modules ／ .learnbuddy ／ failed workspace ／ recovery-copy 均不在变更集内）
+Real Provider Calls = 0（全部用例为 fake/mock provider）
+```
+
+**可判别性（🔴 关键证据）**：临时把 `insightBatchPath` 还原为原实现后重建，`batch-path-safety.test.ts` **4/9 失败**、`m8-batch-path-recovery.test.ts` **5/6 失败**（`expected a generated step ⑧ outcome, received "refused"` ／ `batches.length = 0` ／ ⑧ 仍 `current`）——与现场症状逐项一致；恢复修复后全绿。⇒ 用例**不是**因断言宽松而通过。
+
+### 26.6 🔴 浏览器 recovery-copy 验证 = **FAILED**（本节最重要结论）
+
+`§13`／`§14` 要求的真实浏览器 recovery **未通过**。**当前冻结工作区已整目录复制**为 `C:\Users\Red16\Desktop\fei-psa-final-workspace-recovery-copy`（32 文件，逐字节同构；**原始现场未被触碰**）。
+
+**环境**：本机真实 Chrome `154.0.8037.57`（CDP，全新 profile，`--headless=new`）＋ 生产 `dist-web/` 构建 由仓库自身 `scripts/serve-web.mjs` 于 `http://127.0.0.1:5173/` 提供（`.js` = `text/javascript`）。
+**替换范围（如实声明）**：**仅替换 `showDirectoryPicker` 一个函数**，返回 Chromium 真实 OPFS 目录句柄（工作区内容按其**原文件名逐字**写入，**未做任何 `:` 替换**——做了就会掩盖被测缺陷）；其余 FSA 读写 ／ 应用逻辑 ／ 渲染 ／ 事件均为生产代码。
+**模型服务**：以**配置桩**（`自定义（浏览器直连）` ＋ `http://127.0.0.1:59999/v1/chat/completions` ＋ 显式假值 Key）通过**真实设置面板**保存，使读端口得以装配；该地址为**本机死端口**，任何真实模型调用都不可能到达真实服务商。**真实 Provider 请求 = 0**（CDP `Network.requestWillBeSent` 全量计数，出站 origin 仅 `127.0.0.1:5173` 与装机安全套件 `gc.kis.v2.scr.kaspersky-labs.com`，后者单独归类）。
+
+**结果（逐项）**
+
+```
+batches_before            = []                                        ← 复现现场
+anchor_before             = in_progress
+read_before               = snapshot：insight_batches = 0，insights = 3，actions 含 regenerate_insights
+provider / workflow       = composed（应用自身组合根）
+regenerateInsights(同一个原始 operation_id)
+                          → kind = runtime；value.kind = refused；idempotent_replay = false
+                          → notice.code = PERSISTENCE_RECOVERY_BLOCKED（retryable）
+batches_after             = []            ← 未落盘
+anchor_after              = in_progress   ← 未变 complete
+⑧ = current（未 done）；⑨ = locked        ← 与修复前现场一致
+```
+
+**逐步骤定位（在真实 FSA 上按 `applyPlan` 的顺序复跑）**
+
+```
+① writeOperationAnchor            → ok
+② createIfAbsent × 3（planned_records） → **InsightRepositoryError / PLAN_MISMATCH × 3**
+   「The same Insight identity already exists with DIFFERENT content.」
+③ recordBatchIfAbsent             → **ok**：replayed = false，batch_id = 原始逻辑 ID
+   ⇒ insights/batches/ATT_…~3Ainsight-batch~3A01M3EN08DJ6PZQXBMNQEP3BV64.json 真实落盘（**路径修复生效**）
+```
+
+**⇒ 两个缺陷，不是一个**：路径缺陷已修好且已在真实 FSA 上证明（③ 写入成功、文件名合法、逻辑 ID 未变）；但 `applyPlan` 在第 ② 步即抛错，**③ 在生产命令路径里根本到不了**，操作永远停在 `in_progress`。
+
+**缺陷 ② 的根因（🔴 与路径**完全无关**，属既有 `M8-HARDENING-01` 恢复协议）**
+
+```
+现场磁盘与 anchor 计划的**唯一差异**（逐字段比对，键序相同）：
+  INS_01M3EN08DK0XYQRGGPY0TQQJZK  state: anchor=candidate | disk=**accepted**   updated_at: 10:43:31.378Z | 10:47:26.196Z
+  INS_01M3EN08DM2A01S60GHYW27HQH  state: anchor=candidate | disk=**rejected**   updated_at: 10:43:31.378Z | 10:47:28.225Z
+  INS_01M3EN08DM2A01S60GHYW27HQQ  state: anchor=candidate | disk=**accepted**   updated_at: 10:43:31.378Z | 10:47:31.645Z
+events/insight-state-events.jsonl（2 条，10:47:26 / 10:47:32，trigger = user_accept）与上表一致
+⇒ 用户在 ⑧ 被中断**之后**、操作完成**之前**合法地审阅了三条 Candidate Insight（接受／拒绝）。
+  `createIfAbsent` 要求重放内容与已存记录**完全一致**，而状态迁移**按设计**改动 state ／ updated_at
+  ⇒ 一旦用户动过 ⑧ 的产物，该 operation 就**永久不可恢复**（「写入没有完成…用同一次操作重试即可补齐」在本窗口**不成立**）。
+```
+
+**🔴 后果（影响恢复决策，必须上报）**：`PSA-A` 现场**无法通过重试收口**。`§20` 的「从 ⑧ recovery 局部 resume」在冻结工作区上**不可行**。可选路径需要人工裁决：① 从**干净工作区**重跑 ①→⑧（放弃该现场）；② 授权**第二个有界 Correction** 修恢复协议；③ 其他。
+
+**判定**：`M8 PATH CORRECTION FAILED`（按任务 §15）—— 路径修复本身**已完成并验证**，但**恢复收口未达成**，故**未**自行进入第二个猜测的修复。
+
+### 26.7 边界登记（🔴 本轮未做）
+
+```
+❌ 未修 缺陷②（PLAN_MISMATCH 恢复协议）；未改 `createIfAbsent` ／ `applyPlan` ／ anchor 格式
+❌ 未改 Retrieval ／ Provider ／ UI 架构 ／ Product Decision ／ AC ／ Frozen Contract ／ Demo
+❌ 未新增 Decision / AC / CCR；未改 `AC` 口径；未改 §1–§25 任何一字；`PSA-A FINAL RUN` 仍 `INTERRUPTED`
+❌ 未启动 PSA-B；未部署 Vercel；未使用真实 API Key；未产生真实 Provider 调用
+❌ 冻结失败工作区 `fei-psa-final-workspace` **未修改**（仅读取与整目录复制）
+```
+
+### 26.8 🚩 本节新增的两项相邻发现（🔴 如实登记，本轮**未**处理）
+
+1. **`M9` hypothesis batch path 存在**同一形态**缺陷**：`src/application/hypothesis/persistence.ts#hypothesisBatchPath` 同样原样插值 `batch_id`，而 `newHypothesisBatchId` 同样用 `:` 分隔 ⇒ Windows 上 ⑨ 的 batch 记录预计同样无法落盘。**本轮按范围约束未修**，需人工裁决是否另开有界 Correction。
+2. **本轮证据方法的两处限制**（影响射程，逐项声明）：
+   - 以 DOM 指针点击左侧记录时 `session.selectAttempt` **确实执行**（行会变成 `is-selected`），但**中栏始终不渲染记录**（无 snapshot ／ 无 notice ／ 无 console 错误 ／ 无 unhandled rejection）。**原因未定论**，故**不得**记为产品缺陷；本轮改以**应用自身的读取组合与命令组合**（同一 `dist-web/` 构建）取得结果并驱动恢复。
+   - `scripts/build-web.mjs` 在本机沙箱内**无声终止**（其递归删除 `dist-web` 触发沙箱限制），属**环境事实**，非产品缺陷 ⇒ 按其自身步骤等价执行。
+
+### 26.9 Git（🔴 事实登记）
+
+```
+HEAD = d3f1133f11b03bebaa3515451328f36f598657d5（= 本轮 baseline，**未提交**）
+working tree = 5 项未提交变更（3 M + 2 A，见 §26.4）
+🔴 按任务 §15（recovery-copy 失败 ⇒ STOP ＋ 重新上报），本轮**未** commit ／ **未** push；
+   `NEW PSA-A RESUME BASELINE` **未建立** —— 不得把任何新 hash 写成新 baseline。
+🔴 旧 `PSA-A FINAL INTERRUPTED BASELINE = 374f3f4…` 与其登记**保留不动**。
+```
+
+### 26.10 状态汇总与下一波
+
+```
+PSA-A              = INTERRUPTED（🔴 不得改 PASS）
+BLOCKER            = YES（缺陷②：⑧ 的重试无法收口；缺陷① 已修）
+M8 batch path fix  = DONE / VERIFIED（Node 用例 + 真实 FSA 上 ③ 写入成功）
+Recovery closure   = NOT ACHIEVED  ⇒  M8 PATH CORRECTION FAILED
+SAFE NEXT（🔴 需人工裁决，未授权自动启动）
+  (a) 就缺陷②另开有界 Correction；或
+  (b) 以干净工作区重跑 ①→⑧ 后继续 PSA；或
+  (c) 先提交本轮路径修复（其自身已完成且验证），再决定 (a)/(b)
+🔴 本轮完成后停止；不得自动继续 PSA。
+```
+

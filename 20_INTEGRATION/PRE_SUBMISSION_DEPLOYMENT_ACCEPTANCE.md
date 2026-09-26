@@ -304,3 +304,64 @@ frozen workspace : C:\Users\Red16\Desktop\fei-psa-final-workspace（32 文件；
 
 `CORRECTION REQUIRED` —— 有界 Correction：修复 `M8` insight batch 的**文件路径安全编码**。范围与 8 项验收口径见 `CODING_START_HANDOFF.md §25`。
 🔴 **本轮到此停止**：未进入 correction，未开始 `PSA-B`，`PSA-*` 其余项保持原状态。
+
+## 9. `PSA-A CORRECTION AFTER FINAL INTERRUPTION`（2026-09-26｜🔴 追加，不改写历史）
+
+> 🔴 **本节只做追加。§0–§8 及之前任何一字未被修改；`PSA-A FINAL RUN` 仍为 `INTERRUPTED`，未改为 `PASS`。**
+> 🔴 本节不新增 `AC`，不把任何 `PSA-*` 项升级为 `PASS`。
+
+### 9.1 执行了什么
+
+`M8` insight batch persistence 的**有界 Correction**（`PSA-A-CORRECTION-M8-PATH-01`）：把 batch 的**物理文件名**改为经既有 reversible `~HH` codec 编码，**逻辑 `batch_id` 不变**。
+基线 `d3f1133f11b03bebaa3515451328f36f598657d5`（local HEAD == remote main；working tree CLEAN）。全过程细节 → `CODING_START_HANDOFF.md §26`。
+
+### 9.2 结果（🔴 两句话，不修饰）
+
+**① 路径缺陷 = 已修复并验证（`CONFIRMED`）**：`batch_id` 里的 `:` 不再进入文件名；Node 层 1144 → **1159 passed / 0 failed**（`test:proxy` 15/15、typecheck ×5、`build`、`build:web` 全 PASS），并在**真实浏览器 FSA**上实测 `insights/batches/ATT_…~3Ainsight-batch~3A….json` **成功落盘**，文件内 `batch_id` 为**原始逻辑值**。
+
+**② 恢复收口 = 未达成（`M8 PATH CORRECTION FAILED`）**：真实浏览器上以**同一个原始 operation** 重放仍返回 `PERSISTENCE_RECOVERY_BLOCKED`，`insights/batches/` 仍为空、anchor 仍 `in_progress`、⑧ 仍非 `done`、⑨ 仍锁定。**但根因已不是路径**，而是**第二个、独立的既有缺陷**（详见 9.3）。
+
+### 9.3 🔴 新登记的第二个阻塞缺陷（与路径无关；本轮**未修**）
+
+| 项 | 内容 |
+|---|---|
+| 现象 | `applyPlan` 第 ② 步 `createIfAbsent` 对三条 planned record **全部**抛 `InsightRepositoryError / PLAN_MISMATCH` |
+| 触发条件 | 用户在 ⑧ 被中断**之后**、操作完成**之前**审阅了 ⑧ 的产物（现场 `events/insight-state-events.jsonl` 记录 2 次 `user_accept`，10:47:26 / 10:47:32） |
+| 磁盘 vs anchor 的唯一差异 | `state`（candidate → accepted／accepted／rejected）与 `updated_at` |
+| 影响 | 状态迁移**按设计**改动这两个字段，而重放要求内容**完全一致** ⇒ **一旦用户动过 ⑧ 的产物，该 operation 永久不可恢复**；「用同一次操作重试即可补齐」在本窗口**不成立** |
+| 性质 | 既有 `M8-HARDENING-01` 恢复协议的缺陷，**非**本轮引入，**非**路径问题，**非**产品 `AC` |
+| 后果 | `PSA-A` 现场**不能**通过重试收口 ⇒ §8.6 / `HANDOFF §20`「从 ⑧ recovery 局部 resume」在冻结工作区上**不可行** |
+
+🔴 同时登记：**`M9` hypothesis batch path 存在同一形态的路径缺陷**（`hypothesisBatchPath` 同样原样插值含 `:` 的 `batch_id`），本轮按范围约束**未修**。
+
+### 9.4 本轮**未**观测 / **未**执行的项（🔴 一律不得记为 `PASS`）
+
+```
+⑧ = done ／ ⑨ unlocked ／ ⑨ ／ ⑩            → ❌ 未达成（⑧ 仍 current，⑨⑩ 仍 locked）
+PSA-06 / 07 / 08 / 09 / 10 / X9 终局         → ❌ 未执行
+PSA-B（Vercel ／ Edge ／ Thin Proxy）         → ❌ 未启动
+真实 Provider 调用                            → 0（本轮**不允许**产生；浏览器观测实测出站 origin 仅本机静态服务器与装机安全套件）
+`PSA-A` 总判定                                 → 仍 `INTERRUPTED`（🔴 **不得**改 `PASS`）
+```
+
+### 9.5 证据索引（本轮）
+
+```
+冻结失败工作区（🔴 只读，未修改）: C:\Users\Red16\Desktop\fei-psa-final-workspace
+recovery-copy（本轮新建，供验证）  : C:\Users\Red16\Desktop\fei-psa-final-workspace-recovery-copy
+浏览器环境                        : 真实 Chrome 154.0.8037.57（CDP，全新 profile）｜🔴 仅替换 showDirectoryPicker 一个函数
+观测产物                          : %TEMP%\psa-path01-evidence\（report-{discover,diag,probe,recover}.json ／ screenshots\ ／ *.log）
+过程记账                          : .learnbuddy/memory/2026-09-26.md（本轮追加节）
+🔴 射程限制（如实声明，非产品缺陷） : ① DOM 指针点击记录时中栏不渲染（原因未定论，故不得记为缺陷）；
+                                     ② `scripts/build-web.mjs` 在本机沙箱内无声终止，已按其自身步骤等价执行
+```
+
+### 9.6 后续（🔴 需人工裁决，本轮**未**授权自动执行）
+
+```
+(a) 就 9.3 的缺陷另开**有界 Correction**（修 `M8` 恢复协议；非路径、非 Retrieval ／ Provider ／ UI）；
+(b) 放弃该现场，从**干净工作区**重跑 ①→⑧ 后再继续 PSA；
+(c) 先行提交本轮**已验证**的路径修复，再决定 (a) 或 (b)。
+🔴 三条路径均**未**执行；`PSA-A` 保持 `INTERRUPTED`，`BLOCKER = YES`，本轮**到此停止**。
+```
+

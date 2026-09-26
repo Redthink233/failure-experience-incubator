@@ -207,6 +207,34 @@ export function insightOperationKey(source_attempt_id: string, operation_id: str
 }
 
 /* ------------------------------------------------------------------ *
+ * 2b. The SAME codec under its neutral name (PSA-A-CORRECTION-M8-PATH-01)
+ * ------------------------------------------------------------------ */
+
+/**
+ * 🔴 ONE CODEC, TWO CALLERS - NOT TWO RULE SETS.
+ *
+ * The `~HH` mapping above is a pure TECHNICAL codec with no product rule in it, and it now has a
+ * second caller: the PHYSICAL file name of a step ⑧ generation batch. A `batch_id` is minted as
+ * `ATT_…:insight-batch:<ULID body>` (`newInsightBatchId`), and `:` is a legal LOGICAL id character
+ * but an ILLEGAL Windows file-name character - so the batch path has to be encoded too.
+ *
+ * `encodeOperationIdToken` is therefore bound here under a NEUTRAL name, so the persistence layer can
+ * encode a `batch_id` without pretending that it is an `operation_id`. These are the IDENTICAL
+ * function objects, deliberately NOT a re-implementation: a second, differently-behaving encoder
+ * (`replace(':','_')`, base64, a hash-only name) would either be LOSSY or map two different logical
+ * ids onto one physical file, and 「两个不同 batch」 would silently become 「同一个 batch」.
+ *
+ * 🔴 THE FORMAT IS UNCHANGED. The bytes an already-persisted `insights/operations/<key>.json` decodes
+ *    to are exactly what they were, so no existing anchor id has to be migrated.
+ * 🔴 WHAT MUST NOT BE ENCODED IS THE ID ITSELF: `batch_id` keeps its original value everywhere -
+ *    domain object, batch JSON, operation anchor, planned batch, references.
+ */
+export const encodePathSafeToken: (value: string) => string = encodeOperationIdToken;
+
+/** The inverse of {@link encodePathSafeToken}. Returns `null` for a malformed token. */
+export const decodePathSafeToken: (token: string) => string | null = decodeOperationIdToken;
+
+/* ------------------------------------------------------------------ *
  * 3. `InsightStateEvent` id
  * ------------------------------------------------------------------ */
 
