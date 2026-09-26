@@ -77,6 +77,13 @@ export interface RetrievalPresentation {
   readonly source_uncompared: readonly string[];
   readonly stale: boolean;
   readonly stale_notice: string | null;
+  /**
+   * Whether the EMPTY ⑥ card may offer to START the first retrieval (`CORRECTION-04`).
+   *
+   * 🔴 Only the "nothing was ever retrieved" state can be `true` here: a stored comparison belongs to
+   *    `stale` / the rerun, and the completed-but-empty states keep their own separate sentences.
+   */
+  readonly start_offered: boolean;
   readonly runtime_notice: WorkflowNotice | null;
   readonly section_titles: {
     readonly same: string;
@@ -120,9 +127,23 @@ function emptyPresentation(phase: RetrievalPhase, headline: string): RetrievalPr
     source_uncompared: [],
     stale: false,
     stale_notice: null,
+    start_offered: false,
     runtime_notice: null,
     section_titles: SECTION_TITLES,
   };
+}
+
+/**
+ * Whether the read model still offers the retrieval command for this record.
+ *
+ * 🔴 ASKED, NEVER GUESSED: `available_actions` is `M15`'s own derivation (`read-model.ts`
+ *    `capabilitiesOf`), where every non-`Draft` record advertises `rerun_retrieval`. The card must not
+ *    infer the gate from the step order or from the record's state on its own.
+ * 🔴 Inlined rather than imported from `./steps.js`, so the two presenters stay independent (no
+ *    cycle) while both consult the same single source of truth.
+ */
+function retrievalMayBeStarted(snapshot: D9WorkflowSnapshot | null): boolean {
+  return snapshot !== null && snapshot.available_actions.includes('rerun_retrieval');
 }
 
 /**
@@ -141,7 +162,12 @@ export function retrievalPresentationOf(
   const retrieval = snapshot.retrieval;
 
   if (retrieval.state === 'not_available') {
-    return emptyPresentation('not_available', RETRIEVAL_NOT_AVAILABLE);
+    /* 🔴 「还没有做过历史检索」 is an empty state, not a failure - and it must still be STARTABLE
+       (`CORRECTION-04`): otherwise a refresh leaves ⑦–⑩ unreachable for this record forever. */
+    return {
+      ...emptyPresentation('not_available', RETRIEVAL_NOT_AVAILABLE),
+      start_offered: retrievalMayBeStarted(snapshot),
+    };
   }
   if (retrieval.state === 'runtime_incomplete') {
     return {
@@ -160,7 +186,10 @@ export function retrievalPresentationOf(
 
   const n_retrieval = retrieval.n_retrieval;
   if (n_retrieval === null) {
-    return emptyPresentation('not_available', RETRIEVAL_NOT_AVAILABLE);
+    return {
+      ...emptyPresentation('not_available', RETRIEVAL_NOT_AVAILABLE),
+      start_offered: retrievalMayBeStarted(snapshot),
+    };
   }
 
   const view = retrieval.view;
@@ -198,6 +227,8 @@ export function retrievalPresentationOf(
     ),
     stale: retrieval.freshness.stale,
     stale_notice: retrieval.freshness.notice ?? (retrieval.freshness.stale ? RETRIEVAL_STALE : null),
+    /* A stored comparison is never started here: rerunning is the `stale` path's business (§26). */
+    start_offered: false,
     runtime_notice: null,
     section_titles: SECTION_TITLES,
   };
@@ -211,6 +242,17 @@ export function retrievalPresentationOf(
  */
 export function staleRerunIsOffered(presentation: RetrievalPresentation): boolean {
   return presentation.stale === true;
+}
+
+/**
+ * Whether the EMPTY ⑥ state may offer to start the FIRST retrieval (`CORRECTION-04`).
+ *
+ * 🔴 Mirrors `staleRerunIsOffered`: this only says the control is MEANINGFUL. The App Shell still
+ *    starts nothing on its own, and an explicit rerun remains the only way a comparison is replaced
+ *    (`D-051` / §26).
+ */
+export function retrievalStartIsOffered(presentation: RetrievalPresentation): boolean {
+  return presentation.start_offered === true;
 }
 
 /**

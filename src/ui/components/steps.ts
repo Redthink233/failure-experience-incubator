@@ -94,6 +94,8 @@ import {
   RETRIEVAL_FAILED_AFTER_SAVE,
   RETRIEVAL_RERUN,
   RETRIEVAL_RERUNNING,
+  RETRIEVAL_START,
+  RETRIEVAL_STARTING,
   STEP_LOCKED_HINT,
   TRACE_ACTION,
   citationCount,
@@ -654,6 +656,27 @@ function retrievalCard(context: ViewContext, step: D9StepView): HTMLElement {
 
   if (view.phase === 'related') {
     body.push(el('div', { class: 'field-source', text: citationCount(view.n_retrieval ?? 0) }));
+  }
+  if (view.start_offered) {
+    /*
+     * 🔴 CORRECTION-04: the empty ⑥ state offers to START the first retrieval.
+     *
+     *    ⑤ triggers ⑥ automatically exactly ONCE, at save time. Without this control, a `Formal`
+     *    record whose retrieval never completed could never be retrieved again — a refresh (or just
+     *    selecting another record) made ⑦–⑩ permanently unreachable, while `M15` kept advertising
+     *    `rerun_retrieval` in `available_actions`.
+     *    It calls the SAME explicit command as 「重新检索」: this is a missing entry point, not a new
+     *    capability, and nothing is started by the product itself (`D-051` / §26).
+     */
+    body.push(
+      actions(
+        button(pending ? RETRIEVAL_STARTING : RETRIEVAL_START, () => void session.rerunRetrieval(), {
+          class: 'btn',
+          disabled: pending,
+          attrs: { 'data-action': 'start-retrieval' },
+        }),
+      ),
+    );
   }
   if (view.stale) {
     /* 🔴 Stale is a提示 + an opt-in button. The rerun NEVER happens by itself (§26). */

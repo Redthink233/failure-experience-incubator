@@ -381,6 +381,19 @@ export const RETRIEVAL_RERUN = '重新检索';
 export const RETRIEVAL_RERUNNING = '正在重新检索…';
 
 /**
+ * The ⑥ card's EMPTY state offers to START the first retrieval (`CORRECTION-04`).
+ *
+ * 🔴 WHY IT EXISTS: ⑤ triggers ⑥ automatically exactly ONCE, at save time. A `Formal` record whose
+ *    retrieval never completed therefore had NO control afterwards - so a refresh (or simply
+ *    selecting another record and coming back) left ⑦–⑩ permanently unreachable for that record,
+ *    even though `M15` still reports `rerun_retrieval` in `available_actions`.
+ * 🔴 This is a missing ENTRY POINT, not a new capability: it calls the same explicit command as
+ *    「重新检索」, and nothing is ever started by the product itself (§26 / `D-051`).
+ */
+export const RETRIEVAL_START = '开始检索';
+export const RETRIEVAL_STARTING = '正在检索…';
+
+/**
  * Shown in ⑤ when the record ON SCREEN is already saved (`PRE-PSA-HARDENING-01` §4).
  *
  * 🔴 WHY IT REPLACES A BUTTON: 「确认并保存这次尝试」 is a `Draft` command. Rendering it for a saved

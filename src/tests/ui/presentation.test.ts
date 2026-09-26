@@ -24,7 +24,7 @@ import { WORKFLOW_ERROR_MESSAGES, workflowNotice } from '../../application/workf
 import type { WorkflowAttemptSummary } from '../../application/workflow/attempt-summaries.js';
 import { EXPERIENCE_ASSETS_EMPTY, GATE_LABELS, HYPOTHESIS_MODEL_NOTICE, STEP_LOCKED_HINT } from '../../ui/copy.js';
 import { stepFactsOf, stepViewsOf, currentStepNumberOf } from '../../ui/presenters/steps.js';
-import { retrievalPresentationOf, staleRerunIsOffered } from '../../ui/presenters/retrieval.js';
+import { retrievalPresentationOf, retrievalStartIsOffered, staleRerunIsOffered } from '../../ui/presenters/retrieval.js';
 import { insightCardOf, insightsPresentationOf, isPresentedAsExperienceAsset } from '../../ui/presenters/insights.js';
 import { hypothesesPresentationOf, tracePanelOf } from '../../ui/presenters/hypotheses.js';
 import { noticeViewOf } from '../../ui/presenters/notices.js';
@@ -815,5 +815,70 @@ describe('S01-06 ｜ IMPLEMENTATION INVARIANT｜the evidence trace (task §29 / 
     assert.equal(row.archived, true);
     assert.equal(row.role_label, '依据');
     assert.equal(row.field_path, 'actual_attempt#ATT_a:approach');
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * CORRECTION-04 - the empty ⑥ state offers to START the first retrieval
+ * ------------------------------------------------------------------ */
+
+describe('S01-06 ｜ IMPLEMENTATION INVARIANT｜the empty ⑥ state offers to start the first retrieval (CORRECTION-04)', () => {
+  it('IMPLEMENTATION INVARIANT: a Formal record with no stored comparison is STARTABLE, a record without the command is not', () => {
+    const formal = retrievalPresentationOf(
+      snapshotWith({ available_actions: ['begin_capture', 'rerun_retrieval'] }),
+      false,
+    );
+    /* The empty state keeps its OWN sentence AND gains the missing entry point. */
+    assert.equal(formal.phase, 'not_available');
+    assert.equal(formal.n_retrieval, null);
+    assert.equal(formal.start_offered, true);
+    assert.equal(retrievalStartIsOffered(formal), true);
+
+    /* `available_actions` is the authority: a record not offered the command draws nothing. */
+    const without_command = retrievalPresentationOf(snapshotWith({}), false);
+    assert.equal(without_command.phase, 'not_available');
+    assert.equal(without_command.start_offered, false);
+    assert.equal(retrievalStartIsOffered(without_command), false);
+
+    /* No snapshot at all (provider-less browse) ⇒ nothing to offer either. */
+    assert.equal(retrievalPresentationOf(null, false).start_offered, false);
+  });
+
+  it('IMPLEMENTATION INVARIANT: a stored comparison never offers 「开始检索」 - it stays the rerun / stale path', () => {
+    const related = retrievalPresentationOf(
+      snapshotWith({
+        available_actions: ['begin_capture', 'rerun_retrieval'],
+        retrieval: retrievalPatch({ total: 2, visible: 2, n_retrieval: 2 }),
+      }),
+      false,
+    );
+    assert.equal(related.phase, 'related');
+    assert.equal(related.start_offered, false);
+
+    /* The completed-but-empty states keep their own sentences and offer no start control. */
+    const none_found = retrievalPresentationOf(
+      snapshotWith({
+        available_actions: ['begin_capture', 'rerun_retrieval'],
+        retrieval: retrievalPatch({
+          total: 0,
+          visible: 0,
+          n_retrieval: 0,
+          zero_like_state: 'NO_RELATED_HISTORY',
+        }),
+      }),
+      false,
+    );
+    assert.equal(none_found.start_offered, false);
+
+    /* A stale comparison still offers the RERUN, and never the start control. */
+    const stale = retrievalPresentationOf(
+      snapshotWith({
+        available_actions: ['begin_capture', 'rerun_retrieval'],
+        retrieval: retrievalPatch({ total: 1, visible: 1, n_retrieval: 1, stale: true }),
+      }),
+      false,
+    );
+    assert.equal(stale.start_offered, false);
+    assert.equal(staleRerunIsOffered(stale), true);
   });
 });
