@@ -1680,3 +1680,134 @@ SAFE NEXT = PRE-SUBMISSION PSA-A
 🔴 未授权自动启动 —— 本次完成后停止（不得自动使用真实 API Key / 不得自动开始 PSA）
 ```
 
+### 23.8 CORRECTION-01 ｜ SESSION CREDENTIAL REFRESH COPY ALIGNMENT（🚩 `PRE-PSA-BLOCKER-01 / CORRECTION-01`，2026-09-26｜🔴 追加，不改写历史）
+
+> 触发 = 人工截图发现 API Key 下方文案与已 `CONFIRMED` 的 `D-056` 正式语义冲突。
+> 🔴 **本节只做追加，不改动 §23.1–§23.7 及之前任何一字。**
+
+```
+CORRECTION-01                     = DONE
+Session Credential Implementation = PASS（= A：session-scoped storage；实现与 D-056 一致）
+Refresh Credential Retention      = PASS
+Settings Copy                     = ALIGNED WITH D-056
+Old Wrong Copy                    = ABSENT
+Real Provider Calls               = 0
+PSA                               = PENDING
+BLOCKER                           = NO
+Decision Added = 0   AC Added = 0   CCR = NO   Frozen Contract Modified = NO
+```
+
+**① 先核验实现，再改文案（🔴 事实登记：结论 = A，不是 B）**
+
+```
+实际载体 = 运行时 sessionStorage（不是纯内存）⇒ 合法 correction，未触发 BLOCKER。
+  · src/browser/ai/session-storage.ts —— `createBrowserSessionStorage()` 只读 `globalThis.sessionStorage`，
+    实测 write/read/remove round-trip 通过才信任；缺 sessionStorage ⇒ **抛错**，**不**回退
+    localStorage / IndexedDB / cookie / 文件。
+  · src/browser/ai/session-credential-store.ts —— 值落在注入的 session-scoped carrier 上，**不是模块变量**；
+    `endSession()` 是显式清空路径（本任务未改）。
+  · src/ui/bootstrap.ts:38 —— `createSessionCredentialStore(createBrowserSessionStorage())`：真实接线即浏览器
+    sessionStorage。bootstrap 仅在表单确实带 Key 时 `put`，随后把 **store 本身** 作为 `CredentialResolver`
+    交给 gateway ⇒ 刷新后表单为空也**不影响** Key 的可用性。
+  · src/ui/session/browser-gateway.ts —— 组合 provider 传的是 resolver，请求期由 store 解析 Key。
+⇒ 「刷新即丢失」为**假**；旧文案描述的行为与实现相反。
+```
+
+**② 文案修正（🔴 本任务唯一被授权的产品改动）**
+
+```
+旧 : 「仅当前会话使用。刷新页面后需要重新填写。」      ← 把刷新描述成凭据丢失，与 D-056 相反
+新 : 「仅当前浏览器会话使用；刷新后仍可用，关闭标签页或浏览器后需要重新填写。」
+性质 : 产品文案缺陷（与 §23.4 同类）；断言已固化（R9 / R10），不得再漂移。
+留存 : 旧句在 **recovery baseline（root commit `207902b`）即已存在**，其后无 commit 改动过它；
+       原 DAG 已丢失 ⇒ **无法**追溯更早引入点，本节不作推断。
+```
+
+**③ 测试（新增 10 例，全部 `IMPLEMENTATION INVARIANT`；🔴 `AC Added = 0`）**
+
+```
+A src/tests/ui/session-credential-refresh.test.ts   R1–R10
+  R1  保存 session Credential（走**真实** settings 保存路径 + 真实 bootstrap 式接线）
+  R2  模拟同一 session 的页面刷新 / 重新构造应用实例（新 Storage 对象 + 新 store + 新 AppSession）
+  R3  刷新后凭据仍可读取，值不变
+  R4  刷新后 **Key 字段留空** 仍能重新 compose（provider = ready）；且真实组合出的 adapter 用
+      **会话里的** Key 组 Authorization 头（mock transport ⇒ 0 真实请求）
+  R5  新 browser session（新 backing）读不到，且新 session 无任何 ref
+  R6 / R7  localStorage / IndexedDB：工厂被喂 spy 时**一次都不碰**；源码层亦无成员访问
+  R8  工作区：保存前后文件集不变，且非空工作区中无一文件含假 Key
+  R9  文案含「刷新后仍可用」且该常量**确实由面板无条件渲染**在 API Key 下方（避免"正确但没人渲染"）
+  R10 全 `src/ui/**` + `src/browser/**` 的渲染字符串中不含已废弃句
+```
+
+**④ 验证（🔴 全部实测）**
+
+```
+npm run typecheck / typecheck:core / typecheck:browser / typecheck:server / typecheck:web  = PASS
+npm run build / npm run build:web（144 modules + 1 stylesheet）                            = PASS
+npm test                                   = 1025 passed / 0 failed（基线 1015；本轮 +10 = R1–R10）
+npm run test:proxy                         = 15 passed / 0 failed
+Visual Smoke（本机真实 Chrome 154.0.8037.57，headless=new，DevTools Protocol）= PASS（30/30 判据为 true）
+  · fixture = `demo-workspace/**` 的 %TEMP% 副本（21 文件）；**未写入**提交基线
+  · 🔴 **仅替换 `showDirectoryPicker` 一个函数**；FSA 读写 / 应用逻辑 / 渲染 / 事件 / **真实键鼠输入** /
+    **真实 `Page.reload`** 全部为生产代码
+  · C1 打开设置 → DeepSeek → 逐字符输入假 Key（29 字符）；面板 note **实测** =
+       「仅当前浏览器会话使用；刷新后仍可用，关闭标签页或浏览器后需要重新填写。」
+  · C2 保存 ⇒ 面板关闭，顶栏 badge = `DeepSeek｜deepseek-flash｜连接方式：浏览器直连`
+  · C3 sessionStorage = `fei.ai.session-credential/provider%3Adeepseek` → 假 Key + `…/index`
+  · C4/C5 **`Page.reload` 之后**同一组 key、同一值仍在 ⇒ **刷新保留 = 真实浏览器实测**（R3 的运行时对应项）
+  · C6 刷新后重新授权工作区（真实 FSA / OPFS，8 条记录）→ 打开设置 → **Key 字段为空** → 保存成功，
+       badge 恢复 `DeepSeek｜deepseek-flash｜连接方式：浏览器直连`
+       ⇒ **无需重新填写 Key 即可重新 compose**（R4 的运行时对应项）
+  · C7 面板与整页**均不含**已废弃句；面板 body 实测含新句
+  · C8 localStorage = `{}`、IndexedDB `databases()` = `[]`、cookie = `""`、caches = `[]`，
+       且**均不含**假 Key；工作区扫描 **21 个文件 / 0 命中**（扫描非空）⇒ R6 / R7 / R8 的运行时对应项
+  · C9 同浏览器**新开 tab**（= 新 browser session）sessionStorage **完全为空** ⇒ R5 的运行时对应项
+  · C10 出站请求合计 309：`llm_endpoint = 0`、`other_external = 0`、页面脚本错误 = 0；
+        28 条属装机安全套件 `gc.kis.v2.scr.kaspersky-labs.com`，**单独归类，不计为 Provider Call**
+  · 证据：%TEMP%\psa-correction01-smoke\out\（smoke-report.json + 7 张截图，均 > 44KB）
+  · ⚠️ 探针 v1 的三次中断**全部是探针自身缺陷**（① 保存早于工作区授权，把产品的合法 unsupported 当成失败；
+        ② 三处 `out.shot_x.png = …` 赋值笔误）。**产品缺陷 = 0**；修正后逐项复跑，如实登记。
+```
+
+**⑤ 本轮观测到、🔴 未修、待人工裁决的三项（§4 边界之外）**
+
+- ⭐ `ADJACENT-01`｜「清除本次会话的 API Key」按钮**只清空表单字段**，未调用 `store.remove()`。
+  事实：`app-session.clearCredential()` 仅 `set({ settings_draft: {…, api_key: ''} })`；bootstrap 在表单为空时**不** `put`，
+  于是 gateway 组合后仍由 sessionStorage 解析出**旧 Key** ⇒ 按钮文案与效果不一致。
+  性质：属 `D-056` **之外**的另一个保证（显式移除），故**不并入**本 correction；**未修**。
+- ⭐ `ADJACENT-02`｜刷新后 Key 字段为空时，面板同时显示「请填写 API Key（仅当前会话使用）。」
+  事实：`settingsWarnings()` 只看**表单字段**是否为空（真实浏览器已实测到该行与空字段共存）。
+  性质：不构成假话，但易被读成「必须重填」；**未修**。
+- ⭐ `ADJACENT-03`｜`src/ui/components/shell.ts` 顶部注释把 `M2` 写成了本次症状的原因。
+  事实：该注释称 label 派生 id「produced duplicate ids … and made the whole-tree rebuild lose the user's focus
+  on every keystroke」；而 `control-identity.ts` 与 §23.2 的**已确认口径**是「实际发布的 label 为 ASCII、
+  **当时并未相撞**、M2 未被确立为原因，只有 M1 是」。
+  性质：与 §23.7 的**已登记禁写项**直接冲突；属 §23 既有产物的改写 ⇒ **未修**，仅登记，等人工授权。
+
+**⑥ Git（🔴 事实登记）**
+
+```
+fix commit = 8c7cd2fa0ee3b339dd43a2c965ba0374e88e6c0d
+  message  = 「fix: align session credential refresh behavior with D-056」
+  files    = 3（A src/tests/ui/session-credential-refresh.test.ts +498 /
+              M src/ui/copy.ts ±23 / M src/ui/components/shell.ts ±5）
+  force    = **未使用**（🔴 禁止 force）
+  push     = PASS —— 首次尝试报 `schannel: failed to receive handshake, SSL/TLS connection failed`
+             （**环境侧 TLS 瞬时失败，非 repo 缺陷**）；**原样重试**后成功，未改动任何历史
+  remote   = refs/heads/main = 8c7cd2fa0ee3b339dd43a2c965ba0374e88e6c0d（`git ls-remote origin` 实核）
+  local/remote = MATCH
+本节的 handoff 记录与 session memory 由紧随其后的 `chore:` commit 记录（不改动上述 fix commit）。
+```
+
+🔴 **本节追加禁写项**：不得把本 correction 写成「实现与 `D-056` 冲突」（实测为 A）或「刷新后需要重新填写仍成立」；
+不得把 `ADJACENT-01` / `-02` / `-03` 写成已修；不得把本轮的 providerless 视觉冒烟写成「真实浏览器人工验收已通过」；
+不得把 DeepSeek 候选配置写成「已验证 / 可用 / CORS 已支持 / Browser Direct 已通过」；不得改写 §23.1–§23.7 任何一字。
+
+```
+SAFE NEXT = PRE-SUBMISSION PSA-A
+            ｜ Real Chrome + Real Workspace FSA + DeepSeek Browser Direct
+            ｜ TE-DEMO-LIVE-01 Full Rehearsal
+            ｜ Billing Cap ≤ RMB 1
+🔴 未授权自动启动 —— 本次完成后停止（不得自动使用真实 API Key / 不得自动开始 PSA）
+```
+
