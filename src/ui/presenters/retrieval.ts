@@ -16,6 +16,8 @@
 
 import {
   COMPARISON_DIFFERENT,
+  COMPARISON_EVIDENCE_ROLE_BASIS,
+  COMPARISON_EVIDENCE_ROLE_CONTEXT,
   COMPARISON_EXPAND,
   COMPARISON_COLLAPSE,
   COMPARISON_REASON,
@@ -107,6 +109,83 @@ export function dimensionLabelOf(dimension: LevelADimension | string): string {
   return label ?? dimension;
 }
 
+/* ------------------------------------------------------------------ *
+ * ⑦ -> Evidence Rail: which item produces which payload
+ * ------------------------------------------------------------------ */
+
+/** The three clickable areas of one ⑦ candidate card, plus its per-dimension rows. */
+export type ComparisonSectionKey = 'same' | 'different' | 'uncompared';
+
+/**
+ * Exactly what a click on a ⑦ item sends to the Evidence Rail.
+ *
+ * 🔴 IT IS DERIVED HERE, NOT IN THE DOM LAYER (`FINAL-RAPID-C` §4). The shell must not be able to
+ *    decide that "any click means the same points": that mistake is invisible in a rendering test and
+ *    obvious in a pure one, so the rule lives beside the view model it reads and the component only
+ *    forwards the result.
+ */
+export interface ComparisonSelectionView {
+  /** What the rail shows as 「来自哪个部分」. 🔴 The CLICKED item's own label. */
+  readonly dimension_label: string;
+  readonly text: string;
+  readonly role_label: string;
+}
+
+/**
+ * The Evidence-Rail payload for ONE clicked ⑦ item.
+ *
+ * @param candidate the card the user clicked in.
+ * @param section which of the three areas was clicked.
+ * @param dimension_label the clicked ROW's dimension, or `null` when the area's own HEADING was
+ *   clicked (then the whole section is shown as one payload).
+ * @returns the payload, or `null` when the item exists but carries nothing - a click that could only
+ *   produce an empty rail entry is not turned into one.
+ *
+ * 🔴 THE CLICKED ITEM DECIDES THE PAYLOAD. A 「相同点」 click shows the same-point text, a 「差异点」
+ *    click the difference text, and a 「未比对维度」 click the neutral 该维度未比对 statement. Sending
+ *    the same points for all three - which the previous single card-level handler did - told the user
+ *    they were looking at a difference while showing them a similarity.
+ * 🔴 THE DIMENSION LABEL IS THE ROW'S OWN, and the section heading is used only when the heading
+ *    itself was clicked. Before this, every click reported 「相同点」, so a difference row and an
+ *    uncompared row both claimed to come from the similarity section.
+ * 🔴 NO ROLE IS A JUDGEMENT. The same and different sets are both 「依据」; an uncompared dimension is
+ *    「上下文」 and never 「反驳」 (see the copy deck).
+ */
+export function comparisonSelectionOf(
+  candidate: RelatedAttemptCardView,
+  section: ComparisonSectionKey,
+  dimension_label: string | null = null,
+): ComparisonSelectionView | null {
+  if (section === 'uncompared') {
+    const uncompared = candidate.uncompared;
+    if (uncompared.length === 0) {
+      return null;
+    }
+    const chosen = dimension_label === null ? uncompared : uncompared.filter((label) => label === dimension_label);
+    if (chosen.length === 0) {
+      return null;
+    }
+    return {
+      dimension_label: dimension_label ?? SECTION_TITLES.uncompared,
+      /* 🔴 The only wording an uncompared dimension may carry: the neutral structural statement. */
+      text: SECTION_TITLES.uncompared_item,
+      role_label: COMPARISON_EVIDENCE_ROLE_CONTEXT,
+    };
+  }
+
+  const points = section === 'same' ? candidate.same_points : candidate.different_points;
+  const chosen =
+    dimension_label === null ? points : points.filter((point) => point.dimension_label === dimension_label);
+  if (chosen.length === 0) {
+    return null;
+  }
+  return {
+    dimension_label: dimension_label ?? (section === 'same' ? SECTION_TITLES.same : SECTION_TITLES.different),
+    text: chosen.map((point) => point.text).join(' / '),
+    role_label: COMPARISON_EVIDENCE_ROLE_BASIS,
+  };
+}
+
 /** The workflow-level notice with this code, when the read model reported one. */
 function noticeOf(snapshot: D9WorkflowSnapshot | null, code: WorkflowErrorCode): WorkflowNotice | null {
   return snapshot?.notices.find((notice) => notice.code === code) ?? null;
@@ -162,8 +241,12 @@ export function retrievalPresentationOf(
   const retrieval = snapshot.retrieval;
 
   if (retrieval.state === 'not_available') {
-    /* 🔴 「还没有做过历史检索」 is an empty state, not a failure - and it must still be STARTABLE
-       (`CORRECTION-04`): otherwise a refresh leaves ⑦–⑩ unreachable for this record forever. */
+    /* 🔴 Nothing usable is stored for this record YET, and the state must still be STARTABLE
+       (`CORRECTION-04`): otherwise a refresh leaves ⑦–⑩ unreachable for this record forever.
+       🔴 The headline is `RETRIEVAL_NOT_AVAILABLE`, which states only what is observable NOW
+       (`FINAL-RAPID-C` §1). The sentence it replaced claimed a fact about the record's history -
+       「还没有做过历史检索」 - which a reload cannot support and which a second card on the same
+       screen could contradict. The state, its own sentence and the start control travel together. */
     return {
       ...emptyPresentation('not_available', RETRIEVAL_NOT_AVAILABLE),
       start_offered: retrievalMayBeStarted(snapshot),
@@ -260,10 +343,10 @@ export function retrievalStartIsOffered(presentation: RetrievalPresentation): bo
  * (§24): the save STAYS a save, and the retrieval failure is a separate, retryable statement.
  *
  * 🔴 IT IS TRUE ONLY FOR `runtime_incomplete` (`PRE-PSA-HARDENING-01` §5 / §6).
- *    `not_available` means step ⑥ has not produced anything yet - 「这条记录还没有做过历史检索」 - and
- *    that is neither a failure nor `N_检索 = 0`. Rendering 「历史检索这次没有完成」 for it would (a)
- *    state a runtime failure that never happened, and (b) contradict ⑥'s own sentence on the same
- *    screen. A REAL runtime failure keeps this exact combined statement, with its rerun button.
+ *    `not_available` means step ⑥ has not produced anything yet, and that is neither a failure nor
+ *    `N_检索 = 0`. Rendering 「历史检索这次没有完成」 for it would (a) state a runtime failure that never
+ *    happened, and (b) contradict ⑥'s own sentence on the same screen. A REAL runtime failure keeps
+ *    this exact combined statement, with its rerun button.
  */
 export function saveAndRetrievalAreSplit(snapshot: D9WorkflowSnapshot | null): boolean {
   return (

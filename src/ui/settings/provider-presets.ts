@@ -34,6 +34,7 @@ import {
   SETTINGS_KEY_PRESENT_IN_SESSION,
   SETTINGS_KEY_REQUIRED,
   SETTINGS_MODEL_REQUIRED,
+  SETTINGS_PRESET_NOT_ENABLED,
   SETTINGS_UNSUPPORTED,
 } from '../copy.js';
 
@@ -55,6 +56,23 @@ export interface ProviderPreset {
    *    generic-URL-proxy that AC-147 forbids, and `validateSettingsDraft` refuses that draft.
    */
   readonly allows_custom_base_url: boolean;
+  /**
+   * Whether THIS DEPLOYMENT can actually reach the provider.
+   *
+   * 🔴 A `thin_proxy` PRESET IS NOT REACHABLE HERE, AND SAYING OTHERWISE IS A FALSE CLAIM
+   *    (`FINAL-RAPID-C` §7). A proxy preset needs a deployed proxy route AND the matching SERVER-side
+   *    registration in `M12`'s registry. This repository ships neither: nothing serves `/api/proxy`
+   *    and no adapter is registered behind it. A preset that saved "successfully" would therefore
+   *    reach `ready` and then fail on the FIRST real call - the worst possible moment to find out.
+   * 🔴 IT IS A DEPLOYMENT FACT, NOT A CAPABILITY FACT. `capability` describes the network SHAPE the
+   *    adapter would use (`resolveProviderPath`), and a proxy preset's shape is perfectly valid; this
+   *    flag records whether that shape exists SOMEWHERE the page can talk to today. The two are kept
+   *    separate so the capability contract is not quietly rewritten.
+   * 🔴 IT NEVER CHANGES WHAT IS LISTED. A disabled preset stays in the picker and stays visible; only
+   *    the SAVE (and therefore `ready`) is refused. No proxy is implemented anywhere and no
+   *    unverified endpoint is filled in for a disabled preset.
+   */
+  readonly deployment_enabled: boolean;
   /** Why this preset is shaped the way it is - shown next to the connection label. */
   readonly note: string;
 }
@@ -73,15 +91,31 @@ const PROXY_ONLY: ProviderCapability = {
 };
 
 /**
+ * The note every `thin_proxy` preset carries (`FINAL-RAPID-C` §7).
+ *
+ * 🔴 IT REPLACES 「通过受支持的代理连接访问，目标地址不由页面决定。」, WHICH WAS TRUE IN SHAPE AND FALSE IN
+ *    FACT. The wording described a proxy that works; nothing in this repository serves one. A user who
+ *    read it and saved the preset was told a connection existed, and the failure arrived later, on a
+ *    real request, with no explanation on screen. The sentence below states the deployment fact and
+ *    the one thing the user can do about it (use a browser-direct provider), and it claims nothing
+ *    about an endpoint it has never verified.
+ */
+const PROXY_PRESET_NOTE =
+  '当前部署未启用：本版本没有可用的代理连接，这个 Provider 无法配置为可用；请选择浏览器直连的 Provider。';
+
+/**
  * The presets.
  *
- * 🔴 TWO PRESETS ARE BROWSER-DIRECT: `browser-direct-custom` (the user supplies both endpoint and
- *    key) and `deepseek` (a product-registered endpoint). Everything else is marked `thin_proxy`
- *    because an in-browser call to a hosted vendor endpoint depends on CORS behaviour this task does
- *    NOT verify.
+ * 🔴 TWO PRESETS ARE BROWSER-DIRECT AND DEPLOYMENT-ENABLED: `browser-direct-custom` (the user supplies
+ *    both endpoint and key) and `deepseek` (a product-registered endpoint). Everything else is marked
+ *    `thin_proxy` because an in-browser call to a hosted vendor endpoint depends on CORS behaviour
+ *    this task does NOT verify - and, additionally, because NO proxy route is deployed for this
+ *    repository at all, so those presets are `deployment_enabled: false`.
  * 🔴 BEING BROWSER-DIRECT IS A CONFIGURATION SHAPE, NOT A REACHABILITY CLAIM. `deepseek`'s CORS
  *    behaviour has NOT been tested, its `note` says so verbatim, and no code here asserts that the
  *    endpoint answers (`PRE-PSA-BLOCKER-01` §9 / §11).
+ * 🔴 A DISABLED PRESET IS STILL LISTED. Hiding it would leave the user wondering where a documented
+ *    provider went; a disabled preset that says why, and that cannot be saved, is the honest form.
  */
 export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
   {
@@ -91,6 +125,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     capability: JSON_OBJECT,
     fixed_base_url: null,
     allows_custom_base_url: true,
+    deployment_enabled: true,
     note: '请求由浏览器直接发往你填写的地址，密钥只保留在当前会话里。',
   },
   {
@@ -102,6 +137,8 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
      * 🔴 THE ENDPOINT IS THE FULL CHAT-COMPLETIONS URL ON PURPOSE: the browser-direct adapter POSTs
      *    `config.base_url` VERBATIM and never appends a path, so the value must already name the
      *    route the request goes to.
+     * 🔴 `deepseek-flash` IS THE CONFIRMED DEFAULT AND IS NOT TOUCHED BY THIS PATCH (`FINAL-RAPID-C`
+     *    §8): a provider SWITCH must land on THIS value, not on the previous provider's model.
      */
     provider_id: providerId('deepseek'),
     display_name: 'DeepSeek',
@@ -109,6 +146,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     capability: JSON_OBJECT,
     fixed_base_url: 'https://api.deepseek.com/chat/completions',
     allows_custom_base_url: false,
+    deployment_enabled: true,
     note: '浏览器直连，实际可用性待 PSA 验证。',
   },
   {
@@ -118,7 +156,8 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     capability: PROXY_ONLY,
     fixed_base_url: null,
     allows_custom_base_url: false,
-    note: '通过受支持的代理连接访问，目标地址不由页面决定。',
+    deployment_enabled: false,
+    note: PROXY_PRESET_NOTE,
   },
   {
     provider_id: providerId('zhipu'),
@@ -127,7 +166,8 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     capability: PROXY_ONLY,
     fixed_base_url: null,
     allows_custom_base_url: false,
-    note: '通过受支持的代理连接访问，目标地址不由页面决定。',
+    deployment_enabled: false,
+    note: PROXY_PRESET_NOTE,
   },
   {
     provider_id: providerId('openai'),
@@ -136,7 +176,8 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     capability: PROXY_ONLY,
     fixed_base_url: null,
     allows_custom_base_url: false,
-    note: '通过受支持的代理连接访问，目标地址不由页面决定。',
+    deployment_enabled: false,
+    note: PROXY_PRESET_NOTE,
   },
 ];
 
@@ -171,12 +212,46 @@ export const EMPTY_SETTINGS_DRAFT: SettingsDraft = {
   custom_base_url: '',
 };
 
-/** The draft a preset switch produces: the model default follows the provider, the key is kept. */
+/**
+ * The draft a preset switch produces.
+ *
+ * 🔴 A PROVIDER CHANGE RESETS THE FORM TO THE TARGET'S OWN VALUES (`FINAL-RAPID-C` §6). The rule it
+ *    replaces carried BOTH the previous model and the previous API KEY into the new provider:
+ *
+ *        model: previous.model.trim().length > 0 ? previous.model : preset.default_model
+ *        api_key: previous.api_key
+ *
+ *    so switching `DeepSeek` (model `deepseek-flash`, a typed key) to `OpenAI` produced an OpenAI form
+ *    holding DeepSeek's model name - and DeepSeek's SECRET. That is the defect this function now
+ *    refuses to reproduce:
+ *
+ *      · a DIFFERENT provider  ⇒ the target's `default_model`, an EMPTY key, and the custom-URL field
+ *        re-derived from the new preset's own rules;
+ *      · the SAME provider     ⇒ the draft is left exactly as the user typed it, because re-selecting
+ *        the current entry is not a change of subject and must not discard their work.
+ *
+ * 🔴 THE SECRET NEVER CROSSES A PROVIDER BOUNDARY. This is the strongest form of the rule: not
+ *    "cleared unless…", but "cleared on every change of provider". A key typed for one service must
+ *    never be presented as if it belonged to another - and after a switch back, the provider's form is
+ *    empty again, whatever the session credential store may hold for that provider. Whether such a
+ *    credential EXISTS is the session layer's question (`AppSession.chooseSettingsPreset` re-asks it
+ *    and reports the answer as a boolean); nothing here reads it and nothing rehydrates a value.
+ * 🔴 IT STILL NEVER PUTS A KEY IN A CONFIG. The draft is form state; `providerConfigOf` is the only
+ *    thing that builds a `ProviderConfig`, and it reads no key.
+ */
 export function draftForPreset(preset: ProviderPreset, previous: SettingsDraft): SettingsDraft {
+  const switched = String(preset.provider_id) !== previous.provider_id;
+  if (!switched) {
+    /* Same provider: the user's own values survive a no-op re-selection. */
+    return previous;
+  }
   return {
     provider_id: String(preset.provider_id),
-    model: previous.model.trim().length > 0 ? previous.model : preset.default_model,
-    api_key: previous.api_key,
+    /* 🔴 The TARGET's default. Never the previous provider's model. */
+    model: preset.default_model,
+    /* 🔴 Never the previous provider's secret. */
+    api_key: '',
+    /* Only the NEW preset's rules decide this field: a preset that forbids it always gets ''. */
     custom_base_url: preset.allows_custom_base_url ? previous.custom_base_url : '',
   };
 }
@@ -215,6 +290,11 @@ export interface CredentialPresence {
  * 🔴 These messages are all INPUT-side statements ("please fill X"). A failure that comes back from
  *    the model service is a RUNTIME notice and is rendered by the notice layer instead - the two are
  *    never conflated (task §44).
+ * 🔴 A PRESET THIS DEPLOYMENT CANNOT REACH IS REFUSED FIRST, AND ALONE (`FINAL-RAPID-C` §7). This is
+ *    the one reason that cannot be fixed by typing something, so listing the field-level reasons
+ *    beside it would ask the user for a key that could never be used. The early return mirrors the
+ *    unknown-preset case above: "this configuration cannot become a working provider at all" is a
+ *    single statement with a single remedy, and that is what the panel shows.
  */
 export function validateSettingsDraft(
   draft: SettingsDraft,
@@ -224,6 +304,15 @@ export function validateSettingsDraft(
   const preset = findPreset(draft.provider_id);
   if (preset === null) {
     messages.push(SETTINGS_UNSUPPORTED);
+    return messages;
+  }
+  /*
+   * 🔴 THE DEPLOYMENT GATE. `deployment_enabled: false` means no route exists for this provider in
+   *    this build - so no key, no model and no URL could make the save succeed, and the provider must
+   *    never reach `ready` and fail later on a real call instead.
+   */
+  if (!preset.deployment_enabled) {
+    messages.push(SETTINGS_PRESET_NOT_ENABLED);
     return messages;
   }
   if (draft.model.trim().length === 0) {

@@ -671,6 +671,30 @@ h3 {
   margin-right: 6px;
 }
 
+/* ---------- ⑦ clickable items (FINAL-RAPID-C §4) ---------- */
+
+/*
+ * Each ⑦ heading and each ⑦ row is a real <button> so that a piece of evidence is reachable from the
+ * keyboard. They are styled to keep reading as text inside the card rather than as a row of chips.
+ */
+.point-open {
+  text-align: left;
+  font-weight: 600;
+}
+
+.point-open:hover,
+.point-open:focus-visible {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.point-row {
+  display: block;
+  width: 100%;
+  font-weight: 400;
+  white-space: pre-wrap;
+}
+
 .gate-list {
   margin: 6px 0;
 }

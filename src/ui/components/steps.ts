@@ -21,6 +21,7 @@
 
 import { badge, button, el, note, row } from '../dom.js';
 import {
+  ACTION_PENDING,
   CAPTURE_CARD_HINT,
   CAPTURE_CARD_TITLE,
   CAPTURE_START,
@@ -41,8 +42,8 @@ import {
   CONFIRM_HEADING,
   CONFIRM_SUBMIT,
   EXPERIENCE_ASSETS_HEADING,
+  FOLLOWUP_ANSWER_DEFERRED,
   FOLLOWUP_ANSWER_LABEL,
-  FOLLOWUP_ANSWER_SUBMIT,
   FOLLOWUP_ASK,
   FOLLOWUP_ASKING,
   FOLLOWUP_BUDGET_EXHAUSTED,
@@ -51,7 +52,6 @@ import {
   FOLLOWUP_NOTHING_TO_ASK,
   FOLLOWUP_PERSISTED_HEADING,
   FOLLOWUP_QUESTION_SOURCE,
-  FOLLOWUP_RECORDED,
   FOLLOWUP_REMAINING,
   FOLLOWUP_SKIP,
   FOLLOWUP_SKIPPED_NOTE,
@@ -103,7 +103,9 @@ import {
 import { causesViewOf, captureFieldsOf, followUpAnswersOf, followUpViewOf, formalGateViewOf, keyParameterViewsOf, persistedCausesOf, rawTextOf, resultStatusViewOf } from '../presenters/capture.js';
 import { insightsPresentationOf, experienceAssetsEmptyStatement } from '../presenters/insights.js';
 import { hypothesesPresentationOf } from '../presenters/hypotheses.js';
-import { retrievalPresentationOf, saveAndRetrievalAreSplit } from '../presenters/retrieval.js';
+import { comparisonSelectionOf, retrievalPresentationOf, saveAndRetrievalAreSplit } from '../presenters/retrieval.js';
+import type { ComparisonPointView, ComparisonSectionKey, RelatedAttemptCardView } from '../presenters/retrieval.js';
+import { hypothesisIsBusy, insightIsBusy } from '../presenters/busy.js';
 import { actionOffered, stepViewsForSnapshot } from '../presenters/steps.js';
 import type { D9StepView } from '../presenters/steps.js';
 import type { CauseDecision } from '../../application/capture/types.js';
@@ -308,12 +310,19 @@ function parseCard(context: ViewContext, step: D9StepView): HTMLElement {
           }),
         ),
       );
-      followUpBlock.appendChild(note(FOLLOWUP_RECORDED));
+      /*
+       * 🔴 THERE IS NO COMMIT BUTTON HERE (`FINAL-RAPID-C` §3). Typing already updates the session's
+       *    answer buffer, and the answer really is persisted - but at step ③, together with the rest
+       *    of the confirmation. The control that used to stand here called only `flashMessage`, so it
+       *    committed nothing of its own while looking exactly like a save action; a user who clicked it
+       *    believed the answer was stored and stopped looking for it. It is replaced by the sentence
+       *    that says WHEN the answer is saved, and that sentence is true even while the box is empty.
+       * 🔴 `D-017` IS UNTOUCHED: still at most 3 key questions, and no immediate-persistence path is
+       *    introduced here or anywhere else.
+       */
+      followUpBlock.appendChild(note(FOLLOWUP_ANSWER_DEFERRED));
       followUpBlock.appendChild(
         actions(
-          button(FOLLOWUP_ANSWER_SUBMIT, () => session.flashMessage('followup-recorded'), {
-            class: 'btn',
-          }),
           button(FOLLOWUP_DONT_KNOW, () => void session.abandonFollowUp(question.gap), {
             class: 'btn btn-ghost',
           }),
@@ -409,8 +418,15 @@ function confirmCard(context: ViewContext, step: D9StepView): HTMLElement {
   });
   const status = resultStatusViewOf(snapshot);
   const pending = state.pending['confirmation'] === true;
-  /* 🔴 Confirmation is a `Draft`-only command; a saved record shows its settled content instead. */
-  const can_confirm = actionOffered(snapshot, 'apply_structured_confirmation');
+  /*
+   * 🔴 Confirmation is a `Draft`-only command; a saved record shows its settled content instead.
+   * 🔴 AND A LOCKED STEP OWES NO ACTION AT ALL (`FINAL-RAPID-C` §2). `actionOffered` answers "is this
+   *    command available for the record as it stands?" - which is `true` for a `Draft` even while ② is
+   *    still unfinished. Without the `!step.locked` clause the card drew an enabled 「确认这些内容」
+   *    (plus an editable grid and three decision buttons) inside a card badged 「尚未开始」, and the
+   *    step's own lock is the stronger statement. Same rule as ⑤, applied to every card.
+   */
+  const can_confirm = actionOffered(snapshot, 'apply_structured_confirmation') && !step.locked;
 
   const editable = el(
     'div',
@@ -487,8 +503,13 @@ function causesCard(context: ViewContext, step: D9StepView): HTMLElement {
   const { state, session } = context;
   const view = causesViewOf(state.cause_proposal, state.cause_decisions);
   const pending = state.pending['cause-analysis'] === true;
-  /* 🔴 ④ is a `Draft`-only command as well; a saved record shows what it actually carries. */
-  const can_analyse = actionOffered(state.snapshot, 'persist_candidate_causes');
+  /*
+   * 🔴 ④ is a `Draft`-only command as well; a saved record shows what it actually carries.
+   * 🔴 AND a step the flow model marks `todo` must not offer it (`FINAL-RAPID-C` §2): the analyse
+   *    control would let the user run ④ before ②/③ were settled, producing candidate causes for a
+   *    record whose own content is not yet confirmed.
+   */
+  const can_analyse = actionOffered(state.snapshot, 'persist_candidate_causes') && !step.locked;
 
   const body: (Node | null)[] = [];
   if (can_analyse) {
@@ -699,6 +720,22 @@ function retrievalCard(context: ViewContext, step: D9StepView): HTMLElement {
  * ⑦ same / different
  * ------------------------------------------------------------------ */
 
+/**
+ * ⑦ - and the ONE rule that decides what a click on it means.
+ *
+ * 🔴 THE CLICKED ITEM DECIDES THE EVIDENCE (`FINAL-RAPID-C` §4). The card used to carry a single
+ *    click listener that sent `candidate.same_points` under the label 「相同点」 for EVERY click -
+ *    the heading, a difference row and an uncompared row all produced the same similarity payload.
+ *    A reviewer who clicked 「差异点」 was shown the same points and told they came from 「相同点」:
+ *    the rail silently answered a question nobody asked.
+ * 🔴 THERE IS NO CONTAINER-LEVEL HANDLER ANY MORE - only real `<button>`s, one per clickable item,
+ *    each forwarding ITS OWN section and dimension. Removing the container handler is what makes the
+ *    wrong-payload bug unrepresentable rather than merely fixed: with one listener per item there is
+ *    no longer any code path that can ignore which item was clicked.
+ * 🔴 THE PAYLOAD ITSELF IS RESOLVED BY `comparisonSelectionOf` (framework-neutral, unit-tested), NOT
+ *    HERE. The DOM layer only forwards the result, so the mapping rules - which text, which dimension
+ *    label, which role - cannot drift between a rendering path and a test.
+ */
 function comparisonCard(context: ViewContext, step: D9StepView): HTMLElement {
   const { state, session } = context;
   const view = retrievalPresentationOf(state.snapshot, state.retrieval_expanded);
@@ -708,25 +745,63 @@ function comparisonCard(context: ViewContext, step: D9StepView): HTMLElement {
     body.push(note(COMPARISON_NO_POINTS));
   }
 
+  /** Sends ONE clicked item to the Evidence Rail. A `null` selection produces no rail entry. */
+  const reveal = (
+    candidate: RelatedAttemptCardView,
+    section: ComparisonSectionKey,
+    dimension_label: string | null,
+  ): void => {
+    const selection = comparisonSelectionOf(candidate, section, dimension_label);
+    if (selection === null) {
+      return;
+    }
+    session.selectComparisonPoint({
+      attempt_id: candidate.attempt_id,
+      dimension_label: selection.dimension_label,
+      text: selection.text,
+      role: selection.role_label,
+    });
+  };
+
   for (const candidate of view.candidates) {
     const card = el('article', { class: 'comparison-card' });
     card.appendChild(el('div', { class: 'comparison-head', text: candidate.attempt_id }));
-    card.appendChild(pointBlock(view.section_titles.same, candidate.same_points, 'same'));
-    card.appendChild(pointBlock(view.section_titles.different, candidate.different_points, 'different'));
+    card.appendChild(
+      pointBlock(
+        view.section_titles.same,
+        candidate.same_points,
+        'same',
+        () => reveal(candidate, 'same', null),
+        (dimension) => reveal(candidate, 'same', dimension),
+      ),
+    );
+    card.appendChild(
+      pointBlock(
+        view.section_titles.different,
+        candidate.different_points,
+        'different',
+        () => reveal(candidate, 'different', null),
+        (dimension) => reveal(candidate, 'different', dimension),
+      ),
+    );
     if (candidate.uncompared.length > 0) {
       card.appendChild(
         el(
           'div',
           { class: 'point-block uncompared' },
-          el('div', { class: 'point-title', text: view.section_titles.uncompared }),
+          pointTitle(view.section_titles.uncompared, () => reveal(candidate, 'uncompared', null)),
           el(
             'ul',
             { class: 'plain-list' },
             ...candidate.uncompared.map((dimension) =>
-              el('li', {
+              el(
+                'li',
+                {},
                 /* 🔴 A neutral marker: 「该维度未比对」 - never a negative judgement. */
-                text: `${dimension}：${view.section_titles.uncompared_item}`,
-              }),
+                clickableItem(dimension, view.section_titles.uncompared_item, () =>
+                  reveal(candidate, 'uncompared', dimension),
+                ),
+              ),
             ),
           ),
         ),
@@ -742,14 +817,6 @@ function comparisonCard(context: ViewContext, step: D9StepView): HTMLElement {
         ),
       );
     }
-    card.addEventListener('click', () =>
-      session.selectComparisonPoint({
-        attempt_id: candidate.attempt_id,
-        dimension_label: view.section_titles.same,
-        text: candidate.same_points.map((point) => point.text).join(' / '),
-        role: '依据',
-      }),
-    );
     body.push(card);
   }
 
@@ -764,24 +831,80 @@ function comparisonCard(context: ViewContext, step: D9StepView): HTMLElement {
   return stepCard(step, body);
 }
 
+/**
+ * One ⑦ area, its heading and its rows.
+ *
+ * 🔴 `onTitle` AND `onPoint` ARE SEPARATE ON PURPOSE. The heading sends the whole section (「相同点」
+ *    as one payload); a ROW sends only itself, under its OWN dimension label. Collapsing the two into
+ *    one callback is exactly how the previous version lost the distinction between the rows.
+ */
 function pointBlock(
   title: string,
-  points: readonly { readonly dimension_label: string; readonly text: string }[],
+  points: readonly ComparisonPointView[],
   variant: string,
+  onTitle: () => void,
+  onPoint: (dimension_label: string) => void,
 ): HTMLElement {
   return el(
     'div',
     { class: `point-block ${variant}` },
-    el('div', { class: 'point-title', text: title }),
+    pointTitle(title, onTitle),
     points.length === 0
       ? note('—')
       : el(
           'ul',
           { class: 'plain-list' },
           ...points.map((point) =>
-            el('li', {}, el('span', { class: 'point-dim', text: point.dimension_label }), el('span', { text: point.text })),
+            el(
+              'li',
+              {},
+              /* 🔴 The row's own dimension is closed over HERE, so the row cannot report another. */
+              clickableItem(point.dimension_label, point.text, () => onPoint(point.dimension_label)),
+            ),
           ),
         ),
+  );
+}
+
+/**
+ * A ⑦ section heading, made clickable.
+ *
+ * 🔴 IT IS A REAL `<button>`, so it is reachable and operable from the keyboard - a clickable `<div>`
+ *    with a handler would have been invisible to anyone not using a mouse, and this is the only way
+ *    to a piece of evidence.
+ */
+function pointTitle(title: string, onClick: () => void): HTMLElement {
+  return el(
+    'div',
+    { class: 'point-title' },
+    el('button', {
+      class: 'btn btn-tiny btn-ghost point-open',
+      props: { type: 'button' },
+      on: { click: () => onClick() },
+      text: title,
+    }),
+  );
+}
+
+/**
+ * One clickable ⑦ row: the dimension, then the text.
+ *
+ * 🔴 `dimension_label` IS THE ROW'S IDENTITY, and the caller is given no way to send a different one:
+ *    both the visible label and the value that reaches the Evidence Rail come from this same
+ *    argument, so a row cannot be labelled 「目标」 and reported as 「差异点」.
+ * 🔴 `onClick` receives NOTHING, so the section cannot be re-decided by the row either - the caller
+ *    closes over the row's own dimension when it builds the button.
+ */
+function clickableItem(dimension_label: string, text: string, onClick: () => void): HTMLButtonElement {
+  return el(
+    'button',
+    {
+      class: 'btn btn-tiny btn-ghost point-open point-row',
+      props: { type: 'button' },
+      on: { click: () => onClick() },
+    },
+    el('span', { class: 'point-dim', text: dimension_label }),
+    el('span', { text }),
   );
 }
 
@@ -793,21 +916,40 @@ function insightCard(context: ViewContext, step: D9StepView): HTMLElement {
   const { state, session } = context;
   const view = insightsPresentationOf(state.snapshot);
   const pending = state.pending['insight-generation'] === true;
-  const body: (Node | null)[] = [
-    actions(
-      button(pending ? INSIGHT_GENERATING : INSIGHT_ACTION, () => void session.generateInsights(), {
-        class: 'btn',
-        disabled: pending,
-        attrs: { 'data-action': 'generate-insights' },
-      }),
-    ),
-  ];
+  const body: (Node | null)[] = [];
+
+  /*
+   * 🔴 A LOCKED STEP OFFERS NO GENERATION (`FINAL-RAPID-C` §2). ⑧ sits behind ⑥/⑦: without a
+   *    comparison to ground them, a run here could only produce an empty generation batch - a
+   *    derivative object that records work which had nothing to work on. `step.locked` is the flow
+   *    model's own statement that the step is not reachable yet, so it wins over the mere absence of
+   *    an earlier failure. 🔴 This is a RENDER decision only: the module gates still decide, and
+   *    `available_actions` is untouched.
+   */
+  if (!step.locked) {
+    body.push(
+      actions(
+        button(pending ? INSIGHT_GENERATING : INSIGHT_ACTION, () => void session.generateInsights(), {
+          class: 'btn',
+          disabled: pending,
+          attrs: { 'data-action': 'generate-insights' },
+        }),
+      ),
+    );
+  }
 
   if (view.generated && view.cards.length === 0) {
     body.push(note(view.empty_statement));
   }
 
   for (const card of view.cards) {
+    /*
+     * 🔴 ONE INSIGHT, ONE PENDING KEY (`FINAL-RAPID-C` §5). Accept / reject / revoke / save-edit all
+     *    run under `insight-action:<id>`, so while one of them is in flight the others would be
+     *    silently ignored by `AppSession.run`. They are therefore disabled, and the card says why -
+     *    a click that disappears is indistinguishable from a broken button.
+     */
+    const busy = insightIsBusy(state.pending, card.insight_id);
     const article = el('article', { class: `insight-card state-${card.state}` });
     article.appendChild(
       el(
@@ -869,24 +1011,33 @@ function insightCard(context: ViewContext, step: D9StepView): HTMLElement {
         card.state === 'accepted'
           ? button(INSIGHT_REVOKE, () => void session.revokeInsightAcceptance(card.insight_id), {
               class: 'btn btn-tiny',
+              disabled: busy,
             })
           : null,
         card.state === 'candidate' || card.state === 'rejected'
           ? button(INSIGHT_ACCEPT, () => void session.acceptInsight(card.insight_id), {
               class: 'btn btn-tiny btn-primary',
-              disabled: !card.can_accept,
+              disabled: !card.can_accept || busy,
             })
           : null,
         card.state === 'candidate'
           ? button(INSIGHT_REJECT, () => void session.rejectInsight(card.insight_id), {
               class: 'btn btn-tiny',
+              disabled: busy,
             })
           : null,
         button(INSIGHT_EDIT_SAVE, () => void session.saveInsightEdit(card.insight_id), {
           class: 'btn btn-tiny btn-ghost',
+          disabled: busy,
         }),
       ),
     );
+    if (busy) {
+      /* 🔴 The reason the controls above cannot be used, in one sentence, on the card itself. */
+      article.appendChild(
+        el('p', { class: 'progress', attrs: { 'aria-busy': 'true' }, text: ACTION_PENDING }),
+      );
+    }
     body.push(article);
   }
 
@@ -922,15 +1073,25 @@ function hypothesisCard(context: ViewContext, step: D9StepView): HTMLElement {
   const { state, session } = context;
   const view = hypothesesPresentationOf(state.snapshot);
   const pending = state.pending['hypothesis-generation'] === true;
-  const body: (Node | null)[] = [
-    actions(
-      button(pending ? HYPOTHESIS_GENERATING : HYPOTHESIS_ACTION, () => void session.generateHypotheses(), {
-        class: 'btn',
-        disabled: pending,
-        attrs: { 'data-action': 'generate-hypotheses' },
-      }),
-    ),
-  ];
+  const body: (Node | null)[] = [];
+
+  /*
+   * 🔴 A LOCKED STEP OFFERS NO GENERATION (`FINAL-RAPID-C` §2), for the same reason as ⑧ and with a
+   *    sharper edge: a direction generated before ⑧ has produced anything accepted has nothing
+   *    grounded behind it, so the run could only write an empty batch or a set of suggestions the
+   *    ⑥⑦⑧ chain never supported.
+   */
+  if (!step.locked) {
+    body.push(
+      actions(
+        button(pending ? HYPOTHESIS_GENERATING : HYPOTHESIS_ACTION, () => void session.generateHypotheses(), {
+          class: 'btn',
+          disabled: pending,
+          attrs: { 'data-action': 'generate-hypotheses' },
+        }),
+      ),
+    );
+  }
 
   body.push(el('h3', { class: 'sub-title', text: HYPOTHESIS_GROUNDED_HEADING }));
   if (view.exit !== null) {
@@ -960,7 +1121,14 @@ function hypothesisBody(
   card: ReturnType<typeof hypothesesPresentationOf>['grounded'][number],
   is_model_suggestion: boolean,
 ): HTMLElement {
-  const { session } = context;
+  const { state, session } = context;
+  /*
+   * 🔴 ONE HYPOTHESIS, ONE PENDING KEY (`FINAL-RAPID-C` §5). Accept / reject / save-model-suggestion /
+   *    every criterion decision / the ⑥⑦⑧ edit save all run under `hypothesis-action:<id>`, so while
+   *    one is in flight the rest would be swallowed by `AppSession.run`. They are disabled instead of
+   *    offered - including inside the criterion rows, where a decision is the most likely second click.
+   */
+  const busy = hypothesisIsBusy(state.pending, card.hypothesis_id);
   const article = el('article', { class: `hypothesis-card ${is_model_suggestion ? 'is-model' : 'is-grounded'}` });
   article.appendChild(
     el(
@@ -1005,17 +1173,17 @@ function hypothesisBody(
                     button(
                       HYPOTHESIS_CRITERIA_ACCEPT,
                       () => void session.decideHypothesisCriterion(card.hypothesis_id, entry.content_item_id, 'accepted'),
-                      { class: `btn btn-tiny ${entry.decision_state === 'accepted' ? 'btn-primary' : ''}` },
+                      { class: `btn btn-tiny ${entry.decision_state === 'accepted' ? 'btn-primary' : ''}`, disabled: busy },
                     ),
                     button(
                       HYPOTHESIS_CRITERIA_REJECT,
                       () => void session.decideHypothesisCriterion(card.hypothesis_id, entry.content_item_id, 'rejected'),
-                      { class: `btn btn-tiny ${entry.decision_state === 'rejected' ? 'btn-primary' : ''}` },
+                      { class: `btn btn-tiny ${entry.decision_state === 'rejected' ? 'btn-primary' : ''}`, disabled: busy },
                     ),
                     button(
                       HYPOTHESIS_CRITERIA_SKIP,
                       () => void session.decideHypothesisCriterion(card.hypothesis_id, entry.content_item_id, 'unresolved'),
-                      { class: `btn btn-tiny btn-ghost` },
+                      { class: 'btn btn-tiny btn-ghost', disabled: busy },
                     ),
                   )
                 : null,
@@ -1023,7 +1191,7 @@ function hypothesisBody(
           ),
           /* 🔴 A user may ADD their own ⑥⑦⑧ content. It is stored as the user's own `Fact` and is
            *    labelled 「你提供的信息」 - never as something the model confirmed (§36). */
-          item.read_only ? null : userCriterionInput(context, card.hypothesis_id, item.key),
+          item.read_only ? null : userCriterionInput(context, card.hypothesis_id, item.key, busy),
         ),
       ),
     ),
@@ -1047,41 +1215,75 @@ function hypothesisBody(
     actions(
       button(HYPOTHESIS_ACCEPT, () => void session.acceptHypothesis(card.hypothesis_id), {
         class: 'btn btn-tiny btn-primary',
-        disabled: !card.can_accept,
+        disabled: !card.can_accept || busy,
       }),
       card.can_reject
         ? button('拒绝这个方向', () => void session.rejectHypothesis(card.hypothesis_id), {
             class: 'btn btn-tiny',
+            disabled: busy,
           })
         : null,
       is_model_suggestion
         ? button(HYPOTHESIS_MODEL_SAVE, () => void session.saveModelSuggestion(card.hypothesis_id, true), {
             class: 'btn btn-tiny',
+            disabled: busy,
           })
         : null,
       is_model_suggestion
         ? button(
             card.saved === true ? HYPOTHESIS_MODEL_SAVED : HYPOTHESIS_MODEL_REJECT,
             () => void session.saveModelSuggestion(card.hypothesis_id, false),
-            { class: 'btn btn-tiny btn-ghost' },
+            { class: 'btn btn-tiny btn-ghost', disabled: busy },
           )
         : null,
       is_model_suggestion
         ? button(HYPOTHESIS_MODEL_ACCEPT, () => void session.acceptHypothesis(card.hypothesis_id), {
             class: 'btn btn-tiny',
-            disabled: !card.can_accept,
+            disabled: !card.can_accept || busy,
           })
         : null,
     ),
   );
+  if (busy) {
+    /* 🔴 The reason the controls above cannot be used, in one sentence, on the card itself. */
+    article.appendChild(el('p', { class: 'progress', attrs: { 'aria-busy': 'true' }, text: ACTION_PENDING }));
+  }
   return article;
 }
 
-/** The additive control for one editable ⑥⑦⑧ slot (an uncontrolled input plus one explicit save). */
+/**
+ * The additive control for one editable ⑥⑦⑧ slot: a text field plus one explicit save.
+ *
+ * ── ⚠️ INTEGRATION REQUIRED｜Hypothesis Draft Input State (`FINAL-RAPID-C` §10) ──────────────
+ * 🔴 THIS INPUT IS UNCONTROLLED, AND IT IS THE ONE PLACE IN THIS FILE THAT IS. The field is built
+ *    fresh on every render and its value is read from the DOM at click time (`input.value`). The App
+ *    Shell re-renders the WHOLE workbench on every state change (`app-root.ts` clears the root and
+ *    rebuilds it). So any unrelated state update - deciding a criterion, a notice, a pending flag -
+ *    replaces this node with an empty one and the user's UN-SAVED text is gone with no warning.
+ * 🔴 IT CANNOT BE MADE CONTROLLED HERE. A controlled field needs a value that outlives the render,
+ *    and there is no such field in `AppSessionState` for hypothesis criteria: `insight_edits` is keyed
+ *    by insight and belongs to ⑧, and nothing else can hold ⑥⑦⑧ draft text. Adding one means touching
+ *    `src/ui/session/app-session.ts`, which this workstream is forbidden to edit and does not own.
+ * 🔴 WHAT THE INTEGRATOR MUST ADD (exactly two members, mirroring the ⑧ pattern):
+ *
+ *      AppSessionState.hypothesis_criterion_edits: Readonly<Record<string, string>>
+ *        — key `${hypothesis_id}:${slot}`, initialised to `{}` in `initialState`, cleared for a
+ *          hypothesis the way `selectAttempt` clears `insight_edits`.
+ *      AppSession.setHypothesisCriterionEdit(hypothesis_id, slot, value): void
+ *        — a one-line `set({...})`, the exact analogue of `setInsightEdit`; `addHypothesisCriterion`
+ *          should delete the entry after a successful write, the way `saveInsightEdit` does.
+ *
+ *    The component change is then three lines: a `props: { value: … }` on the input, an `on.input`
+ *    that calls the setter, and no `input.value = ''` after the save.
+ * 🔴 IT IS NOT SILENTLY WORKED AROUND. Reusing another record's edit buffer, or keeping a
+ *    module-level map, would each be a second source of truth for user input - worse than the defect.
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ */
 function userCriterionInput(
   context: ViewContext,
   hypothesis_id: string,
   slot: string,
+  disabled: boolean,
 ): HTMLElement {
   const { session } = context;
   const input = el('input', {
@@ -1108,7 +1310,8 @@ function userCriterionInput(
         );
         input.value = '';
       },
-      { class: 'btn btn-tiny' },
+      /* 🔴 A second save while this hypothesis is busy would be swallowed by the session. */
+      { class: 'btn btn-tiny', disabled },
     ),
   );
 }

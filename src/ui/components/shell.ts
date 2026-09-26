@@ -50,6 +50,7 @@ import {
   SETTINGS_EXPLAIN,
   SETTINGS_MODEL,
   SETTINGS_OPEN,
+  SETTINGS_PRESET_OPTION_DISABLED,
   SETTINGS_PROVIDER,
   SETTINGS_SAVE,
   SETTINGS_SECTION_MODEL,
@@ -341,7 +342,16 @@ function presetSelector(context: ViewContext): HTMLElement {
     select.appendChild(
       el('option', {
         props: { value: id, selected: id === context.state.settings_draft.provider_id },
-        text: option.display_name,
+        /*
+         * 🔴 A PRESET THIS DEPLOYMENT CANNOT REACH IS STILL LISTED, AND SAYS SO IN THE LIST
+         *    (`FINAL-RAPID-C` §7). The marker is what keeps a disabled entry from reading as an
+         *    ordinary choice: the user sees the limitation before selecting it, not after a save that
+         *    refuses. The reason is repeated beside the connection row (the preset's own note) and,
+         *    once selected, as the panel's blocking reason - one fact, three places it is visible.
+         */
+        text: option.deployment_enabled
+          ? option.display_name
+          : `${option.display_name}${SETTINGS_PRESET_OPTION_DISABLED}`,
       }),
     );
   }

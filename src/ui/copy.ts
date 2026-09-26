@@ -166,6 +166,31 @@ export const SETTINGS_BASE_URL_REQUIRED = '这个 Provider 需要填写 Custom B
 export const SETTINGS_BASE_URL_FORBIDDEN =
   '这个 Provider 的访问地址由产品提供，不能填写 Custom Base URL。';
 /**
+ * The blocking reason for a preset THIS DEPLOYMENT cannot reach (`FINAL-RAPID-C` §7).
+ *
+ * 🔴 WHY IT IS A BLOCKING REASON AND NOT A FOOTNOTE. A `thin_proxy` preset only works if a deployed
+ *    proxy route and the matching SERVER-side registration exist. This repository ships neither, so
+ *    saving such a preset could only produce a provider that LOOKS configured and fails on the first
+ *    real call - the worst possible moment to discover it. Refusing the save keeps the panel open and
+ *    the top bar at 「模型服务未配置」, so nothing ever claims a connection that is not there.
+ * 🔴 THE PRESET STAYS IN THE LIST. It is a real, planned capability and the user may reasonably want
+ *    to know it exists; it is the SAVE (and therefore `ready`) that is refused, not its visibility.
+ *    Nothing here implements a proxy and nothing here fills in an unverified endpoint.
+ * 🔴 IT NAMES NO TECHNICAL CAUSE. There is no route name, no status code and no environment variable
+ *    in the sentence: it states the deployment fact the user can act on (ask an administrator / use a
+ *    browser-direct provider), not an internal detail.
+ */
+export const SETTINGS_PRESET_NOT_ENABLED = '当前部署未启用：这个 Provider 暂时无法配置为可用。';
+
+/**
+ * The marker appended to a disabled preset's name INSIDE the picker (`FINAL-RAPID-C` §7).
+ *
+ * 🔴 IT USES THE SAME FOUR WORDS AS `SETTINGS_PRESET_NOT_ENABLED` ON PURPOSE. A list entry must not
+ *    phrase the limitation in its own vocabulary: the user has to be able to connect what the option
+ *    says with what the panel says after selecting it, without translating between two sentences.
+ */
+export const SETTINGS_PRESET_OPTION_DISABLED = '（当前部署未启用）';
+/**
  * The blocking reason shown when a save has no usable credential (`CORRECTION-03` §11).
  *
  * 🔴 IT IS A BLOCKING REASON NOW, AND THAT IS A HUMAN DECISION (`PSA-D2 = B`). A model configuration
@@ -288,7 +313,22 @@ export const FOLLOWUP_REMAINING = (remaining: number): string =>
   `还可以追问 ${remaining} 个关键问题。`;
 export const FOLLOWUP_BUDGET_EXHAUSTED = '3 个关键追问问题已经用完。';
 export const FOLLOWUP_ANSWER_LABEL = '你的回答';
-export const FOLLOWUP_ANSWER_SUBMIT = '回答';
+/**
+ * The hint that stands where the old 「回答」 BUTTON used to be (`FINAL-RAPID-C` §3).
+ *
+ * 🔴 WHY THE BUTTON IS GONE. Typing in the answer box already updates the session's answer buffer
+ *    (`AppSession.setFollowUpAnswer`), and the answers really are persisted - but at step ③, together
+ *    with the rest of the confirmation (`applyStructuredConfirmation` re-keys them as
+ *    `answer_to_gap`). The old control therefore committed nothing of its own: it only flashed a
+ *    message. A control that LOOKS like a commit action and commits nothing is worse than no control,
+ *    because the user believes their answer was stored and stops looking for it.
+ * 🔴 IT CLAIMS NOTHING ABOUT THE PAST, so it is true while the box is still EMPTY. The sentence it
+ *    replaces - 「已记录，会一起在「你确认一下」里保存。」 - said 「已记录」 unconditionally, including on
+ *    the first render of a question the user had not answered yet.
+ * 🔴 NOTHING NEW IS PERSISTED AND `D-017` IS UNTOUCHED: this is a statement, not a mechanism. The
+ *    budget stays at most 3 key questions, and no immediate-persistence path is introduced.
+ */
+export const FOLLOWUP_ANSWER_DEFERRED = '回答会在③确认时一并保存。';
 export const FOLLOWUP_DONT_KNOW = '不知道';
 export const FOLLOWUP_SKIP = '跳过 / 就这样继续';
 export const FOLLOWUP_ANSWER_SOURCE_USER = '你提供的信息';
@@ -296,7 +336,6 @@ export const FOLLOWUP_ANSWER_SOURCE_AI = 'AI 对这次回答的归纳';
 export const FOLLOWUP_QUESTION_SOURCE = '系统提出的问题';
 export const FOLLOWUP_ASK = '继续追问';
 export const FOLLOWUP_ASKING = '正在记录问题…';
-export const FOLLOWUP_RECORDED = '已记录，会一起在「你确认一下」里保存。';
 export const FOLLOWUP_NOTHING_TO_ASK = '没有需要继续追问的关键信息了。';
 export const FOLLOWUP_SKIPPED_NOTE = '已记录为「就这样继续」，不会再问同一个问题。';
 export const FOLLOWUP_PERSISTED_HEADING = '追问问答的落库结果';
@@ -420,7 +459,23 @@ export const retrievalFound = (n: number): string => `找到 ${n} 条相关历�
 export const RETRIEVAL_HISTORY_EMPTY = '当前工作区还没有可用于比较的历史记录。';
 export const RETRIEVAL_NO_RELATED_HISTORY = '已有历史记录，但这次暂未找到相关记录。';
 export const RETRIEVAL_RUNTIME_INCOMPLETE = '历史检索这次没有完成。';
-export const RETRIEVAL_NOT_AVAILABLE = '这条记录还没有做过历史检索。';
+
+/**
+ * The ⑥ empty state: a `Formal` record with nothing usable stored for it yet.
+ *
+ * 🔴 IT MUST NOT CLAIM A HISTORY FACT (`FINAL-RAPID-C` §1). The wording this replaces -
+ *    「这条记录还没有做过历史检索。」 - asserted something about the record's PAST, and the screen
+ *    cannot support that claim: the very same state is reached by a record whose retrieval was never
+ *    started, by one whose retrieval was interrupted, and by one that was simply reloaded before any
+ *    comparison was written. A statement about a history nobody read is exactly the kind of assertion
+ *    this project refuses to render, and on a reloaded record it could contradict another card on the
+ *    same screen. The sentence below states only what is OBSERVABLE NOW - no usable comparison is
+ *    available - and it is the sentence the card's own start control sits under.
+ * 🔴 IT IS STILL THE `not_available` STATE'S OWN SENTENCE (task §25): it is never merged with
+ *    `RETRIEVAL_HISTORY_EMPTY` / `RETRIEVAL_NO_RELATED_HISTORY` / `RETRIEVAL_RUNTIME_INCOMPLETE`, and
+ *    it is never rendered as 「暂无数据」.
+ */
+export const RETRIEVAL_NOT_AVAILABLE = '当前没有可用的历史检索结果。';
 export const RETRIEVAL_STALE = '当前记录已被修改，先前的历史比较可能不再适用。';
 
 /* ------------------------------------------------------------------ *
@@ -438,6 +493,26 @@ export const COMPARISON_SOURCE_ARCHIVED = '来源已归档';
 export const comparisonMore = (n: number): string => `还有 ${n} 条`;
 export const COMPARISON_EXPAND = '展开全部';
 export const COMPARISON_COLLAPSE = '收起';
+
+/**
+ * The ROLE an evidence row carries when the user clicks a step ⑦ item (`FINAL-RAPID-C` §4).
+ *
+ * 🔴 A SAME POINT AND A DIFFERENCE POINT ARE BOTH 「依据」. Both are facts the comparison actually
+ *    established, and both are what the judgement rests on. They are told apart by the row's own
+ *    「来自哪个部分」 label (the dimension, or the section name), never by the role.
+ * 🔴 A DIFFERENCE IS NEVER 「反驳」 (`EVIDENCE_ROLE_LABELS.contradict`). Calling a difference a
+ *    refutation would assert that the candidate DISPROVES something - a judgement this product does
+ *    not make anywhere, and the step ⑦ screen states differences as neutral facts.
+ */
+export const COMPARISON_EVIDENCE_ROLE_BASIS = '依据';
+/**
+ * The role for an UNCOMPARED dimension: 上下文, not 依据.
+ *
+ * 🔴 Nothing was compared on that dimension (the structural `unknown` rule settled it), so it is
+ *    context about the comparison rather than evidence FOR it. Presenting it as 「依据」 would claim
+ *    a comparison that never happened.
+ */
+export const COMPARISON_EVIDENCE_ROLE_CONTEXT = '上下文';
 
 /* ------------------------------------------------------------------ *
  * 14. Step ⑧ - candidate insights and the E1-E4 checks (task §30 / §31 / §32 / §33)
@@ -607,6 +682,20 @@ export const NOTICE_RECOVERY_REGENERATE_HYPOTHESES = '重新生成方向';
 export const NOTICE_RECOVERY_SELECT_WORKSPACE = '选择本地工作区';
 export const NOTICE_RECOVERY_GRANT_ACCESS = '重新授权';
 export const NOTICE_RETRY = '重试';
+
+/**
+ * The inline 「this item is already being worked on」 state (`FINAL-RAPID-C` §5).
+ *
+ * 🔴 IT EXISTS BECAUSE SILENCE IS NOT AN ANSWER. The session serialises every action on ONE item
+ *    behind one pending key and returns immediately on a second click - deliberately, so a double
+ *    click can never write twice. From the user's side that is indistinguishable from a broken
+ *    button. The App Shell's answer is to make the conflicting controls UNREACHABLE while the action
+ *    runs and to say why, rather than to let a click disappear.
+ * 🔴 IT DESCRIBES THE ITEM, NOT THE WORK. There is no stage name, no percentage and no 「后台正在分析」
+ *    wording: every one of those would describe a mechanism (`D-022`) the product deliberately does
+ *    not have.
+ */
+export const ACTION_PENDING = '正在处理…';
 
 /* ------------------------------------------------------------------ *
  * 18. Field labels (never a schema key, never a TS property name)
