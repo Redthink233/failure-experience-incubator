@@ -2108,3 +2108,198 @@ SAFE NEXT = PRE-SUBMISSION PSA-A
 🔴 未授权自动启动 —— 本次完成后停止（不得自动输入真实 Key / 不得自动启动真实 Provider / 不得自动开始 PSA）
 ```
 
+---
+
+## 24. FINAL-RAPID-INTEGRATION-01 ｜ MERGE PARALLEL CRITICAL FIXES（🚩 `FINAL-RAPID-INTEGRATION-01`，2026-09-26｜🔴 追加，不改写历史）
+
+> 阶段 = `PRE-SUBMISSION`｜类型 = `Single-owner Integration`（仓库协调 + 跨边界收口）。
+> 🔴 **本节只做追加，不改动 §23.10 及之前任何一字**。🔴 `Decision Added = 0`｜`AC Added = 0`｜`CCR = NO`｜
+> `Frozen Contract Modified = NO`：本节登记的全部是**实现修复**，不新增产品 `Decision`、不新增 `AC` 编号。
+> 🔴 权威序不变：`docs/DECISIONS.md` > `docs/00–09`。
+
+### 24.1 合并登记（🔴 事实登记）
+
+```
+BASE (开工 HEAD)      = d3f51e15fb77fb439832a8683e0a09e1ce769aa4（= 开工时远端 refs/heads/main，`git ls-remote` 实核）
+预合并工作树          = ` M .gitignore`（唯一改动；见 24.2）
+`PRE_PARALLEL_UI_RECOVERY_WIP` stash / patch = **不存在**
+     依据：`lb-parallel/PARALLEL_BRIEF.md` §5 `WIP_PATCH = NONE`（`copy.ts` / `presenters/retrieval.ts` 当时 `git diff` 为空，
+     **未对任何 worktree 执行过 `git apply`**），且 `git stash list` = 空。
+     ⇒ 「先 diff 验证、不得重复 apply」这一条**无可操作对象**；也不存在「C 获得额外 WIP」的差异。
+4 路 worker commit（均以 d3f51e1 为唯一 parent）：
+  A retrieval        = 11a72f2b0e60e9ec9bfde142ac67ec6194085ad2  fix: batch retrieval dimension judgments        (12 files, +1738/−116)
+  B ui-session       = bf996c57aca867c32c0c7a59588044eca07f31be  fix: isolate frontend async state and record operations (8 files, +2180/−172)
+  C ui-components    = f3720e5536827f07f51879a46fb5fca02e2a7dc4  fix: align UI buttons with real workflow state  (8 files, +1493/−77)
+  D runtime-hardening= 7d7910973d8466770fb70a22e1b88c828350dc91  fix: harden workspace persistence and local build runtime (6 files, +1276/−74)
+cherry-pick 顺序      = A → B → C → D（按任务书）
+冲突                  = **0**（四棵树职责不重叠：A `src/retrieval/**`｜B `src/ui/session/**` + `app-root` + `presenters/notices`｜
+                        C `src/ui/components/**` + `copy` + `presenters/{retrieval,busy}` + `settings/provider-presets`｜D `scripts/**` +
+                        `src/workspace/repository/**`）⇒ 无任何文件需要人工取舍，**未删除任何一侧测试**。
+```
+
+### 24.2 预合并的 `.gitignore` 收口（🔴 人工裁决 ④ 的落地，不是新决定）
+
+```
+事实 : `lb-parallel/PARALLEL_BRIEF.md` §4.3 —— 主工作树的 ` M .gitignore` 是**按人工裁决修复编码损坏**的结果，
+       **故意留白未提交**，并**明确留给最终 Integrator**（「worker 不要在主工作树里 `git add .gitignore`」）。
+本次 : 作为预合并提交落地 ⇒ `1b00022  chore: repair .gitignore encoding and stop tracking .learnbuddy working memory`（1 file, +14）。
+内容 : ① `.learnbuddy/` 由「有意不忽略」改为**有意移出版本库**（依据：`d3f51e1`「Remove something」已删除
+         `.learnbuddy/memory/**`，9 文件 / 5136 行）；② 修掉被本地追加的 **UTF-16LE（含 NUL）** 行 —— 该行**不是有效
+         ignore 规则**，`.learnbuddy/` 实际仍以 `??` 出现，且把 `.gitignore` 变成 Git 眼中的 binary。
+🔴 磁盘上的 `.learnbuddy/**` **未被删除**，仅脱离版本追踪。
+🚩 由此产生的**测试冲突**（🔴 跨边界项，见 24.5 第 14 项）：`src/tests/config/tsconfig-layout.test.ts` 原断言
+   `.gitignore` **must NOT ignore `.learnbuddy/`** ⇒ 与人工裁决 ④ 直接冲突。处置 = **就地补注 + 改为断言新规则**，
+   **保留原断言原文与理由**，未删除该用例。
+```
+
+### 24.3 跨边界集成 A｜⑥⑦⑧ 草稿态（`FINAL-RAPID-C` §10 的 `INTEGRATION REQUIRED` = CLOSED）
+
+```
+缺陷（C 侧已自陈，C 无权修）: `components/steps.ts` 的 ⑥⑦⑧ 补充输入框是**非受控** input，值只在 DOM 里；
+   而 `app-root.ts` **每次状态变化都整树重建** ⇒ 任何无关更新（决定另一条 criterion、notice 到达、pending 翻转）
+   都会把节点换成空的，**用户未保存的文本无声消失**。
+处置（Integrator 侧，两处）:
+  A｜`src/ui/session/app-session.ts`
+     + `AppSessionState.hypothesis_criterion_edits: Readonly<Record<string,string>>`（`initialState` 初始化 `{}`）
+     + `hypothesisCriterionEditKey(hypothesis_id, slot)` —— **导出**的键构造器（渲染侧与 session 共用**同一条**定义）
+     + `AppSession.setHypothesisCriterionEdit(hypothesis_id, slot, value)`（一行 `set`，`setInsightEdit` 的类比）
+     + `recordScopedResetPatch` 增加 `hypothesis_criterion_edits: {}` ⇒ 切记录 / 开 ① / 新 capture / 切工作区 /
+       工作区丢失 **一律清除**（与 `insight_edits` 同一处、同一次）
+     + `addHypothesisCriterion` 在**写入成功**时才 `scope.apply` 删除该键（失败保留，供重试）
+  B｜`src/ui/components/steps.ts#userCriterionInput`
+     `props: { value: state.hypothesis_criterion_edits[key] ?? '' }` + `on.input → setHypothesisCriterionEdit`；
+     **删除** `const value = input.value` 与 `input.value = ''`；把原 `⚠️ INTEGRATION REQUIRED` 注释改写为 `✅ RESOLVED`。
+🔴 载体：**仅 session 内存**，`sessionStorage` / `localStorage` / `IndexedDB` 一律未使用（用例 DRAFT-06 断言）。
+```
+
+### 24.4 跨边界集成 B｜`sessionStorage` 不可用（D 侧 `INTEGRATION REQUIRED` = CLOSED）
+
+```
+缺陷: `src/ui/bootstrap.ts:43` 无 `try/catch` 调用 `createBrowserSessionStorage()`；缺 `sessionStorage`（或存在但
+   拒绝写入：隐私模式 / 存储被禁用 / getter 抛错）时该函数**抛错**，`startAppShell` 在 `mountAppShell` **之前**终止
+   ⇒ **白屏**：工作区入口、错误说明全部不出现。`bootstrap.ts` 不在 4 路 ownership 任何一位名下 ⇒ 本任务收口。
+处置:
+  新增 `src/ui/settings/credential-capability.ts`（**框架中立**，故 `tsconfig.test.json` 可编译、可被测试真正执行 ——
+     DOM 作用域的 `try/catch` 只能被 grep，无法被运行）：
+      + `resolveCredentialCapability(probe) → { kind:'available', store } | { kind:'unavailable', message }`
+      + `sessionStorageFor(capability)` / `credentialUnavailableMessage(capability)`
+      + `NO_CREDENTIAL_PORT`（`has → false`、`clear → noop`，**什么都不保存**）
+  新增文案 `copy.ts#SETTINGS_SESSION_STORAGE_UNAVAILABLE = '当前浏览器会话存储不可用，模型凭据无法安全保存。'`
+  改 `src/ui/bootstrap.ts`：① 先探测成**值**；② 端口为 `credentials_wiring?.port ?? NO_CREDENTIAL_PORT`；
+    ③ `createGateway` 里 `credentials_wiring === null` ⇒ 早于唯一的 `put` **返回 `unsupported`**
+      ⇒ 面板保持打开、`settings_save_error` 承载该句、顶栏留「模型服务未配置」、**永不 `ready`**。
+🔴 不变项（`D-056` / 合同 §0.4 D）：**不回退** `localStorage` / `IndexedDB` / cookie / 文件 / 内存当持久 secret；
+   探针路径里可触及的载体集合为**空**。🔴 工作区**浏览**不需要凭据（`S01-06-D1`），故仍**可用**。
+```
+
+### 24.5 十三项 CLOSED（+ 两项跨边界）｜🔴 全部为**实现修复**，不是新 `Decision` / 新 `AC`
+
+```
+ 1 Retrieval Worst-case Provider Calls  8 × 4 = 32 → **1**（`FINAL-RAPID-A`：两段式管线 + 单次 batch 判定）
+ 2 Retrieval Recovery                   CLOSED —— 空 ⑥ 状态提供**开始检索**入口（`CORRECTION-04`），不重跑 ⑤
+ 3 Async Stale Write                    CLOSED —— 迟到读被 `workspace_epoch` / `selection_epoch` / `read_token` / id 四重门丢弃
+ 4 Workspace State Isolation            CLOSED —— 记录级状态**一次清除**（`recordScopedResetPatch`），会话级状态不动
+ 5 Cause Decision Race                  CLOSED —— 每记录一条队列 + 合并脏标记，**最后一个意图获胜**，不丢点击
+ 6 Attempt-scoped Operation ID          CLOSED —— id 与 ledger key **都带 `attempt_id`**，A 的成功操作无法被当作 B 重放
+ 7 Cross-provider Secret Carry          CLOSED —— `draftForPreset` 换 provider ⇒ 目标 `default_model` + **空 key**；无明文回填
+ 8 Fake Retry                           CLOSED —— `retryable` 仅当**真有命令**可跑；否则一律「关闭」（`dismiss` 是真动作）
+ 9 Notice Wrong-target                 CLOSED —— 恢复动作**作用于 notice 自带的 target**；打不开即 `refused`，不替换成屏上记录
+10 Locked CTA                           CLOSED —— ②③④⑤⑧⑨ 一律 `actionOffered(...) && !step.locked`；⑧⑨ 生成控件在 `!step.locked` 内
+11 Evidence Mapping                     CLOSED —— 点击项**自己**决定载荷（同/异/未比对），容器级处理器已删除
+12 Proxy False-ready                    CLOSED —— `deployment_enabled:false` 的预设**保存阶段即拒绝**，不能 `ready`
+13 P2 Hardening Status                  = `FINAL-RAPID-D` 落地：`dist-web/` **整目录清除后重建**（消灭 ghost 产物）；
+                                          Attempt 双文件写入改为 best-effort 原子（sidecar 先行、镜像失败回滚 sidecar，
+                                          **技术失败码** `PERSISTENCE_ROLLED_BACK` / `PERSISTENCE_CONSISTENCY_ERROR`，
+                                          **非产品状态 / 非新 Decision / 非新 AC**，`AC-76` 未动）
+14 ⑥⑦⑧ 草稿态（跨边界）                 CLOSED —— 见 24.3
+15 `sessionStorage` 不可用（跨边界）      CLOSED —— 见 24.4
+```
+
+### 24.6 变更文件（本次 Integration 自身，不含 4 路 worker 的既有产物）
+
+```
+M  .gitignore                                 人工裁决 ④：`.learnbuddy/` 移出版本追踪 + 编码修复（= 1b00022）
+M  src/tests/config/tsconfig-layout.test.ts   `.gitignore` 不变式改为断言 `.learnbuddy/` **必须**被忽略（就地补注，保留原文）
+M  src/ui/session/app-session.ts              + `hypothesis_criterion_edits` / `hypothesisCriterionEditKey` /
+                                              `setHypothesisCriterionEdit`；`addHypothesisCriterion` 成功即删键
+M  src/ui/components/steps.ts                 受控 ⑥⑦⑧ 输入；`INTEGRATION REQUIRED` → `RESOLVED`
+M  src/ui/copy.ts                             + `SETTINGS_SESSION_STORAGE_UNAVAILABLE`
+M  src/ui/bootstrap.ts                        凭据能力探测成值 + 不可用时受控 `unsupported`（早于唯一 `put`）
+A  src/ui/settings/credential-capability.ts   框架中立的凭据能力模块（可被 Node 测试真正执行）
+A  src/tests/ui/hypothesis-draft-state.test.ts        DRAFT-01…DRAFT-06
+A  src/tests/ui/session-storage-unavailable.test.ts   CAP-01…CAP-04
+A  src/tests/ui/final-integration-scenarios.test.ts   SCN-A-01 … SCN-G-01
+```
+
+### 24.7 验证（🔴 全部实测）
+
+```
+typecheck  (tsconfig / core / browser / server)      = PASS（4/4，`tsc -p …` exit 0）
+typecheck:web (tsconfig.web.json --noEmit)           = PASS
+build      (tsconfig.build.json)                     = PASS
+build:web  （tsc web emit + scripts/build-web.mjs）    = PASS（147 modules + 1 stylesheet；`dist-web/` 先整目录清除再重建）
+npm test                                             = **1144 passed / 0 failed**
+    基线 = 1054（main）⇒ 本轮 **> 1054**；合并前四树基线为 1055/1056（唯一失败 = `M16｜D16` CRLF，见 24.8）
+npm run test:proxy                                   = 15 passed / 0 failed
+git diff --check / diff --cached --check             = 空（无空白 / 无 EOL 大规模 churn）
+tracked files                                        = 568｜禁止路径（node_modules/ dist* / .env）命中 = **0**
+Secret Scan（tracked 源文件 + 文档，排除二进制）
+   · `sk-[A-Za-z0-9_-]{4,}` 命中 54 处 / **19 个不同令牌**，**全部**为显式假值（`sk-fixture-*` / `sk-fixture-OTHER-*` /
+     `sk-fixture-UI-*` / `sk-fixture-NOT-A-REAL-KEY-*`）或**非凭据**字符串（`sk-follow-up-question` / `sk-nope`）
+   · `Authorization` 出现在 200 个文件，逐类核验为：注释 / 类型名（`ProxyAuthorization*`）/ 工作区状态名
+     （`needs_authorization`）/ **唯一**的 `authorization: \`Bearer ${secret}\``（`src/ai/provider/transport.ts:77`，插值）
+   ⇒ **真实凭据 = 0**；**硬编码 Authorization 头 = 0**
+Real Provider Calls                                  = **0**（无任何真实 Key；fake/mock provider only）
+```
+
+### 24.8 🚩 环境限制登记（如实登记，**非产品缺陷**）
+
+```
+现象 1｜`M16｜D16`（`demo-baseline-reset`「reset reproduces the committed baseline byte-for-byte」）
+  本 worktree 全树 **CRLF**（`core.autocrlf` 未设置 + 仓库无 `.gitattributes`）⇒ 逐文件 `size − LF 行数` 恒等于
+  报出的 `actual` 尺寸（seeder 写 LF，检出为 CRLF）。**4 棵并行 worktree 与主仓库皆然，非本轮引入**；
+  主仓库 `npm test` 下该用例 **PASS**（主仓库工作树为 LF），故 1144/1144。
+  ⚠️ 同一根因的**更危险**后果已由 C/D 侧登记：按 `\n` 切行会保留 `\r`，`indexOf('\n}\n')` **永不命中** ⇒ 负向断言
+  退化为空断言。本轮两个新测试文件的源码切片**一律先归一化行尾**并 `assert.ok(end >= 0)` 硬失败。
+现象 2｜`npm run build:web` **在后台任务中挂起**（同一条命令在**前台** 7.1s 通过；其两步单独前台运行亦通过）。
+  判定 = 执行环境 / 管道问题（该脚本以 `stdio:'inherit'` 派生 `tsc`），**非产品缺陷**。
+  处置 = 本轮以**等价的两条命令**分别前台执行并取 EXIT=0 作为证据（未改 `package.json` / 未改脚本）。
+```
+
+### 24.9 PSA｜🔴 仍 `INTERRUPTED`，且 **`READY TO RESUME`**
+
+```
+PSA-A                      = **INTERRUPTED**（原样保留：步骤 5 已保存、步骤 6 未完成/未观测）
+READY TO RESUME            = **YES**（就绪，但**未**重跑）
+    依据：本轮把步骤 6 的**实测根因**（调用粒度 32 次串行）收敛为**1 次批量调用**，并给出可复跑的恢复入口；
+          `sessionStorage` 不可用不再白屏；⑥⑦⑧ 草稿态不再丢失。
+🔴 `PSA-A = PASS` **必须**由**真实 PSA 重新执行**后取得，本轮**不得**代为置为 `PASS`。
+🔴 本轮**未**执行任何真实 Provider 调用、**未**使用任何真实 Key、**未**部署 Vercel、**未**自动恢复 PSA。
+```
+
+### 24.10 边界登记（🔴 本轮未做）
+
+```
+❌ 未新增产品 Decision / AC / CCR；未改冻结合同；未改 `docs/DECISIONS.md` 与 `docs/00–09`
+❌ 未改 4 路 worker 已提交的**产品语义**（只做了 24.3 / 24.4 两处**跨边界**收口与 24.2 的 prep 落地）
+❌ 未使用真实 API Key（0）；未执行真实 Provider 调用（0）；未开始/恢复 PSA；未部署 Vercel
+❌ 未新增 `package.json` / 依赖（`node_modules` 未动）
+❌ 未为「少冲突」删除任何一侧测试（cherry-pick 冲突为 0；唯一被改的既有用例是 24.2 的 `.gitignore` 不变式，
+   且为**就地补注 + 改断言**，不是删除）
+```
+
+🔴 **本节追加禁写项**：不得写「PSA-A = PASS」或「PSA 已恢复/已重跑」；不得把 `PSA-A` 从 `INTERRUPTED` 改写为其他状态；
+不得把本轮写成「新增了检索机制 / 新增了凭据校验 / 新增了产品状态」（全部是**实现修复**与**已决规则的落地**）；
+不得写「真实浏览器人工验收已通过」「Chrome / FSA verified」「Vercel 已部署」「Real Provider Verified」；
+不得把 `M16｜D16` 的 CRLF 失败写成产品缺陷或写成已修；不得把 24.8 的 `npm run build:web` 环境现象写成产品缺陷；
+不得改写 §24.1–§23.10 任何既有结论一字。
+
+```
+FINAL-RAPID-INTEGRATION-01 = DONE（合并 + 跨边界收口 + 落盘 + 推送；push 取证见 §24.11，由紧随其后的 `chore:` commit 记录）
+SAFE NEXT = PRE-SUBMISSION PSA-A（**READY TO RESUME**）
+            ｜ Real Chrome + Real Workspace FSA + DeepSeek Browser Direct
+            ｜ TE-DEMO-LIVE-01 Full Rehearsal
+            ｜ Billing Cap ≤ RMB 1
+🔴 未授权自动启动 —— 本次完成后停止（不得自动输入真实 Key / 不得自动启动真实 Provider / 不得自动开始 PSA）
+```
+

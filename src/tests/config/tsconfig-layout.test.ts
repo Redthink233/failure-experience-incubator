@@ -266,7 +266,7 @@ describe('IMPLEMENTATION INVARIANT｜root config split, scripts and .gitignore',
       assert.ok(gitignore.includes(ignored), `.gitignore must ignore ${ignored}`);
     }
     // 🔴 Never ignore the authoritative records or the sources themselves.
-    for (const kept of ['docs/', 'src/', 'package-lock.json', '.learnbuddy/', '20_INTEGRATION/']) {
+    for (const kept of ['docs/', 'src/', 'package-lock.json', '20_INTEGRATION/']) {
       const ignoredLines = gitignore
         .split('\n')
         .map((line) => line.trim())
@@ -276,6 +276,25 @@ describe('IMPLEMENTATION INVARIANT｜root config split, scripts and .gitignore',
         `.gitignore must NOT ignore ${kept}`,
       );
     }
+    /*
+     * 🚩 就地补注（`FINAL-RAPID-INTEGRATION-01`，2026-09-26）｜不改写上面的断言，只补一条新事实。
+     *
+     * `.learnbuddy/` 原属上面那份「must NOT ignore」清单。经**人工裁决（`FINAL-RAPID-PARALLEL-PREP` ④）**
+     * `.learnbuddy/` **有意移出版本库**：依据是提交 `d3f51e1`「Remove something」已删除
+     * `.learnbuddy/memory/**`（9 文件 / 5136 行），而当时的 ignore 行被本地追加为 **UTF-16LE**（含 NUL），
+     * **不是有效规则** ⇒ `.learnbuddy/` 实际仍以 `??` 出现，忽略意图从未生效，且把 `.gitignore` 变成
+     * Git 眼中的 binary（`Binary files ... differ`）。修复后 `.learnbuddy/` 成为**有效**的 ignore 规则。
+     * ⇒ 「must NOT ignore `.learnbuddy/`」这一条**已 SUPERSEDED**，本测试随之改为断言新规则。
+     * 🔴 磁盘上的 `.learnbuddy/`（含 `memory/**`）**未被删除**，仅脱离版本追踪。
+     */
+    const ignoreLines = gitignore
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && !line.startsWith('#') && !line.startsWith('!'));
+    assert.ok(
+      ignoreLines.includes('.learnbuddy/'),
+      '.gitignore must ignore .learnbuddy/ (human decision ④: the working memory is out of version control)',
+    );
   });
 });
 

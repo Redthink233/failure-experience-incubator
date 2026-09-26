@@ -183,6 +183,26 @@ export const SETTINGS_BASE_URL_FORBIDDEN =
 export const SETTINGS_PRESET_NOT_ENABLED = '当前部署未启用：这个 Provider 暂时无法配置为可用。';
 
 /**
+ * The reason a model configuration cannot be saved AT ALL: this runtime has no session storage.
+ *
+ * 🔴 IT EXISTS BECAUSE THE ALTERNATIVE WAS A BLANK PAGE (`FINAL-RAPID-INTEGRATION-01`). The bootstrap
+ *    built the credential store eagerly, so a runtime whose `sessionStorage` is missing - or present
+ *    but refusing to store (private mode, storage disabled, a hardened profile) - threw while the App
+ *    Shell was starting up: the workspace entry never rendered and NOTHING on the page explained why.
+ * 🔴 IT NAMES THE CONSEQUENCE, NOT THE MECHANISM. The user action it implies is "use a normal browser
+ *    window", and the sentence says exactly which capability is missing and what it costs. There is no
+ *    exception type, no storage key and no environment name in the wording.
+ * 🔴 IT IS A STATEMENT ABOUT SAVING, AND THAT BOUNDS IT. Browsing a workspace needs no credential at
+ *    all (`S01-06-D1`), so this sentence must never be rendered as a workspace failure - it is the
+ *    「the configuration could not be composed」 block, and the workspace entry stays usable beside it.
+ * 🔴 IT IS ALSO THE WHOLE ANSWER TO `D-056`: the credential's only sanctioned carrier is session-scoped
+ *    browser storage, and when that carrier is absent the product has NO legal place to put a key. So
+ *    the honest outcome is "this cannot be saved", never a fallback to another carrier.
+ */
+export const SETTINGS_SESSION_STORAGE_UNAVAILABLE =
+  '当前浏览器会话存储不可用，模型凭据无法安全保存。';
+
+/**
  * The marker appended to a disabled preset's name INSIDE the picker (`FINAL-RAPID-C` §7).
  *
  * 🔴 IT USES THE SAME FOUR WORDS AS `SETTINGS_PRESET_NOT_ENABLED` ON PURPOSE. A list entry must not

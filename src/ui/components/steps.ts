@@ -109,6 +109,7 @@ import { hypothesisIsBusy, insightIsBusy } from '../presenters/busy.js';
 import { actionOffered, stepViewsForSnapshot } from '../presenters/steps.js';
 import type { D9StepView } from '../presenters/steps.js';
 import type { CauseDecision } from '../../application/capture/types.js';
+import { hypothesisCriterionEditKey } from '../session/app-session.js';
 import type { ViewContext } from './shell.js';
 
 /* ------------------------------------------------------------------ *
@@ -1254,30 +1255,20 @@ function hypothesisBody(
 /**
  * The additive control for one editable ⑥⑦⑧ slot: a text field plus one explicit save.
  *
- * ── ⚠️ INTEGRATION REQUIRED｜Hypothesis Draft Input State (`FINAL-RAPID-C` §10) ──────────────
- * 🔴 THIS INPUT IS UNCONTROLLED, AND IT IS THE ONE PLACE IN THIS FILE THAT IS. The field is built
- *    fresh on every render and its value is read from the DOM at click time (`input.value`). The App
- *    Shell re-renders the WHOLE workbench on every state change (`app-root.ts` clears the root and
- *    rebuilds it). So any unrelated state update - deciding a criterion, a notice, a pending flag -
- *    replaces this node with an empty one and the user's UN-SAVED text is gone with no warning.
- * 🔴 IT CANNOT BE MADE CONTROLLED HERE. A controlled field needs a value that outlives the render,
- *    and there is no such field in `AppSessionState` for hypothesis criteria: `insight_edits` is keyed
- *    by insight and belongs to ⑧, and nothing else can hold ⑥⑦⑧ draft text. Adding one means touching
- *    `src/ui/session/app-session.ts`, which this workstream is forbidden to edit and does not own.
- * 🔴 WHAT THE INTEGRATOR MUST ADD (exactly two members, mirroring the ⑧ pattern):
- *
- *      AppSessionState.hypothesis_criterion_edits: Readonly<Record<string, string>>
- *        — key `${hypothesis_id}:${slot}`, initialised to `{}` in `initialState`, cleared for a
- *          hypothesis the way `selectAttempt` clears `insight_edits`.
- *      AppSession.setHypothesisCriterionEdit(hypothesis_id, slot, value): void
- *        — a one-line `set({...})`, the exact analogue of `setInsightEdit`; `addHypothesisCriterion`
- *          should delete the entry after a successful write, the way `saveInsightEdit` does.
- *
- *    The component change is then three lines: a `props: { value: … }` on the input, an `on.input`
- *    that calls the setter, and no `input.value = ''` after the save.
- * 🔴 IT IS NOT SILENTLY WORKED AROUND. Reusing another record's edit buffer, or keeping a
- *    module-level map, would each be a second source of truth for user input - worse than the defect.
- * ────────────────────────────────────────────────────────────────────────────────────────────
+ * ── ✅ RESOLVED｜Hypothesis Draft Input State (`FINAL-RAPID-C` §10 → `FINAL-RAPID-INTEGRATION-01`) ──
+ * 🔴 THIS FIELD IS NOW CONTROLLED, AND IT IS THE ONLY ONE THAT HAD TO BE. It used to read its value
+ *    out of the DOM (`input.value`) and hold nothing of its own, so any unrelated state update - a
+ *    criterion decision, a notice, a pending flag - rebuilt the tree and replaced the node with an
+ *    empty one, taking the user's UN-SAVED text with it and giving no warning.
+ * 🔴 THE VALUE NOW OUTLIVES THE RENDER: it is read from
+ *    `state.hypothesis_criterion_edits[hypothesisCriterionEditKey(id, slot)]`, the record-scoped
+ *    buffer `AppSession` owns, and every keystroke is written back through
+ *    `session.setHypothesisCriterionEdit` - so a re-render restores exactly what was typed.
+ * 🔴 THE KEY COMES FROM ONE SHARED FUNCTION (`hypothesisCriterionEditKey`), never from a template
+ *    string typed twice: the renderer and the session cannot disagree about which slot is which.
+ * 🔴 NOTHING IS CLEARED HERE AFTER A SAVE. `addHypothesisCriterion` deletes the buffer entry when the
+ *    write really happened, and the next render shows the empty value that produces. Clearing the DOM
+ *    node here would discard a failed save's text and would disagree with the state on the next tick.
  */
 function userCriterionInput(
   context: ViewContext,
@@ -1285,13 +1276,29 @@ function userCriterionInput(
   slot: string,
   disabled: boolean,
 ): HTMLElement {
-  const { session } = context;
+  const { state, session } = context;
+  const key = hypothesisCriterionEditKey(hypothesis_id, slot);
   const input = el('input', {
     class: 'input',
+    /* 🔴 CONTROLLED: the field renders WHAT THE SESSION HOLDS, not what the last DOM node held. */
+    props: { value: state.hypothesis_criterion_edits[key] ?? '' },
     attrs: {
       type: 'text',
       'aria-label': HYPOTHESIS_CRITERIA_ADD,
       placeholder: HYPOTHESIS_CRITERIA_ADD,
+    },
+    /*
+     * 🔴 THE KEYSTROKE'S ONLY DESTINATION IS THE SESSION BUFFER. No filtering, no trimming and no
+     *    validation happens here: what the user typed is preserved verbatim, and the save path decides
+     *    what a blank field means.
+     */
+    on: {
+      input: (event) => {
+        const target = event.target;
+        if (target instanceof HTMLInputElement) {
+          session.setHypothesisCriterionEdit(hypothesis_id, slot, target.value);
+        }
+      },
     },
   });
   return actions(
@@ -1299,7 +1306,12 @@ function userCriterionInput(
     button(
       HYPOTHESIS_CRITERIA_ADD_SAVE,
       () => {
-        const value = input.value;
+        /*
+         * 🔴 THE VALUE IS READ FROM THE STATE, THE ONE SOURCE OF TRUTH. Reading `input.value` would
+         *    work today and would silently diverge from the buffer the moment anything else writes to
+         *    it - which is the class of bug the buffer was introduced to end.
+         */
+        const value = state.hypothesis_criterion_edits[key] ?? '';
         if (value.trim().length === 0) {
           return;
         }
@@ -1308,7 +1320,6 @@ function userCriterionInput(
           slot as Parameters<typeof session.addHypothesisCriterion>[1],
           value,
         );
-        input.value = '';
       },
       /* 🔴 A second save while this hypothesis is busy would be swallowed by the session. */
       { class: 'btn btn-tiny', disabled },

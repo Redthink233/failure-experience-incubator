@@ -163,6 +163,23 @@ export interface AppSessionState {
   readonly cause_proposal: CauseAnalysisProposal | null;
   readonly cause_decisions: Readonly<Record<string, CauseDecision>>;
   readonly insight_edits: Readonly<Record<string, string>>;
+  /**
+   * The UN-SAVED ⑥⑦⑧ criterion text the user has typed, keyed `${hypothesis_id}:${slot}`.
+   *
+   * 🔴 WHY IT MUST LIVE HERE (`FINAL-RAPID-C` §10, integrated by `FINAL-RAPID-INTEGRATION-01`): the
+   *    additive criterion field in `components/steps.ts` is rebuilt from scratch on EVERY render
+   *    (`app-root.ts` replaces the whole tree), so an input whose value lives only in the DOM is
+   *    erased by any unrelated state update - deciding another criterion, a notice arriving, a
+   *    pending flag flipping. A controlled field needs a value that outlives the render, and this is
+   *    that value.
+   * 🔴 IT IS THE EXACT ANALOGUE OF `insight_edits` (`⑧`): transient form state, keyed by the object
+   *    it belongs to, cleared wholesale when the record on screen changes. It is NOT persisted - a
+   *    reload starts with an empty map, and nothing here is ever sent to the workspace.
+   * 🔴 IT IS NOT A SECOND SOURCE OF TRUTH. The saved value stays in the hypothesis object; this map
+   *    only carries what the user has typed and not yet saved, and the entry is DELETED the moment a
+   *    save succeeds (`addHypothesisCriterion`).
+   */
+  readonly hypothesis_criterion_edits: Readonly<Record<string, string>>;
   readonly pending: Readonly<Record<string, boolean>>;
   readonly notices: readonly WorkflowNotice[];
   readonly settings_open: boolean;
@@ -243,6 +260,7 @@ function initialState(draft: SettingsDraft = EMPTY_SETTINGS_DRAFT): AppSessionSt
     cause_proposal: null,
     cause_decisions: {},
     insight_edits: {},
+    hypothesis_criterion_edits: {},
     pending: {},
     notices: [],
     settings_open: false,
@@ -261,6 +279,21 @@ function initialState(draft: SettingsDraft = EMPTY_SETTINGS_DRAFT): AppSessionSt
 /** The gap → content key mapping (the canonical `Attempt` field a follow-up answer lands in). */
 export function captureFieldForGap(gap: string): string {
   return gap === 'key_parameter' ? 'key_parameters' : gap;
+}
+
+/**
+ * The draft-buffer key of ONE ⑥⑦⑧ slot of ONE hypothesis (`FINAL-RAPID-C` §10).
+ *
+ * 🔴 IT IS EXPORTED SO THERE IS EXACTLY ONE DEFINITION. The component renders the field with
+ *    `state.hypothesis_criterion_edits[hypothesisCriterionEditKey(id, slot)]` and calls
+ *    `setHypothesisCriterionEdit(id, slot, …)`; the session writes and deletes the same key here. Two
+ *    hand-written template strings would be two chances to disagree, and the disagreement would show
+ *    up as a field that clears itself.
+ * 🔴 IT CARRIES THE OBJECT AND THE SLOT, NOT A POSITION: a reordering of the cards can never move one
+ *    hypothesis's un-saved text onto another.
+ */
+export function hypothesisCriterionEditKey(hypothesis_id: string, slot: string): string {
+  return `${hypothesis_id}:${slot}`;
 }
 
 /**
@@ -359,6 +392,18 @@ export interface AppSession {
     slot: HypothesisEditableSlot,
     value: string,
   ): Promise<void>;
+  /**
+   * Records the ⑥⑦⑧ criterion text the user is TYPING, before it is saved (`FINAL-RAPID-C` §10).
+   *
+   * 🔴 IT EXISTS SO THE FIELD CAN BE CONTROLLED. The component renders the field's value from
+   *    `hypothesis_criterion_edits`, so a re-render restores what the user typed instead of emptying
+   *    the box. Without a setter there is nowhere for a keystroke to go and the field must read itself
+   *    out of the DOM - which is the defect this member removes.
+   * 🔴 `slot` is a plain `string` here rather than `HypothesisEditableSlot`: this is a KEY builder, and
+   *    it must accept whatever slot key the item carries without inventing a narrowing rule. The
+   *    narrowing stays where it belongs, at the SAVE (`addHypothesisCriterion`).
+   */
+  setHypothesisCriterionEdit(hypothesis_id: string, slot: string, value: string): void;
   traceHypothesis(hypothesis_id: string): Promise<void>;
   clearEvidence(): void;
 
@@ -493,8 +538,9 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
    *    was replaced" from re-pointing the screen (§2).
    * 🔴 WHAT IS CLEARED: the snapshot and its "missing" flag, the new-record panel, the ② follow-up
    *    question and its answers, the ③ edits and result status, the ④ proposal and decisions, the ⑧
-   *    edits, the evidence panel, the ⑦ expansion, the generation refusal, the transient flash, the
-   *    notices raised BY record operations, every pending flag, and the "this needs a model" prompt.
+   *    edits, the ⑨ criterion draft text, the evidence panel, the ⑦ expansion, the generation
+   *    refusal, the transient flash, the notices raised BY record operations, every pending flag, and
+   *    the "this needs a model" prompt.
    * 🔴 WHAT IS NOT CLEARED - AND MUST NOT BE: `provider` (the session's model configuration), the
    *    `settings_*` fields (the session credential and its draft) and `workspace` (the authorization).
    *    They are SESSION / WORKSPACE scope; clearing them here is how a record switch would silently
@@ -517,6 +563,7 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       cause_proposal: null,
       cause_decisions: {},
       insight_edits: {},
+      hypothesis_criterion_edits: {},
       evidence: null,
       retrieval_expanded: false,
       generation_refusal: null,
@@ -1722,6 +1769,22 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       });
     },
 
+    setHypothesisCriterionEdit(hypothesis_id, slot, value) {
+      /*
+       * 🔴 ONE KEY, ONE FIELD, AND NO OTHER STATE IS TOUCHED. This is the field's own buffer, so a
+       *    keystroke must not clear an error, re-raise a notice or re-read anything - it is the exact
+       *    analogue of `setInsightEdit` for ⑧.
+       * 🔴 THE KEY IS BUILT BY THE SHARED FUNCTION, so the component that RENDERS the field and this
+       *    setter can never disagree about which buffer entry belongs to which slot.
+       */
+      set({
+        hypothesis_criterion_edits: {
+          ...state.hypothesis_criterion_edits,
+          [hypothesisCriterionEditKey(hypothesis_id, slot)]: value,
+        },
+      });
+    },
+
     async addHypothesisCriterion(hypothesis_id, slot, value) {
       const active = requireCommandPort();
       if (active === null || value.trim().length === 0) {
@@ -1735,7 +1798,21 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
           hypothesis_id: hypothesis_id as ObjectId<'HYP'>,
           user_items: [{ slot, content_item_id, value }],
         });
-        return scope.record(result) ? 'ok' : 'retryable';
+        const ok = scope.record(result);
+        if (ok) {
+          /*
+           * 🔴 THE DRAFT LEAVES THE BUFFER ONLY WHEN THE WRITE REALLY HAPPENED (`FINAL-RAPID-C` §10).
+           *    The entry is dropped exactly as `saveInsightEdit` drops its ⑧ edit, so the buffer never
+           *    holds a value that is already stored - and a FAILED save keeps the user's text for a
+           *    retry instead of silently discarding it. The `scope.apply` keeps the drop inside this
+           *    operation's workspace, so a save that finished after a workspace switch cannot clear a
+           *    buffer belonging to the new screen (§2).
+           */
+          const next = { ...state.hypothesis_criterion_edits };
+          delete next[hypothesisCriterionEditKey(hypothesis_id, slot)];
+          scope.apply({ hypothesis_criterion_edits: next });
+        }
+        return ok ? 'ok' : 'retryable';
       });
     },
 
