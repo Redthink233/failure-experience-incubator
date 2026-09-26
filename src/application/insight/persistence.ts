@@ -46,6 +46,12 @@
  * 🔴 NO DATABASE, NO VERSION FIELD, NO ARCHIVE SNAPSHOT AND NO CREDENTIAL may be written. The
  *    documents are passed through the shared forbidden-key guard before they are written and after
  *    they are read.
+ * 🔴 `PSA-A-CORRECTION-M8-RECOVERY-02` - A REPLAY COMPARES IMMUTABLE GENESIS ONLY. `state` and
+ *    `updated_at` are the ONE pair of fields a legitimate USER decision moves between an interrupted
+ *    step ⑧ write and its retry, so they are excluded from {@link sameInsightGenesis}. Everything
+ *    else - identity, source provenance, the generation/batch association, the generation-time
+ *    content, the `E1`-`E4` presentation and the evidence references - stays genesis and still fails
+ *    closed when it differs.
  *
  * Framework-neutral: NO DOM, NO Node runtime API, NO network, NO I/O.
  */
@@ -386,6 +392,105 @@ export function serializeInsight(record: InsightRecord): string {
   const payload = insightDocumentOf(record);
   assertNoForbiddenKeys(payload, record.insight.insight_id);
   return `${JSON.stringify(payload, null, 2)}\n`;
+}
+
+/* ------------------------------------------------------------------ *
+ * 6b. The IMMUTABLE GENESIS of an `Insight` (PSA-A-CORRECTION-M8-RECOVERY-02)
+ * ------------------------------------------------------------------ */
+
+/**
+ * 🔴 THE TWO FIELDS A REPLAY MAY LEGITIMATELY SEE CHANGED - AND NOTHING ELSE.
+ *
+ * 「Replay compatibility 只比较 IMMUTABLE GENESIS」. An interrupted step ⑧ operation is finished by
+ * re-applying the plan its durable anchor carries (`M8-HARDENING-01`). Between the interruption and
+ * the retry the user may LAWFULLY decide on the records that already landed - `E5` acceptance, or
+ * `candidate -> rejected` - and either decision MOVES `state`, rewrites `updated_at` and appends its
+ * own `InsightStateEvent`.
+ *
+ * Those two fields are therefore NOT part of what a replay has to reproduce. Treating them as part of
+ * it made a legitimate human decision indistinguishable from workspace corruption: the retry aborted
+ * with `PLAN_MISMATCH` and the operation became PERMANENTLY unrecoverable.
+ *
+ * 🔴 WHY THIS IS NOT LOOSENED ANY FURTHER. Everything else stays genesis: identity, source
+ *    provenance, the generation / batch association, the generation-time content (① proposition,
+ *    ② applicable scope, ④ judgment basis), the `E1`-`E4` presentation, the evidence references, the
+ *    cross-record comparison provenance and the display-only meta block. A replay that accepted a
+ *    DIFFERENT document under the same id would silently swallow real corruption, so this is
+ *    explicitly NOT 「只要 `insight_id` 一样就算 compatible」.
+ * 🔴 THE EXCLUSION LIST IS A DECLARATION, NOT A SCATTERED EXCEPTION: the projection below is a
+ *    closed, explicit enumeration, so a NEW field added to `InsightDocument` fails to compile here
+ *    until it has been consciously classified as genesis or as replay-mutable.
+ */
+export const INSIGHT_REPLAY_MUTABLE_FIELDS = ['state', 'updated_at'] as const;
+
+export type InsightReplayMutableField = (typeof INSIGHT_REPLAY_MUTABLE_FIELDS)[number];
+
+/** One `Insight` document WITHOUT the replay-mutable fields - i.e. what a replay must reproduce. */
+export type InsightGenesis = Omit<InsightDocument, InsightReplayMutableField>;
+
+/**
+ * Projects one record onto its IMMUTABLE GENESIS.
+ *
+ * 🔴 ONE SINGLE POINT. BOTH sides of a replay comparison go through THIS projection, so the field set
+ *    can never drift between the write path and the recovery path, and no call site has to hand-exclude
+ *    `state` / `updated_at`.
+ */
+export function insightGenesisOf(record: InsightRecord): InsightGenesis {
+  /*
+   * 🔴 NEVER NAME THIS LOCAL `document`: this module is inside the FRAMEWORK-NEUTRAL scope, and the
+   *    static audit refuses the literal `document.` anywhere in it (no DOM may leak into the core).
+   */
+  const payload = insightDocumentOf(record);
+  return {
+    object_type: payload.object_type,
+    schema_version: payload.schema_version,
+    insight_id: payload.insight_id,
+    /* Source provenance: which record this `Insight` was generated from, and when. */
+    attempt_id: payload.attempt_id,
+    created_at: payload.created_at,
+    /* Generation / batch association (§2.4): which explicit generation produced it. */
+    generation_batch: payload.generation_batch,
+    /* ① / ② / ④ - the generation-time content. */
+    proposition: payload.proposition,
+    applicable_scope: payload.applicable_scope,
+    judgment_basis: payload.judgment_basis,
+    /* ③ + ⑩ - the SAME historical reference set the count is derived from (§3.3). */
+    evidence_refs: payload.evidence_refs,
+    /* The `E1`-`E4` presentation produced by the generation (D-038). */
+    gate_checks: payload.gate_checks,
+    /* `D-021` `E4` ③ - the cross-record comparison provenance. */
+    comparison_ref: payload.comparison_ref,
+    /* Display-only meta: NOT a rubric, NOT a score, NOT an ordering signal (AC-64). */
+    title: payload.title,
+    display_order: payload.display_order,
+  };
+}
+
+/**
+ * The content signature of one record's genesis.
+ *
+ * 🔴 A STABLE STRING COMPARISON IS EXACT HERE, not an approximation: both operands are built by
+ *    {@link insightGenesisOf} from the same literal, so the key order is fixed by that projection and
+ *    every value is a JSON-representable primitive, an object id string or an array of records.
+ */
+function genesisSignatureOf(record: InsightRecord): string {
+  return JSON.stringify(insightGenesisOf(record));
+}
+
+/**
+ * 🔴 THE ONE REPLAY COMPATIBILITY TEST OF THIS MODULE.
+ *
+ * `true`  - 「the same generation produced this record」. The stored record is the SAME record, a
+ *           replay must NOT re-create it, and the recovery simply proceeds to the missing pieces.
+ * `false` - real divergence (a different generation, different content, different references, a
+ *           different source, a different id). The caller must FAIL CLOSED, never overwrite.
+ *
+ * Nothing about the user's `state` verdict is decided here: a differing `state` / `updated_at` is
+ * compatible, and the STORED record is what wins - so a recovery can never write a human decision
+ * back to `candidate`.
+ */
+export function sameInsightGenesis(existing: InsightRecord, planned: InsightRecord): boolean {
+  return genesisSignatureOf(existing) === genesisSignatureOf(planned);
 }
 
 /**

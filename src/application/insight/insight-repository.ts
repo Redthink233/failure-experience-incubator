@@ -17,9 +17,18 @@
  *    `remove` and no `clear`.
  * 🔴 `createIfAbsent` / `recordBatchIfAbsent` ARE THE RECOVERY WRITES (`M8-HARDENING-01`). They are
  *    NOT create-or-overwrite: when a record with the same id already exists, the incoming plan must
- *    be IDENTICAL to what is stored. That keeps §3.2 rule 1 (an id is globally unique and never
- *    reused) intact while letting a replay finish an interrupted write without minting a second
+ *    be THE SAME GENERATION as what is stored. That keeps §3.2 rule 1 (an id is globally unique and
+ *    never reused) intact while letting a replay finish an interrupted write without minting a second
  *    identity.
+ * 🔴 `PSA-A-CORRECTION-M8-RECOVERY-02` - 「SAME GENERATION」 IS DECIDED BY IMMUTABLE GENESIS, NOT BY
+ *    THE WHOLE DOCUMENT. `createIfAbsent` compares via `sameInsightGenesis` (one single point, in
+ *    `persistence.ts`), which deliberately excludes `state` / `updated_at`: those are exactly the
+ *    fields a LAWFUL user decision (`E5` accept / `candidate -> rejected`) moves while a step ⑧
+ *    operation sits interrupted. Requiring byte equality made such a decision look like corruption and
+ *    rendered the operation permanently unrecoverable. 🔴 The check is NOT loosened to
+ *    「same `insight_id`」: a different generation, different content, different references or a
+ *    different source still fails closed with `PLAN_MISMATCH`, and the STORED record always wins so a
+ *    recovery can never overwrite a verdict.
  * 🔴 The repository stores NO counter, NO version, NO ordinal and NO "how many times" value: the
  *    current / earlier generation relation is derived from the batch records' own timestamps, not
  *    from a stored index.
@@ -48,6 +57,7 @@ import {
   parseInsightMarkdownFrontMatter,
   parseInsightOperationAnchor,
   parseInsightStateEvent,
+  sameInsightGenesis,
   serializeInsight,
   serializeInsightBatch,
   serializeInsightMarkdown,
@@ -83,12 +93,16 @@ export class InsightRepositoryError extends Error {
 
 export interface InsightRepository {
   /**
-   * Stores a NEW `Insight`. Idempotent for a REPLAY of the same plan, fatal for a different one.
+   * Stores a NEW `Insight`. Idempotent for a REPLAY of the same generation, fatal for a different one.
    *
    * 🔴 `M8-HARDENING-01`: a replay write is how an interrupted generation completes. Seeing the SAME
-   *    document already stored is a no-op, so no duplicate insight and no second reference set can
+   *    generation already stored is a no-op, so no duplicate insight and no second reference set can
    *    appear. A DIFFERENT document under the same id is an identity collision
    *    (`PLAN_MISMATCH`), never an overwrite (`§3.2` rule 1).
+   * 🔴 `PSA-A-CORRECTION-M8-RECOVERY-02`: 「the same generation」 means the same IMMUTABLE GENESIS -
+   *    `state` and `updated_at` are excluded, because a user verdict between the interruption and the
+   *    retry is NOT corruption. When the genesis matches, the STORED record is returned unchanged, so
+   *    the user's verdict survives the recovery.
    */
   createIfAbsent(
     record: InsightRecord,
@@ -277,17 +291,34 @@ export function createInsightRepository(deps: InsightRepositoryDeps): InsightRep
         return { record, replayed: false };
       }
       /*
-       * 🔴 THE REPLAY CHECK. Only a BYTE-IDENTICAL plan may be re-applied; anything else is an
-       *    identity collision, not a recovery (`§3.2` rule 1).
+       * 🔴 THE REPLAY CHECK - IMMUTABLE GENESIS ONLY (`PSA-A-CORRECTION-M8-RECOVERY-02`).
+       *
+       * A retry of an interrupted step ⑧ operation re-applies the plan its durable anchor carries.
+       * While the operation was interrupted the user may LAWFULLY have decided on the records that
+       * already landed (`E5` accept, or `candidate -> rejected`); that decision moves `state`,
+       * rewrites `updated_at` and appends its own state event. Comparing the WHOLE document therefore
+       * turned a legitimate human decision into `PLAN_MISMATCH` and made the operation permanently
+       * unrecoverable.
+       *
+       * 🔴 The comparison is NOT loosened to 「same `insight_id`」: identity, source provenance, the
+       *    generation / batch association, the generation-time content (①/②/④), the `E1`-`E4`
+       *    presentation and the evidence references all stay GENESIS. A DIFFERENT generation under the
+       *    same id is still an identity collision and still FAILS CLOSED (`§3.2` rule 1).
        */
-      if (serializeInsight(existing.record) !== serializeInsight(record)) {
+      if (!sameInsightGenesis(existing.record, record)) {
         throw new InsightRepositoryError(
           'PLAN_MISMATCH',
           insight_id,
-          'The same Insight identity already exists with DIFFERENT content. A replay may only ' +
-            're-apply the identical plan; ids are globally unique and never reused (§3.2 rule 1).',
+          'The same Insight identity already exists with DIFFERENT immutable genesis content. A ' +
+            'replay may only re-apply the SAME generation; ids are globally unique and never reused ' +
+            '(§3.2 rule 1). A user decision (state / updated_at) is NOT a mismatch.',
         );
       }
+      /*
+       * 🔴 THE STORED RECORD WINS. Only `state` / `updated_at` may legitimately differ, so returning
+       *    what is already on disk is exactly what PRESERVES the user's verdict - a recovery must never
+       *    write a judgement back to `candidate`.
+       */
       return { record: existing.record, replayed: true };
     },
 
