@@ -29,6 +29,7 @@ export * from './ordering.js';
 export * from './comparison-points.js';
 export * from './derivation-id.js';
 export * from './dimension-judge.js';
+export * from './batch-judge.js';
 export * from './comparator.js';
 export * from './derivation.js';
 export * from './persistence.js';

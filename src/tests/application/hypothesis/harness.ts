@@ -47,6 +47,8 @@ import { createRetrievalDerivationRepository } from '../../../retrieval/compare/
 import type { RetrievalDerivationRepository } from '../../../retrieval/compare/retrieval-derivation-repository.js';
 import type { RetrievalDerivationRecord } from '../../../retrieval/compare/types.js';
 import { DIMENSION_JUDGE_SCHEMA_ID } from '../../../retrieval/compare/dimension-judge.js';
+import { BATCH_DIMENSION_JUDGE_SCHEMA_ID } from '../../../retrieval/compare/batch-judge.js';
+import { readBatchJudgePairs } from '../../retrieval/compare/harness.js';
 import { createInsightRepository } from '../../../application/insight/insight-repository.js';
 import type { InsightRepository } from '../../../application/insight/insight-repository.js';
 import { INSIGHT_GENERATION_SCHEMA_ID } from '../../../application/insight/schemas.js';
@@ -255,6 +257,20 @@ export function createFakeProvider(options: FakeProviderOptions): FakeProvider {
           200,
           { verdict: 'compared_not_matched', reason: NOT_A_REAL_LLM_OUTPUT },
         );
+      }
+      /*
+       * 🔴 FINAL-RAPID-A: step ⑥ asks for every undecided pair in ONE request. The same scripted
+       *    verdict is expanded across the requested pairs, so a fixture keeps its old meaning while
+       *    the retrieval now costs a single provider call.
+       */
+      if (schema_id === BATCH_DIMENSION_JUDGE_SCHEMA_ID) {
+        const judgments = readBatchJudgePairs(invocation.request).map((pair) => ({
+          candidate_id: pair.candidate_id,
+          dimension: pair.dimension,
+          verdict: 'compared_not_matched',
+          reason: NOT_A_REAL_LLM_OUTPUT,
+        }));
+        return aiOk(JSON.stringify({ judgments }), 200, { judgments });
       }
       return aiFailed({
         code: 'INTERNAL_UNEXPECTED',

@@ -159,23 +159,30 @@ describe('S01-03｜runtime completeness and the discrete judge', () => {
     }));
     await run(h);
 
-    assert.ok(h.provider.calls.length > 0);
-    for (const call of h.provider.calls) {
-      // 只有 system（严格判据 + 指令）与 user（维度 + 两个取值）。
-      assert.equal(call.messages.length, 2);
-      const joined = call.messages.join('\n');
-      assert.equal(joined.includes(D050_STRICT_RULE_TEXT), true);
-      // 恰好一对取值：本次判定只上传当前这一个维度，绝不上传其它维度 / 其它候选。
-      const valueLines = joined
-        .split('\n')
-        .filter(
-          (line) =>
-            line.startsWith('本次记录的取值：') || line.startsWith('历史记录的取值：'),
-        );
-      assert.equal(valueLines.length, 2);
-      assert.equal(joined.includes('path'), false);
-      assert.equal(joined.includes('projects/'), false);
-    }
+    /*
+     * 🔴 FINAL-RAPID-A: 一次检索的全部 undecided pair 合并为 **1 次** provider 调用。
+     *    这里断言的是「上传了什么」，而不是「分几次上传」——最小上下文的要求一字未变。
+     */
+    assert.equal(h.provider.invocations.length, 1);
+    assert.equal(h.provider.batch_calls.length, 1);
+    const batch = h.provider.batch_calls[0];
+    assert.ok(batch !== undefined);
+
+    // 只有 system（严格判据 + 指令）与 user（本次判定清单）。
+    assert.equal(batch.messages.length, 2);
+    const joined = batch.messages.join('\n');
+    assert.equal(joined.includes(D050_STRICT_RULE_TEXT), true);
+
+    // 恰好上传本次真正 undecided 的两组：goal 由确定性规则判 matched、condition 两侧
+    // unknown 被结构拦截，二者都不得出现在请求里；不得上传其它维度或其它候选。
+    assert.deepEqual(
+      [...batch.pairs.map((pair) => pair.dimension)],
+      ['approach', 'result'],
+    );
+    assert.equal(batch.pairs.length, 2);
+    assert.equal(joined.includes('path'), false);
+    assert.equal(joined.includes('projects/'), false);
+
     // 请求对象本身只有四个契约字段，其中没有任何凭据 / 工作区字段。
     for (const invocation of h.provider.invocations) {
       assert.deepEqual(Object.keys(invocation.request).sort(), [

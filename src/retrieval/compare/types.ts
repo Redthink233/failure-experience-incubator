@@ -209,7 +209,13 @@ export type RetrievalLocalFailureCode =
   | 'NO_STRUCTURED_OUTPUT_AVAILABLE'
   | 'MALFORMED_STRUCTURED_RESULT'
   | 'NON_CANONICAL_JUDGE_FIELD'
-  | 'NON_CANONICAL_JUDGE_VERDICT';
+  | 'NON_CANONICAL_JUDGE_VERDICT'
+  /**
+   * FINAL-RAPID-A: the one-call batch answer did not cover EXACTLY the requested pair set - a pair
+   * was missing, duplicated, never requested, or a `candidate_id` / `dimension` was rewritten. The
+   * whole batch fails; a missing pair is never defaulted to `compared_not_matched`.
+   */
+  | 'BATCH_JUDGMENT_SET_MISMATCH';
 
 export interface RetrievalRuntimeFailure {
   readonly kind: 'runtime_incomplete';

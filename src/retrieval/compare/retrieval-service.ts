@@ -16,6 +16,11 @@
  *    Only the first two are successes, and a runtime failure is never reported as an empty history.
  * 🔴 The concrete provider adapter is never built here - `M15` injects the `M10` interface and an
  *    opaque `CredentialRef`; this layer cannot even represent a secret.
+ * 🔴 FINAL-RAPID-A 就地补注（不改写上文；本服务的触发边界、替换语义与三种 0-like 状态一字未改）：
+ *    step ⑥ now decides the whole retrieval with AT MOST ONE model call - every candidate is first
+ *    planned without any model contact, and only the genuinely `undecided` `candidate × dimension`
+ *    pairs are sent together. The former per-pair loop is what made a large retrieval issue up to
+ *    32 sequential requests. See `comparator.ts` (two-phase pipeline) and `batch-judge.ts`.
  *
  * Framework-neutral: NO DOM, NO Node runtime API, NO network, NO I/O.
  */
@@ -30,7 +35,7 @@ import type { ObjectId } from '../../domain/ids/object-id.js';
 import type { AttemptRepository } from '../../workspace/repository/attempt-repository.js';
 import { comparisonOrderOf } from './ordering.js';
 import { eligibleHistoricalAttempts, historyIsEmpty } from './corpus.js';
-import { compareAttempts } from './comparator.js';
+import { compareAttemptsInOneBatch } from './comparator.js';
 import type { ComparedCandidate } from './derivation.js';
 import {
   buildRetrievalDerivation,
@@ -39,7 +44,7 @@ import {
   uncomparedDimensionsOf,
 } from './derivation.js';
 import { newRetrievalDerivationId } from './derivation-id.js';
-import { providerDimensionJudge } from './dimension-judge.js';
+import { providerBatchDimensionJudge } from './batch-judge.js';
 import { uncomparedDimensionNote } from './comparison-points.js';
 import type { RetrievalDerivationRepository } from './retrieval-derivation-repository.js';
 import type {
@@ -291,27 +296,41 @@ export function createExperienceRetrievalService(
         return persist(source, 0, [], created_at);
       }
 
-      const judge = providerDimensionJudge(provider.adapter, provider.credential_ref);
-      const compared: ComparedCandidate[] = [];
-      for (const candidate of comparisonOrderOf(eligible)) {
-        const outcome = await compareAttempts(judge, source, candidate);
-        if (outcome.kind === 'runtime_incomplete') {
-          /*
-           * A | RETRIEVAL_RUNTIME_INCOMPLETE. Nothing is stored: no partial candidate list, no
-           * default verdict, no overwrite of the previous successful derivation.
-           */
-          const previous = await derivations.readCurrent(source.attempt_id);
-          return {
-            kind: 'runtime_incomplete',
-            failure: outcome,
-            previous_derivation_preserved: previous !== null,
-          };
-        }
-        compared.push({ attempt: candidate, comparison: outcome.comparison, states: outcome.states });
+      const judge = providerBatchDimensionJudge(provider.adapter, provider.credential_ref);
+
+      /*
+       * 🔴 FINAL-RAPID-A: the WHOLE retrieval is decided in at most ONE model call.
+       *
+       *    Every candidate is first planned against the structural `unknown` gate and the
+       *    deterministic rules; only the genuinely `undecided` pairs are collected, and all of them
+       *    travel in a single structured request. Before this change the same retrieval issued one
+       *    request per `candidate × dimension` pair (up to 8 × 4 = 32 sequential calls, which is the
+       *    measured reason the PSA run never finished ⑥).
+       *
+       *    The three-state semantics, the corpus filter and the persistence rules are untouched:
+       *    this changes HOW MANY requests carry the judgements, never which pair is judged or what
+       *    a verdict means. `0` undecided pairs ⇒ `0` requests.
+       */
+      const outcome = await compareAttemptsInOneBatch(
+        judge,
+        source,
+        comparisonOrderOf(eligible),
+      );
+      if (outcome.kind === 'runtime_incomplete') {
+        /*
+         * A | RETRIEVAL_RUNTIME_INCOMPLETE. Nothing is stored: no partial candidate list, no
+         * default verdict, no overwrite of the previous successful derivation.
+         */
+        const previous = await derivations.readCurrent(source.attempt_id);
+        return {
+          kind: 'runtime_incomplete',
+          failure: outcome,
+          previous_derivation_preserved: previous !== null,
+        };
       }
 
       /* C | NO_RELATED_HISTORY vs RELATED_HISTORY - decided by the matched sets alone (`D-061`). */
-      return persist(source, eligible.length, compared, created_at);
+      return persist(source, eligible.length, outcome.candidates, created_at);
     },
 
     async readCurrentDerivation(

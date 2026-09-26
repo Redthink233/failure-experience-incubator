@@ -135,9 +135,16 @@ function isPlainObject(value: unknown): value is Readonly<Record<string, unknown
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** At least one letter or CJK character - an all-digit / all-punctuation "reason" is not a reason. */
-function hasSubstantiveCharacter(value: string): boolean {
-  return /\p{L}/u.test(value);
+/**
+ * At least one letter or CJK character, and not blank - an all-digit / all-punctuation "reason" is
+ * not a reason.
+ *
+ * 🔴 This is the SINGLE definition of the `reason` shape. The one-call batch judge
+ *    (`batch-judge.ts`) reads the same rule through this function, so the two protocols cannot
+ *    drift apart on what counts as an explanation.
+ */
+export function isSubstantiveReason(value: string): boolean {
+  return value.trim().length > 0 && /\p{L}/u.test(value);
 }
 
 export type JudgeAnswerRead =
@@ -195,7 +202,7 @@ export function readJudgeAnswer(value: unknown): JudgeAnswerRead {
     };
   }
   const reason = rawReason.trim();
-  if (reason.length === 0 || !hasSubstantiveCharacter(reason)) {
+  if (!isSubstantiveReason(reason)) {
     return {
       kind: 'refused',
       code: 'NON_CANONICAL_JUDGE_FIELD',

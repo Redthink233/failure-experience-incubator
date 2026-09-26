@@ -31,6 +31,8 @@ import type { AttemptRepository } from '../../../workspace/repository/attempt-re
 import { WorkspaceStorageError } from '../../../workspace/storage.js';
 import type { WorkspaceEntry, WorkspaceStorage } from '../../../workspace/storage.js';
 import { DIMENSION_JUDGE_SCHEMA_ID } from '../../../retrieval/compare/dimension-judge.js';
+import { BATCH_DIMENSION_JUDGE_SCHEMA_ID } from '../../../retrieval/compare/batch-judge.js';
+import { readBatchJudgePairs } from '../../retrieval/compare/harness.js';
 import { createRetrievalDerivationRepository } from '../../../retrieval/compare/retrieval-derivation-repository.js';
 import type { RetrievalDerivationRepository } from '../../../retrieval/compare/retrieval-derivation-repository.js';
 import { createExperienceRetrievalService } from '../../../retrieval/compare/retrieval-service.js';
@@ -344,6 +346,27 @@ export function createWorkflowFakeProvider(
             return aiFailed(faults.step_6);
           }
           return answer(sources.judge);
+        }
+        /*
+         * 🔴 FINAL-RAPID-A: step ⑥ now asks for every undecided pair in ONE request
+         *    (`level-a-dimension-judge-batch-v1`). This double keeps its single-pair script and
+         *    expands that same verdict across the requested pairs, so every existing workflow
+         *    fixture answers a retrieval exactly as it did before the batching change - it simply
+         *    does so in one provider call instead of one call per pair.
+         */
+        case BATCH_DIMENSION_JUDGE_SCHEMA_ID: {
+          judge_calls.push(call);
+          if (faults.step_6 !== null) {
+            return aiFailed(faults.step_6);
+          }
+          const scripted = resolveReply(sources.judge, call, index);
+          const judgments = readBatchJudgePairs(invocation.request).map((pair) => ({
+            candidate_id: pair.candidate_id,
+            dimension: pair.dimension,
+            verdict: scripted['verdict'],
+            reason: scripted['reason'],
+          }));
+          return aiOk(JSON.stringify({ judgments }), 200, { judgments });
         }
         case INSIGHT_GENERATION_SCHEMA_ID: {
           insight_calls.push(call);

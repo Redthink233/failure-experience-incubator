@@ -9,6 +9,11 @@
  *    browser-direct adapter, no proxy client and no registry.
  * 🔴 The judge double READS THE REAL REQUEST (`readJudgeCall`), so a test can also assert what the
  *    application actually sent - including "only the minimal context was sent" (task §13).
+ * 🔴 FINAL-RAPID-A: step ⑥ now asks for every undecided pair in ONE batch request
+ *    (`BATCH_DIMENSION_JUDGE_SCHEMA_ID`). `FakeProvider.batch_calls.length` is therefore the
+ *    PROVIDER-CALL COUNT of a retrieval, and `readBatchJudgePairs` reads the pair list back out of
+ *    the uploaded request. `calls` keeps one entry per pair for both protocols, so a per-pair script
+ *    keeps its old meaning; a `kind: 'batch'` reply scripts a deliberately malformed whole batch.
  */
 
 import type { AiInvocation, ProviderAdapter } from '../../../ai/provider/adapter.js';
@@ -21,12 +26,13 @@ import type {
 import { resolveProviderPath } from '../../../ai/provider/capability.js';
 import { providerId } from '../../../ai/provider/ids.js';
 import type { AiRequest } from '../../../ai/provider/request.js';
-import type { AiError } from '../../../ai/provider/result.js';
+import type { AiError, AiResult } from '../../../ai/provider/result.js';
 import { aiFailed, aiOk } from '../../../ai/provider/result.js';
 import { decisionInferenceItem, factItem } from '../../../domain/types/source-type.js';
 import type { ContentItem } from '../../../domain/types/source-type.js';
 import { provided } from '../../../domain/types/presence.js';
 import type { MaybeProvided } from '../../../domain/types/presence.js';
+import type { LevelADimension } from '../../../domain/types/level-a.js';
 import type { ObjectId } from '../../../domain/ids/object-id.js';
 import { createAttemptRepository } from '../../../workspace/repository/attempt-repository.js';
 import type {
@@ -44,6 +50,12 @@ import type {
 } from '../../../retrieval/compare/retrieval-service.js';
 import { createRetrievalDerivationRepository } from '../../../retrieval/compare/retrieval-derivation-repository.js';
 import type { RetrievalDerivationRepository } from '../../../retrieval/compare/retrieval-derivation-repository.js';
+import {
+  BATCH_DIMENSION_JUDGE_SCHEMA_ID,
+  BATCH_JUDGE_PAIRS_CLOSE,
+  BATCH_JUDGE_PAIRS_OPEN,
+} from '../../../retrieval/compare/batch-judge.js';
+import type { BatchJudgePair } from '../../../retrieval/compare/batch-judge.js';
 
 export const NOT_A_REAL_LLM_OUTPUT = 'NOT_A_REAL_LLM_OUTPUT';
 
@@ -61,7 +73,15 @@ export type FakeReply =
       readonly text?: string;
     }
   | { readonly kind: 'text'; readonly text: string }
-  | { readonly kind: 'error'; readonly error: AiError };
+  | { readonly kind: 'error'; readonly error: AiError }
+  /**
+   * FINAL-RAPID-A: the WHOLE batch answer, used verbatim as the one provider response.
+   *
+   * 🔴 This is how a test scripts a *malformed* batch (a missing pair, an extra pair, a rewritten
+   *    `candidate_id`, an off-vocabulary `verdict`). It is never expanded and never repaired, so the
+   *    application's fail-closed reader is exercised for real.
+   */
+  | { readonly kind: 'batch'; readonly value: Readonly<Record<string, unknown>> };
 
 export interface JudgeCall {
   /** Canonical dimension key (`goal` / `approach` / `condition` / `result`). */
@@ -72,7 +92,16 @@ export interface JudgeCall {
   readonly messages: readonly string[];
 }
 
-/** Reads the judge input out of the request the application really built. */
+/** One batch request, read back exactly as it was uploaded. */
+export interface BatchJudgeCall {
+  /** The pairs the application asked about, in request order. */
+  readonly pairs: readonly BatchJudgePair[];
+  readonly messages: readonly string[];
+  /** The exact user message text. */
+  readonly text: string;
+}
+
+/** Reads the judge input out of the SINGLE-PAIR request the application really built. */
 export function readJudgeCall(request: AiRequest): JudgeCall {
   const messages = request.messages.map((message) => message.content);
   const user = request.messages.find((message) => message.role === 'user')?.content ?? '';
@@ -91,11 +120,37 @@ export function readJudgeCall(request: AiRequest): JudgeCall {
   };
 }
 
+/**
+ * Reads the pair list out of the BATCH request the application really built.
+ *
+ * 🔴 It reads the request, it does not rebuild it: the delimiters come from the production module,
+ *    so this reader cannot silently disagree with what was sent.
+ */
+export function readBatchJudgePairs(request: AiRequest): readonly BatchJudgePair[] {
+  const user = request.messages.find((message) => message.role === 'user')?.content ?? '';
+  const start = user.indexOf(BATCH_JUDGE_PAIRS_OPEN);
+  const end = user.indexOf(BATCH_JUDGE_PAIRS_CLOSE);
+  if (start < 0 || end <= start) {
+    return [];
+  }
+  const body = user.slice(start + BATCH_JUDGE_PAIRS_OPEN.length, end);
+  const parsed = JSON.parse(body) as readonly Readonly<Record<string, unknown>>[];
+  return parsed.map((entry) => ({
+    candidate_id: String(entry['candidate_id'] ?? ''),
+    dimension: entry['dimension'] as LevelADimension,
+    source_value: String(entry['current_value'] ?? ''),
+    candidate_value: String(entry['historical_value'] ?? ''),
+  }));
+}
+
 export interface FakeProvider {
   readonly adapter: ProviderAdapter;
   /** Every invocation the application really made - the "M10-only" proof is structural. */
   readonly invocations: readonly AiInvocation[];
+  /** One entry per `candidate × dimension` pair the application asked about, in request order. */
   readonly calls: readonly JudgeCall[];
+  /** One entry per BATCH request - the provider-call count of step ⑥ is `batch_calls.length`. */
+  readonly batch_calls: readonly BatchJudgeCall[];
 }
 
 export interface FakeProviderOptions {
@@ -103,11 +158,74 @@ export interface FakeProviderOptions {
   readonly model?: string;
 }
 
+/** The per-pair view the resolver sees for a batch request. */
+function pairViewsOf(messages: readonly string[], pairs: readonly BatchJudgePair[]): readonly JudgeCall[] {
+  return pairs.map((pair) => ({
+    dimension_key: pair.dimension,
+    source_value: pair.source_value,
+    candidate_value: pair.candidate_value,
+    messages,
+  }));
+}
+
+function singleReply(reply: FakeReply): AiResult {
+  if (reply.kind === 'error') {
+    return aiFailed(reply.error);
+  }
+  if (reply.kind === 'text') {
+    return aiOk(reply.text, 200, null);
+  }
+  if (reply.kind === 'batch') {
+    return aiOk(JSON.stringify(reply.value), 200, reply.value);
+  }
+  return aiOk(reply.text ?? JSON.stringify(reply.value), 200, reply.value);
+}
+
+/**
+ * Assembles the ANSWER to one batch request from the per-pair replies the resolver produced.
+ *
+ * Order of precedence, and nothing else:
+ *   ① a `batch` reply is the whole answer, used verbatim (how a test scripts a malformed batch);
+ *   ② otherwise, if every pair was answered with a single-pair verdict, the verdicts are expanded
+ *      into the exact `{judgments: [...]}` the application asked for: one judgement per pair built
+ *      from the scripted payload, with ONLY the pair identity taken from the request (so the double
+ *      cannot accidentally "rewrite" it while a scripted extra field still reaches the reader);
+ *   ③ otherwise the first free-text reply is the whole answer (how a test scripts a non-JSON body).
+ */
+function batchReplyOf(replies: readonly FakeReply[], pairs: readonly BatchJudgePair[]): AiResult {
+  const explicit = replies.find((reply) => reply.kind === 'batch');
+  if (explicit !== undefined && explicit.kind === 'batch') {
+    return aiOk(JSON.stringify(explicit.value), 200, explicit.value);
+  }
+  if (replies.every((reply) => reply.kind === 'structured')) {
+    const value = {
+      judgments: pairs.map((pair, index) => {
+        const reply = replies[index];
+        const payload =
+          reply !== undefined && reply.kind === 'structured' ? reply.value : {};
+        return {
+          ...payload,
+          candidate_id: pair.candidate_id,
+          dimension: pair.dimension,
+        };
+      }),
+    };
+    return aiOk(JSON.stringify(value), 200, value);
+  }
+  const text = replies.find((reply) => reply.kind === 'text');
+  if (text !== undefined && text.kind === 'text') {
+    return aiOk(text.text, 200, null);
+  }
+  return aiOk(JSON.stringify(replies[0] ?? {}), 200, null);
+}
+
 /**
  * Builds a fake `M10` adapter.
  *
- * `resolve` receives the judge call the application built plus the 0-based call index, so one
- * double can answer a whole multi-candidate retrieval deterministically.
+ * `resolve` receives the judge call the application built plus the 0-based PROVIDER-CALL index, so
+ * one double can answer a whole multi-candidate retrieval deterministically. For a batch request it
+ * is called once per requested pair (the transport carries them together, the double answers them
+ * one by one), which keeps every existing per-pair script meaningful.
  */
 export function createFakeProvider(
   resolve: (call: JudgeCall, index: number) => FakeReply,
@@ -131,6 +249,7 @@ export function createFakeProvider(
   };
   const invocations: AiInvocation[] = [];
   const calls: JudgeCall[] = [];
+  const batch_calls: BatchJudgeCall[] = [];
 
   const adapter: ProviderAdapter = {
     provider_id: config.provider_id,
@@ -141,20 +260,31 @@ export function createFakeProvider(
     async execute(invocation: AiInvocation) {
       const index = invocations.length;
       invocations.push(invocation);
+      const schema_id = invocation.request.structured_output?.schema_id ?? null;
+      const messages = invocation.request.messages.map((message) => message.content);
+
+      if (schema_id === BATCH_DIMENSION_JUDGE_SCHEMA_ID) {
+        const pairs = readBatchJudgePairs(invocation.request);
+        batch_calls.push({ pairs, messages, text: messages[1] ?? '' });
+        const replies: FakeReply[] = [];
+        for (const view of pairViewsOf(messages, pairs)) {
+          calls.push(view);
+          const reply = resolve(view, index);
+          if (reply.kind === 'error') {
+            return aiFailed(reply.error);
+          }
+          replies.push(reply);
+        }
+        return batchReplyOf(replies, pairs);
+      }
+
       const call = readJudgeCall(invocation.request);
       calls.push(call);
-      const reply = resolve(call, index);
-      if (reply.kind === 'error') {
-        return aiFailed(reply.error);
-      }
-      if (reply.kind === 'text') {
-        return aiOk(reply.text, 200, null);
-      }
-      return aiOk(reply.text ?? JSON.stringify(reply.value), 200, reply.value);
+      return singleReply(resolve(call, index));
     },
   };
 
-  return { adapter, invocations, calls };
+  return { adapter, invocations, calls, batch_calls };
 }
 
 /** A double that always answers the same verdict. Every answer is `NOT_A_REAL_LLM_OUTPUT`. */
