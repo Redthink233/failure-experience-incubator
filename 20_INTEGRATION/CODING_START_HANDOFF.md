@@ -1202,3 +1202,83 @@ SAFE NEXT = PRE-SUBMISSION PSA｜Real Browser + Real Provider｜TE-DEMO-LIVE-01 
 🔴 未授权自动启动 —— 完成后停止
 ```
 
+---
+
+## 20. REMOTE-BACKUP-01 ｜ GITHUB PRIMARY REPOSITORY ESTABLISHMENT（🚩 `REMOTE-BACKUP-01`，2026-09-26｜🔴 追加，不改写历史）
+
+### 20.1 任务状态登记
+
+```
+task             : REMOTE-BACKUP-01
+phase            : PRE-SUBMISSION
+type             : Repository Remote / Backup Task
+人工裁决（前置）  : Primary Remote = GitHub｜Visibility = PUBLIC
+RESULT           : 🔴 BLOCKED —— GITHUB CLI MISSING
+Task             : NOT DONE
+BLOCKER          : YES
+```
+
+🔴 **本任务的唯一目标（把 recovery repository 建立为 GitHub 主仓库 + 完成第一次远程备份）未达成。**
+原因是执行环境**未安装 `GitHub CLI`**，按任务 §8 ⇒ **停在 remote creation 之前**（不安装任何来源不明 binary）。
+因此：`GitHub Repository = NOT CREATED`｜`origin = NONE`｜`push = 未执行`｜`Visibility = PUBLIC` 与 `Primary Remote = GitHub` 两项人工裁决**保留但未落地**。
+
+🚩 **就地补注（不改写历史）**：§19.7 边界登记中的「❌ push remote / 新建 remote」在本轮**仍未完成**；本节为其后续状态登记。
+
+### 20.2 已完成并取证的部分（本地侧｜只读检查 + 一次授权 commit）
+
+```
+Baseline Gate       : PASS   （inside work tree = true｜branch = main｜HEAD = 207902b｜git remote -v 空｜git 2.52.0.windows.1）
+Recovery Root       : PRESERVED（git rev-list --parents 实测 root 无 parent；未 re-init / rebase root / amend / 伪造旧 parent）
+Git Identity        : Red23 <229438394+Redthink233@users.noreply.github.com>（repo-local；.git/config 无 remote、无任何 token）
+Secret Scan         : PASS   （高置信模式命中 16 行，逐行核验全部为显式假值 sk-fixture-* / hunter2 或审计清单引用）
+Publication Privacy : PASS   （手机号 0｜身份证 0｜邮箱仅 4 条：123@qq.com 占位 / GitHub noreply / 测试 fixture）
+LICENSE / README    : 均 ABSENT（🔴 未添加 —— 属 Submission Package 人工裁决项，本任务无权选择）
+tracked files       : 561（未增未减）
+禁止路径（本地侧）   : node_modules/｜dist/｜dist-web/｜dist-test/｜dist-proxy-test/｜.env｜.chrome-profile｜smoke-evidence 全部 0 命中
+旧 pre-loss hash    : 3696d7d｜aa8e89f｜9e710d3｜a1ff737｜d885ab4 全部 `fatal: Not a valid object name`（⇒ 未进入新 DAG）
+```
+
+### 20.3 Git（🔴 事实登记）
+
+```
+207902b  chore: establish recovered repository baseline     ← root / 无 parent
+12d0793  chore: finalize repository recovery audit trail    ← 本任务创建（仅 .learnbuddy/memory/**，54+/3-）
+         🔴 未推送（无 remote）｜git rev-list --count HEAD = 2
+```
+
+### 20.4 阻断原因与解除方式（🔴 需人工动作）
+
+```
+Get-Command gh            : GITHUB CLI MISSING（不在 PATH）
+7 处候选安装位（Program Files\GitHub CLI｜Program Files (x86)\GitHub CLI｜
+  LocalAppData\Programs\GitHub CLI｜LocalAppData\GitHubCLI｜scoop\shims｜
+  chocolatey\bin｜WinGet\Links）: 全部 False
+winget                    : 存在，但未安装任何包
+credential.helper         : manager（Windows 凭据管理器中无 github.com 条目）
+```
+
+**人工裁决的解除路径（2026-09-26 已选定）**：由**用户本人**于浏览器手工创建**空 PUBLIC** 仓库
+（🔴 **不**勾选 README / .gitignore / License —— 避免制造与本地 recovery history 冲突的远端初始 commit），
+再把 URL 交回；随后由 AI 执行 `git remote add origin <url>` + `git push -u origin main`。
+🔴 凭据走本机已装的 Git Credential Manager 浏览器授权，**AI 全程不接触 token**，也不写入任何文件 / shell history。
+
+### 20.5 边界登记（🔴 本轮未做）
+
+```
+❌ 创建 GitHub repository     ❌ git remote add / origin 配置      ❌ git push（含 --force / --force-with-lease）
+❌ Remote Verification        ❌ 远端备份范围验证                   ❌ 安装任何 gh binary
+❌ LICENSE 选择（MIT / Apache-2.0 / GPL 均未添加）                  ❌ submission README 定稿
+❌ PSA（仍 PENDING）          ❌ Real Provider 调用（0）            ❌ Vercel 部署
+❌ GitHub Actions / CI / branch protection / Release / Tag / Issue / PR / GitHub Pages
+❌ RECOVERY-POLISH-01（已登记，未修）
+```
+
+🔴 **本节追加禁写项（持续）**：不得写「GitHub Primary Repository = ESTABLISHED」「Public Remote Backup = PASS」
+「origin 已配置」「已 push」「local HEAD = remote main」「Remote History Conflict = NO」；
+不得把 `12d0793` 说成已推送；不得把本任务写成 `DONE`（🔴 **未完成**）；不得把 `REMOTE-BACKUP-01` 写成已解除阻断。
+
+```
+SAFE NEXT = 解除阻断（用户浏览器建空 PUBLIC 仓库 → 交回 URL）→ 回到 §10 → §17
+🔴 未授权自动启动 —— 本次完成后停止
+```
+
