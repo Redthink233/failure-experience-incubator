@@ -18,6 +18,18 @@
  *
  * 🔴 SOURCE LABELS ARE PART OF THE COPY. `AI 推断` / `AI 解析结果` / `你提供的信息` are product
  *    vocabulary: the UI must never present a model inference as a user fact (§19 / §36).
+ *
+ * 🔴 THE USER-SIDE LABEL HAS THREE STATES, AND THE THIRD ONE NEEDS EVIDENCE
+ *    (`RECOVERY-POLISH-01` §6–§9). A `Fact` is the user layer of the record, but WHICH user-layer
+ *    sentence is true depends on the record itself - never on the mere presence of `source_type`:
+ *
+ *      · `demo_sample` record  → `CONFIRM_SOURCE_DEMO` 「示例记录」. Seeded example data is not the
+ *        current user's doing; claiming 「你修改过」 over it would be a fabricated edit history.
+ *      · ordinary Live record  → `CONFIRM_SOURCE_USER_PROVIDED` 「你提供的信息」. This is the
+ *        DEFAULT, and it is also the fail-safe answer: when nothing proves an edit, say this.
+ *      · a REAL, provable user edit → `CONFIRM_SOURCE_USER` 「你修改过」. Emitted ONLY against
+ *        evidence that exists in the read model / session today (see `sourceLabelOf`). There is no
+ *        edit history and no version history in V1 (AC-122) - so 「你修改过」 is never a guess.
  */
 
 /* ------------------------------------------------------------------ *
@@ -194,6 +206,31 @@ export const CONFIRM_HEADING = '确认一下这次实际发生了什么';
 export const CONFIRM_EXPLAIN = '你可以修改任何一条，改完保存的就是你确认过的记录。';
 export const CONFIRM_SUBMIT = '确认这些内容';
 export const CONFIRM_SAVED = '已确认。';
+/**
+ * `Fact` on a `demo_sample` record - seeded example data, authored by nobody in this session.
+ *
+ * 🔴 IT REPLACES 「你修改过」 FOR DEMO DATA, and it is not a weaker claim: it says exactly what the
+ *    record is. A seeded value was never edited by the current user, so no edit may be displayed
+ *    over it (`RECOVERY-POLISH-01` §8).
+ */
+export const CONFIRM_SOURCE_DEMO = '示例记录';
+
+/**
+ * `Fact` on an ordinary record: the user's own wording, as supplied / confirmed.
+ *
+ * 🔴 THIS IS THE DEFAULT FOR EVERY USER-LAYER VALUE, and the fail-safe whenever an edit cannot be
+ *    proven (`RECOVERY-POLISH-01` §7). It never overstates: it claims provenance, not an edit.
+ */
+export const CONFIRM_SOURCE_USER_PROVIDED = '你提供的信息';
+
+/**
+ * A user edit the record / session can actually prove happened.
+ *
+ * 🔴 NOT DERIVABLE FROM `source_type = 'Fact'` ALONE. V1 stores no edit history and no version
+ *    history (AC-122) and `source_type` is invariant (§4.2 rule 1), so this sentence is only ever
+ *    emitted against evidence that exists today - see `sourceLabelOf` and its one current source:
+ *    the step ③ in-session edit buffer.
+ */
 export const CONFIRM_SOURCE_USER = '你修改过';
 export const CONFIRM_SOURCE_AI = 'AI 整理';
 

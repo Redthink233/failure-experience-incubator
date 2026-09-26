@@ -713,6 +713,12 @@
 > | `goal` | **缩短干燥周期** | **缩短干燥周期** | **逐字相同** ⇒ 按 `D-050` 的「同义 / 同一实质」**确定性记号规则**即可判 `matched`，**不需要模型** |
 > | `actual_attempt` | **热风干燥、提高风量** | **热风干燥、提高风量** | **逐字相同** ⇒ 同上 |
 >
+> > 🔴 **`RECOVERY-POLISH-01` 就地补注（不改写上表）**：上表 `actual_attempt` 一行的 **fixture 列与 seed 不符** ——
+> > `DEMO-03` 的实际取值是「**热风干燥 + 提高风量**」（分隔符为 `+`），上表却在两侧都写成「热风干燥、提高风量」。
+> > 因此该行**并非逐字相同**，按既有确定性规则为 `undecided`；**真正构成确定性冲突的只有 `goal` 一行**。
+> > 该差异**不影响 `-03` 的 `RETIRED` 结论**（`goal` 一处命中即足以 `related = true`，`D-061`），
+> > 也**未**据此改动任何 seed。核实方式：`src/tests/demo/recovery-polish-01.test.ts` 的 P12 正对照。
+>
 > 因此原文所写的「预期 **0 条 Level A 命中**」**不成立** —— 这是**本文档的测试脚本错误**，
 > **不是 Retrieval 产品 `Decision`**。`D-050` 的判据、`§J` 的 `DEMO-01`–`08` fixture、
 > `TE-DEMO-LIVE-01`、以及任何检索规则**均不因此更改**；本次**未**为迁就该脚本改动任何 seed。
@@ -725,6 +731,28 @@
 > > 且**不得呈现为系统错误**，`AC-47`），需**另行登记**一个**与 `DEMO-01`–`08` 真正无 Level A 实质重叠**
 > > 的新备用输入。该替换输入**尚未提供、未获人工确认** —— Integrator **不自行**为其编写「预期命中」结论，
 > > 其真实命中集合只能由彩排 / `PSA` 观测。
+
+### K.5.1 零命中脚本（`TE-DEMO-ZERO-01`）—— 就地补注，`RECOVERY-POLISH-01` §10–§13
+
+> 🔴 **上面那条「遗留」已由人工输入的测试文案解除**，本节**不删改**它（历史留痕），只把新脚本登记进来。
+> 🔴 它**不是** `TE-DEMO-LIVE-03` 的复活或改名：编号另起、输入另写，`-03` 的 `RETIRED` 状态与原文**原样保留**。
+> 🔴 它**不是 seed**：只作为 `PSA` / 彩排脚本登记（代码登记在 `src/demo/live-demo-script.ts` 的
+> `TE_DEMO_ZERO_01`，属 `M16` 既有的**文本登记**机制），**不得**由任何代码路径写成第 9 条记录。
+
+| 编号 | 备用输入（要点） | 预期命中 | 预期 `matched` 维度 | 陷阱（预期不命中） |
+|---|---|---|---|---|
+| **ZERO-01** | 「这次问卷回收效果没有达到预期。我的目标是**提高问卷回收率**，这次做法是在**填写截止前 24 小时发送一次短信提醒**。当时没有额外记录其它条件。截止以后**问卷回收率仍没有明显提升**。」 | 🔴 **预期 0 条** ⇒ `NO_RELATED` ⇒ `N_检索 = 0` | 四个 Level A 维度**均预期无命中**：`goal`（提高问卷回收率）· `actual_attempt`（截止前 24 小时发送一次短信提醒）· `condition`（输入未记录其它条件）· `actual_result`（问卷回收率仍没有明显提升） | 全部 `DEMO-01`–`08`（竹材干燥 / 实验日志 / 论文写作三域均无实质重叠） |
+
+> **性质与证据边界（`RECOVERY-POLISH-01` §12–§13）**
+>
+> | 项 | 结论 |
+> |---|---|
+> | **静态（确定性规则）** | 四维对 `DEMO-01`–`08` **均不返回 `matched`**：由 `deterministicDimensionVerdict` 逐对检查（32 对），见 `src/tests/demo/recovery-polish-01.test.ts` 的 P12。**未**修改 comparator / strict semantic overlap / synonym 规则 / normalization / `DEMO-01`–`08` |
+> | 确定性规则的正对照 | 已 `RETIRED` 的 `-03` 在同一套规则下**仍会被判 `matched`** —— 该用例作为正对照保留在 P12 中，证明本节的检查不是空转。🔴 **范围更正**（`RECOVERY-POLISH-01` 静态检查发现，就地补注）：真正逐字相同的是 **`goal`** 一行；`actual_attempt` 一行上表的 `-03` 侧「热风干燥、提高风量」与 fixture 的「热风干燥 + 提高风量」**分隔符不同**，按既有规则为 `undecided`。**结论不变**（`goal` 一处命中即足以使 `related = true`，`D-061`），上表该行**不得**再按「逐字相同」解读 |
+> | **`condition` 的两种读数** | 若解析把「截止前 24 小时」抽成 `condition`，它与 seed 的 `50°C` / `50 摄氏度` / `70°C` **同样不同**；若未被抽成，则该维度结构性 `uncompared`（`AC-22`）。**两种读数都不改变零命中结论**，且**不得**为凑 0 而把该段强行映射到错误字段 |
+> | **预期空态语义** | **历史存在**（seed 8 条）但本次 `NO_RELATED` ⇒ `N_检索 = 0`；必须与 `HISTORY_EMPTY` / `RUNTIME_INCOMPLETE` / `NOT_RUN` **严格区分**（`AC-55`） |
+> | **🔴 未被证实的事** | 本登记**不预存** `matched` / `N_检索` / `Retrieval Derivation`，**不声称** `REAL 0-HIT VERIFIED`。真实 0 命中、以及 ⑧⑨ 的 `EXIT-A` 路由（`AC-43` / `AC-47`）**只能由彩排 / `PSA` 观测** |
+> | **铁律不变** | 现场仍须**真实重新输入 + 新建新 `Attempt`**（`K-R1` / `K-R2`）；**不得**复制记录、**不得**为凑 0 命中改动 seed / Gold（`K-R7`） |
 
 ### K.6 不可用手段（再次声明）
 
@@ -998,7 +1026,7 @@ PROPOSED 推荐 = D-A｜单体 Full-stack Web App + 托管数据库
 | **seed 层位** | **只预置 `Attempt` 层**；**不预置** `Insight` / `Hypothesis` / `EvidenceRef` / `Retrieval Derivation` | Integrator | ❌ 不升级 |
 | **seed 幂等** | 以固定业务键集合（稳定预置标识 + 固定标题）做"存在则更新 / 不存在则插入" | Integrator | ❌ 不升级 |
 | **reset 方案** | `reset_demo_baseline` = 清空 Demo 工作空间 → 重新 seed；**仅演示开始前**；**运维动作** | Integrator | ❌ 不升级 |
-| **现场输入脚本** | 采用 §K 的 `TE-DEMO-LIVE-01` / `-02` / `-03`（🔴 **`-03` 已 `RETIRED`**，见 §K.5 更正说明；主脚本 `-01` 与备用 `-02` 不受影响） | `S03-E` 设计；Integrator 可调文案 | ❌ 不升级（演示输入文字属 Demo 参数） |
+| **现场输入脚本** | 采用 §K 的 `TE-DEMO-LIVE-01` / `-02` / `-03`（🔴 **`-03` 已 `RETIRED`**，见 §K.5 更正说明；主脚本 `-01` 与备用 `-02` 不受影响）；🔴 **另有零命中脚本 `TE-DEMO-ZERO-01`**（见 §K.5.1，就地补注） | `S03-E` 设计；Integrator 可调文案 | ❌ 不升级（演示输入文字属 Demo 参数） |
 | **reset 脚本命名 / 位置** | 由实现阶段决定（本文件只给建议名 `reset_demo_baseline`） | 实现阶段 | ❌ 不升级 |
 
 ### P.2 升级条件（唯一）
@@ -1199,6 +1227,8 @@ unresolved       = 0
 TE 用例总数：TE-001 – TE-165（连续无缺号，166 条，含 TE-048b）
   + TE-E2E-P0 · TE-DEMO-LIVE-01/-02/-03 · TE-POST-AI-REPRO（专用条目 5 条）
   = 171 条
+  🔴 就地补注（`RECOVERY-POLISH-01` §10–§13）：另登记零命中脚本 `TE-DEMO-ZERO-01`
+     ⇒ 专用条目 6 条 ⇒ **172 条**。（上文 171 为该次登记前的口径，原样保留，不追溯改写。）
   ├─ 挂起：TE-130（待 Integrator 冻结 expected 的边界 fixture）
   └─ DEFERRED：TE-POST-AI-REPRO（DEFERRED UNTIL IMPLEMENTATION）
 
@@ -1219,6 +1249,7 @@ seed 数量 = 8（处于 5–10 区间；+ 现场新增 1 条）
 现场输入脚本是否可执行 = 是
   ├─ TE-DEMO-LIVE-01（主脚本）+ TE-DEMO-LIVE-02（备用）
   ├─ TE-DEMO-LIVE-03 = RETIRED（与 DEMO-03 fixture 冲突；见 §K.5 更正说明）
+  ├─ TE-DEMO-ZERO-01（零命中脚本：问卷回收率；见 §K.5.1）＝ 静态无确定性 Level A 命中；真实 0 命中待 PSA 观测
   └─ 现场实际重新输入 → 新建新 Attempt → 重新走 AI / Formal / Retrieval（非复制记录）
 是否保证至少 1 条 Level A 命中 = 设计上保证（预期命中 DEMO-01 + DEMO-02；单位等价 + 同义改写两条路径）
   ⚠️ 但"必然命中"仍属真实未知 → 由 SP-05 或彩排实测确认（归属 TQ10 / Integrator）

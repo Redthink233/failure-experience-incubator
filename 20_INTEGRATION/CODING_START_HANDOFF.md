@@ -1361,3 +1361,154 @@ SAFE NEXT = RECOVERY-POLISH-01
 🔴 未授权自动启动 —— 本次完成后停止
 ```
 
+---
+
+## 22. RECOVERY-POLISH-01 ｜ DEMO COPY + SOURCE LABEL + TRUE 0-HIT PSA FIXTURE（🚩 `RECOVERY-POLISH-01`，2026-09-26｜🔴 追加，不改写历史）
+
+> 阶段 = `PRE-SUBMISSION`｜类型 = `Final Product Polish Before PSA`｜执行方式 = 单机串行。
+> 🔴 **本节不改动 §20 / §21 的任何内容**（含 §20 的 `BLOCKED` 快照与 §21 的 `ESTABLISHED` 结论）。
+
+### 22.1 状态
+
+```
+RECOVERY-POLISH-01 = DONE
+Git Baseline          = a2731359064dff1c419dc826d6d764b12ee58b9e（开工 HEAD = remote refs/heads/main，实际核对一致）
+DEMO-08 Cross-domain Copy      = CLOSED
+Demo Fact Source Label         = CLOSED
+Live Fact Source Label         = CLOSED
+True Level A Zero-Hit PSA Fixture = REGISTERED
+Real 0-Hit Execution           = PENDING PSA（本任务只做静态检查，未声称已观测）
+PSA                            = PENDING
+Real Provider                  = NOT EXECUTED（0 次调用）
+Vercel                         = NOT DEPLOYED
+Decision Added = 0   AC Added = 0   Frozen Contract Modified = NO   CCR = NO   BLOCKER = NO
+```
+
+### 22.2 三项交付（逐项）
+
+**A｜`DEMO-08` 跨领域残留文案 = `CLOSED`**
+
+```
+原 : 这次的目标是避免虚假引用，用的是引用校验后处理加人工复核这条路线，干燥温度不适用、没有记录，处理之后幻觉引用明显下降。
+新 : 这次的目标是避免虚假引用，用的是引用校验后处理加人工复核这条路线，当时没有额外记录其它条件，处理之后幻觉引用明显下降。
+```
+
+- 只改**人类可读** `raw_text`。`attempt_id` / `project_id` / `goal` / `actual_attempt` /
+  `condition`（仍 `null` ⇒ 显式「未知 / 未提供」）/ `actual_result` / `result_status = 'Success'` /
+  `archive_state` / 时间戳 **逐字段不变**；fixture 条数仍 8；**未**新增设备 / 版本 / 温度 / 成本 / 阈值 / 环境 / 失败原因。
+- 🔴 `PRE-PSA-HARDENING-01` §7 只改了 `DEMO-05` / `DEMO-06`，**漏掉了同样跨域的 `DEMO-08`**（同为「论文写作」）—— 本次是该遗漏的收口，不是新问题。
+
+**B｜字段来源标签用户可见语义 = `CLOSED`**
+
+```
+缺陷 : `sourceLabelOf(source_type)` 仅凭 `source_type === 'Fact'` 就输出「你修改过」——
+       对 demo seed 的 Fact 而言这是**伪造编辑历史**（V1 无 edit / version history，AC-122）。
+修复 : 三态派生（🔴 未改 `source_type` 定义、未新增任何领域字段、未改 schema、未加持久状态）
+       ① `Attempt.data_source_nature === 'demo_sample'` → 「示例记录」
+       ② 有**真实** edit evidence（③ 会话内 `confirmation_edits` 非空）→ 「你修改过」
+       ③ 其余 → 「你提供的信息」（默认值，也是 fail-safe）
+       🔴 AI 半边先判定且永不被覆盖：`Extraction` / `Inference` 恒为 AI 侧文案。
+       🔴 判定顺序 = AI 侧 → demo → 真实编辑 → 默认；demo 优先于编辑，故 seed 记录永不声称编辑。
+fail-safe : 无证据 → **绝不**输出「你修改过」（宁可显示「你提供的信息」）。
+```
+
+**C｜真 `Level A` 零命中 `PSA` 输入 = `REGISTERED`**
+
+```
+编号 : TE-DEMO-ZERO-01（登记于 src/demo/live-demo-script.ts 的 TE_DEMO_ZERO_01）
+输入 : 「这次问卷回收效果没有达到预期。我的目标是提高问卷回收率，这次做法是在填写截止前 24 小时
+        发送一次短信提醒。当时没有额外记录其它条件。截止以后问卷回收率仍没有明显提升。」
+性质 : 文本登记，**不是 seed**；任何代码路径都不会把它写成第 9 条记录。
+静态 : 四维对 DEMO-01…08 共 32 对，用**产品自身的** deterministicDimensionVerdict 检查，
+       **无任何 `matched`**（P12）。condition 的两种读数（被抽成 / 未被抽成）都不改变结论。
+正对照 : 已 RETIRED 的 -03 的 `goal` 在同一规则下**仍判 `matched`** ⇒ 证明该检查不是空转。
+🔴 未做 : 未预存 `matched` / `N_检索` / `Retrieval Derivation`；**未声称** REAL 0-HIT VERIFIED。
+```
+
+### 22.3 Demo 基线再生成（`demo-workspace/**`）
+
+```
+操作 : npm run demo:reset（fail-closed 身份证明通过）→ 再 seed 一次（幂等验证）
+规模 : 8 / 8 Attempts   全部 Formal   Attempt-only   文件 21 个（与 reset 前一致）
+幂等 : 第二次 seed = created 0 / reused 8
+digest : 21 个文件中**仅 2 个**发生变化 —— ATT_DEM0A080000000000000000000.json 与 .md
+         （4AA1764C…→D52CF3AE…｜2FC71BEA…→FD175AB3…），其余 19 个**逐字节相同**
+结论 : Only DEMO-08 human-readable raw_text changed.
+```
+
+### 22.4 变更文件
+
+```
+M src/demo/demo-baseline-definition.ts      DEMO-08 raw_text + 就地补注
+M src/demo/live-demo-script.ts              TE_DEMO_ZERO_01 + 可选 expected_level_a_parse
+M src/ui/copy.ts                            CONFIRM_SOURCE_DEMO / _USER_PROVIDED + 三态口径说明
+M src/ui/presenters/capture.ts              sourceLabelOf / captureFieldsOf / keyParameterViewsOf 接受上下文
+M src/ui/components/steps.ts                ③ 传入 editedFieldKeys(state.confirmation_edits)
+M demo-workspace/**/ATT_DEM0A080*.{json,md}  再生成产物（仅 DEMO-08）
+M docs/architecture/05_TEST_DEMO_DEPLOY.md   §K.5.1 登记零命中脚本（就地补注，未删改原「遗留」）
+                                            + §K.5 更正表 actual_attempt 行精度就地补注
+                                            + §P 现场脚本行 + §附录 TE 计数就地补注（171 → 172）
+A src/tests/ui/source-label.test.ts          P5–P10
+A src/tests/demo/recovery-polish-01.test.ts  P1–P4 / P11–P15
+```
+
+### 22.5 验证（🔴 全部实测）
+
+```
+typecheck ×5（tsconfig / core / browser / server / web）  = PASS
+build（tsconfig.build）                                  = PASS
+build:web（143 modules + 1 stylesheet）                  = PASS
+npm test                                                = 970 passed / 0 failed（任务前 947）
+npm run test:proxy                                      = 15 passed / 0 failed
+demo:status                                             = identity proven / 8 records / 8 fixtures
+Secret Scan（553 个非产物文件）                          = 命中项**全部**为凭据禁用口径文档文本与
+                                                          既有显式假值 fixture；**无真实凭据**
+Visual Smoke（本机真实 Chrome 154.0.8037.57，headless=new）= PASS
+  · fixture = 仓库 demo-workspace/** 的 %TEMP% **副本**（21 文件）
+    🔴 **未写入** 提交基线；其中 **1 条**记录的 L4 ③ 被翻转为 `field_record` 以构造「非 Demo」夹具
+  · R1 打开 DEMO-01：目标/实际尝试/条件/实际结果 四格全部 =「示例记录」；全页**无**「你修改过」
+  · R2 打开 DEMO-08：渲染出的 raw_text **不含**「干燥温度」；Demo 示例数据仍在
+       （🔴 全页文本仍出现「干燥温度」**仅**因左栏 DEMO-03 的摘要——那是同域记录，理应保留；已定位到具体行）
+  · R3 打开非 Demo 夹具：普通用户 Fact =「你提供的信息」，**未**被误标「示例记录」，**无**「你修改过」
+  · Provider calls = **0**（唯一 5–6 条出站请求全部指向本机杀毒套件 `gc.kis.v2.scr.kaspersky-labs.com`，
+    非产品、非模型服务）；未捕获异常 = 0
+  · 证据：%TEMP%\recovery-polish-01-smoke\out\（5 张截图 + smoke-report.json）
+```
+
+### 22.6 静态检查额外发现（🔴 如实登记，就地补注、未据此改 seed）
+
+```
+发现 : docs/architecture/05_TEST_DEMO_DEPLOY.md §K.5「更正说明」表中，`actual_attempt` 一行
+       两侧都写作「热风干燥、提高风量」，但 DEMO-03 的 fixture 实为「热风干燥 + 提高风量」
+       （分隔符 `+`）⇒ 该行**并非逐字相同**，按既有规则为 `undecided`。
+影响 : 无。`goal` 一行才是确定性冲突（逐字相同 ⇒ matched ⇒ related = true，D-061），
+       `-03` 的 RETIRED 结论完全不变；**未**据此改动任何 seed、任何 Retrieval 规则。
+处置 : 就地补注（保留原表，不改写），并在 P12 正对照中固化为断言。
+```
+
+### 22.7 边界登记（🔴 本轮未做）
+
+```
+❌ 未改：Retrieval 规则 / comparator / strict semantic overlap / synonym / normalization / DEMO-01..08 的
+        检索语义 / D9 / EvidenceRef / N_检索 / N_引用 / source_type 定义 / schema / 持久状态
+❌ 未恢复已 RETIRED 的 TE-DEMO-LIVE-03（原文与状态**原样保留**）
+❌ 未改 TE-DEMO-LIVE-01（逐字冻结，由测试断言）
+❌ 未做 UI / CSS 大布局改动（三栏比例 / Topbar / 左栏 / Step 状态 / Evidence rail / 颜色 / 布局全部 ACCEPT）
+❌ 未新增 Decision / AC / CCR；未改冻结合同
+❌ PSA（仍 PENDING）  ❌ Real Provider 调用（0）  ❌ Vercel 部署  ❌ LICENSE / README
+❌ 真实浏览器**人工**验收（PSA-03–PSA-06：真实句柄 + 权限生命周期）—— 仍 PENDING PSA
+```
+
+🔴 **本节追加禁写项**：不得把 `TE-DEMO-ZERO-01` 的静态检查写成「真实 0 命中已验证 / REAL 0-HIT
+VERIFIED」；不得写「PSA 已通过」「Real Provider Verified」「Vercel 已部署」；不得把本次本地
+providerless 视觉冒烟写成「真实浏览器人工验收已通过」「Chrome / FSA verified」；不得写
+「`TE-DEMO-LIVE-03` 已恢复 / 已替代为同一编号」；不得写「原 Git history 已恢复」；
+不得把 `-03` 更正表的补注写成「改写历史」。
+
+```
+SAFE NEXT = PRE-SUBMISSION PSA
+            ｜ Real Browser + Real Provider
+            ｜ TE-DEMO-LIVE-01 Full Rehearsal
+🔴 未授权自动启动 —— 本次完成后停止（不得自动开始 PSA）
+```
+

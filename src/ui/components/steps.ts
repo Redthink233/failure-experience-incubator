@@ -379,10 +379,32 @@ function parseCard(context: ViewContext, step: D9StepView): HTMLElement {
  * ③ the confirmation
  * ------------------------------------------------------------------ */
 
+/**
+ * The field keys the user has really edited in this session.
+ *
+ * 🔴 THIS IS THE ONLY EDIT EVIDENCE THE SHELL HAS, AND IT IS DELIBERATELY NARROW: a key appears in
+ *    `confirmation_edits` only after the user typed into that field's box at step ③, and a blank
+ *    value means they typed and then cleared it - so a blank entry is DROPPED rather than counted.
+ *    Nothing else may promote a label to 「你修改过」; there is no edit history to consult
+ *    (`RECOVERY-POLISH-01` §7 / §9).
+ */
+function editedFieldKeys(edits: Readonly<Record<string, string>>): readonly string[] {
+  return Object.entries(edits)
+    .filter(([, value]) => value.trim().length > 0)
+    .map(([field]) => field);
+}
+
 function confirmCard(context: ViewContext, step: D9StepView): HTMLElement {
   const { state, session } = context;
   const snapshot = state.snapshot;
-  const fields = captureFieldsOf(snapshot);
+  /*
+   * 🔴 The ③ grid renders with the record's own nature AND the in-session edit buffer: that is what
+   *    lets a seeded value read 「示例记录」 and a value the user has just typed read 「你修改过」,
+   *    while every untouched live value reads 「你提供的信息」.
+   */
+  const fields = captureFieldsOf(snapshot, {
+    edited_fields: editedFieldKeys(state.confirmation_edits),
+  });
   const status = resultStatusViewOf(snapshot);
   const pending = state.pending['confirmation'] === true;
   /* 🔴 Confirmation is a `Draft`-only command; a saved record shows its settled content instead. */

@@ -161,6 +161,15 @@ function demoTimestamp(fixture_index: number): string {
  *    **只改了人类可读的 `raw_text`**：`condition` **结构化取值仍为 `null`（显式「未知 / 未提供」）**，
  *    Level A 语义 / `Project` / `result_status` / `Attempt`·`Project` 对象 ID / fixture 条数 /
  *    任何 Retrieval 预期**一律未改动**；也没有凭空新增设备、版本、环境、成本、参数或阈值。
+ *
+ * 🔴 `RECOVERY-POLISH-01` §4 —— **`DEMO-08` 的同类残留文案收口（就地补注，不改写上文）**：
+ *    `§7` 只改了 `DEMO-05` / `DEMO-06`，**漏掉了同样跨域的 `DEMO-08`**（同为「论文写作」`Project`），
+ *    其原文仍留着「干燥温度不适用、没有记录」这句竹材域残留文案。本次把它改为与
+ *    `DEMO-05` 相同的自然表达「当时没有额外记录其它条件」。
+ *    **同样只改人类可读的 `raw_text`**：`attempt_id` / `project_id` / `goal` / `actual_attempt` /
+ *    `condition`（仍 `null` ⇒ 显式「未知 / 未提供」）/ `actual_result` / `result_status = 'Success'` /
+ *    `archive_state` / `created_at` / `updated_at` **逐字段不变**，fixture 条数仍为 8。
+ *    没有新增设备、版本、温度、成本、阈值、环境或失败原因。
  */
 export const DEMO_ATTEMPTS: readonly DemoAttemptDefinition[] = [
   {
@@ -274,7 +283,7 @@ export const DEMO_ATTEMPTS: readonly DemoAttemptDefinition[] = [
     project_id: DEMO_PROJECT_ID_C,
     archive_state: 'active',
     raw_text:
-      '这次的目标是避免虚假引用，用的是引用校验后处理加人工复核这条路线，干燥温度不适用、没有记录，处理之后幻觉引用明显下降。',
+      '这次的目标是避免虚假引用，用的是引用校验后处理加人工复核这条路线，当时没有额外记录其它条件，处理之后幻觉引用明显下降。',
     goal: '避免虚假引用',
     actual_attempt: '引用校验后处理 + 人工复核',
     condition: null,
