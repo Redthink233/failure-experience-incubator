@@ -24,6 +24,16 @@
  * 🔴 NO database of any kind is required: only a `WorkspaceStorage` (an in-memory
  *    implementation is sufficient) - D-059 / AC-130 / AC-136 / ITC-02.
  * 🔴 NO physical delete member exists (AC-76).
+ *
+ * 🔴 FINAL-RAPID-D ③ - THE FILE PAIR IS WRITTEN BEST-EFFORT ATOMICALLY. An `Attempt` lives as a
+ *    PAIR (§0.4 E.7/E.8): the `.json` sidecar is the machine source of truth, the `.md` body is its
+ *    human-readable mirror. Two `writeFile` calls are two commits, so `persist()` serializes BOTH
+ *    documents first, writes the sidecar, writes the mirror, and - if the mirror fails - RESTORES
+ *    the sidecar's previous bytes. When even that is impossible it fails with an explicit
+ *    `PERSISTENCE_CONSISTENCY_ERROR` instead of reporting a success. See `persist()` for the exact
+ *    policy and for why staged files + `move` was NOT chosen.
+ * 🔴 The two error codes above are TECHNICAL FAILURE CODES ONLY: not product states, not new
+ *    Decisions and not new AC. AC-76 is untouched - there is still no physical delete anywhere.
  */
 
 import type { ArchiveState } from '../../domain/types/archive.js';
@@ -97,7 +107,21 @@ export type AttemptRepositoryErrorCode =
    *    instead of overwriting the stored record. Technical error code only - NOT a
    *    product state and NOT a new product Decision.
    */
-  | 'DUPLICATE_OBJECT_ID';
+  | 'DUPLICATE_OBJECT_ID'
+  /**
+   * The dual-file write failed on its SECOND document and the FIRST one was successfully
+   * restored, so the stored pair is EXACTLY what it was before the attempt.
+   * 🔴 Technical failure code only - NOT a product state and NOT a new product Decision.
+   */
+  | 'PERSISTENCE_ROLLED_BACK'
+  /**
+   * The dual-file write failed and the pair could NOT be brought back to a consistent
+   * state: either there was no previous content to restore (a brand-new record, and V1 has
+   * no physical delete - AC-76) or the restore itself failed too.
+   * 🔴 It MUST be surfaced as a failure: the save did not succeed. Technical failure code
+   *    only - NOT a product state and NOT a new product Decision.
+   */
+  | 'PERSISTENCE_CONSISTENCY_ERROR';
 
 /**
  * Repository-level failure. `layer = 'GATE'` means a §10.1 layer-1 outcome: it only
@@ -117,9 +141,17 @@ export class AttemptRepositoryError extends Error {
       readonly layer?: 'GATE' | 'RUNTIME';
       readonly message?: string;
       readonly missing_fields?: readonly FormalGateField[];
+      /**
+       * The underlying failure, kept for a caller that needs to LOG it. It is never shown to the
+       * user: diagnostics and user-facing guidance stay separate (§10.1 layer 1/2).
+       */
+      readonly cause?: unknown;
     } = {},
   ) {
-    super(options.message ?? `Attempt repository error [${code}] for "${attempt_id}".`);
+    super(
+      options.message ?? `Attempt repository error [${code}] for "${attempt_id}".`,
+      options.cause === undefined ? undefined : { cause: options.cause },
+    );
     this.name = 'AttemptRepositoryError';
     this.code = code;
     this.layer = options.layer ?? 'RUNTIME';
@@ -401,18 +433,122 @@ export function createAttemptRepository(deps: AttemptRepositoryDeps): AttemptRep
     return (await readRecordFromIndex(attempt_id, index))?.attempt ?? null;
   }
 
+  /** Current text of a workspace file, or `null` when it does not exist. */
+  async function readTextIfPresent(path: string): Promise<string | null> {
+    if (!(await storage.exists(path))) {
+      return null;
+    }
+    return storage.readFile(path);
+  }
+
+  /**
+   * 🔴 DUAL-FILE CONSISTENCY (FINAL-RAPID-D ③).
+   *
+   * An `Attempt` is persisted as a PAIR (§0.4 E.7/E.8): the `.json` sidecar is the machine source
+   * of truth, the `.md` body is its human-readable mirror. Two `writeFile` calls are two commits,
+   * so a failure between them can leave the pair disagreeing - a `.md` that shows content the
+   * sidecar does not have, or a record whose mirror was never written. The policy below is
+   * BEST-EFFORT ATOMIC and uses only the FROZEN `WorkspaceStorage` members:
+   *
+   *   ① both documents are serialized BEFORE the workspace is touched, so a serialization failure
+   *      writes nothing at all;
+   *   ② the sidecar's previous content is read BEFORE the first write, because that is what a
+   *      rollback needs - if it cannot be read, nothing is written either;
+   *   ③ the sidecar (the document the rest of the system reads) is written FIRST, the mirror second;
+   *   ④ when the mirror write fails the sidecar is restored to its previous bytes, so the pair is
+   *      exactly what it was, and the failure is reported as `PERSISTENCE_ROLLED_BACK`;
+   *   ⑤ when that restore is impossible the pair could not be made consistent again and the failure
+   *      is reported as `PERSISTENCE_CONSISTENCY_ERROR`. No path ever reports a success.
+   *
+   * 🔴 WHY NOT STAGED FILES + `move`: stage-then-commit needs a rename, and the REAL product runtime
+   *    cannot rename. The browser File System Access adapter fails `move()` explicitly with
+   *    `MOVE_UNSUPPORTED_BY_BROWSER` (`src/browser/workspace/fsa-workspace-storage.ts`): the stable
+   *    API exposes no move, and V1 has no physical delete (AC-76), so nothing could clean a staged
+   *    file up either. A rename could not swap TWO files atomically in any case. Restoring the bytes
+   *    the pair already has is the honest maximum, and it is what the failing runtime allows.
+   *
+   * 🔴 THE RESIDUAL CASE IS REPORTED, NOT HIDDEN. Once the sidecar of a BRAND-NEW record has been
+   *    written there is nothing to restore, and AC-76 forbids deleting it again. The record is then
+   *    readable while its mirror is missing (`AttemptFilePair.markdown_path` is `null`-able for
+   *    exactly this reason) - and the caller is told so explicitly.
+   */
   async function persist(record: AttemptSidecarRecord, pair: AttemptFilePair): Promise<void> {
-    await storage.writeFile(
-      pair.sidecar_path,
-      serializeAttemptSidecar(record.attempt, {
-        content_items: record.content_items,
-        draft_state: record.draft_state,
-      }),
-    );
+    const attemptId = record.attempt.attempt_id;
+
+    /* ① Prepare BOTH documents. A failure here costs nothing: no write has happened yet. */
+    const sidecarText = serializeAttemptSidecar(record.attempt, {
+      content_items: record.content_items,
+      draft_state: record.draft_state,
+    });
+    const markdownText = serializeAttemptMarkdown(record.attempt);
     const markdownPath =
-      pair.markdown_path ??
-      attemptMarkdownPath(pair.storage_project_id, record.attempt.attempt_id);
-    await storage.writeFile(markdownPath, serializeAttemptMarkdown(record.attempt));
+      pair.markdown_path ?? attemptMarkdownPath(pair.storage_project_id, attemptId);
+
+    /* ② Rollback material, captured BEFORE the first write. */
+    const previousSidecar = await readTextIfPresent(pair.sidecar_path);
+
+    /* ③ First commit: the sidecar. */
+    await storage.writeFile(pair.sidecar_path, sidecarText);
+
+    /* ④ Second commit: the human-readable mirror. */
+    try {
+      await storage.writeFile(markdownPath, markdownText);
+    } catch (mirrorError) {
+      await recoverFromPartialPair(
+        attemptId,
+        pair.sidecar_path,
+        markdownPath,
+        previousSidecar,
+        mirrorError,
+      );
+    }
+  }
+
+  /**
+   * The mirror write failed. Either undo the sidecar, or say - explicitly - that the pair could not
+   * be undone. 🔴 It NEVER returns: a write that did not complete is never a success.
+   */
+  async function recoverFromPartialPair(
+    attemptId: ObjectId<'ATT'>,
+    sidecarPath: string,
+    markdownPath: string,
+    previousSidecar: string | null,
+    mirrorError: unknown,
+  ): Promise<never> {
+    if (previousSidecar === null) {
+      /*
+       * ⑤ Nothing to restore: this is a NEW record, so no previous sidecar content exists. V1 has no
+       *    physical delete (AC-76), so the half-written pair cannot be undone either - the caller
+       *    must hear about it instead of being told the Attempt was saved.
+       */
+      throw new AttemptRepositoryError('PERSISTENCE_CONSISTENCY_ERROR', attemptId, {
+        cause: mirrorError,
+        message:
+          `The Attempt pair is inconsistent: "${sidecarPath}" was written but its Markdown mirror ` +
+          `"${markdownPath}" was not. The record is new, so there was no previous content to restore, ` +
+          'and V1 provides no physical delete, so the sidecar cannot be removed either. The save did ' +
+          'NOT succeed.',
+      });
+    }
+
+    try {
+      await storage.writeFile(sidecarPath, previousSidecar);
+    } catch (rollbackError) {
+      throw new AttemptRepositoryError('PERSISTENCE_CONSISTENCY_ERROR', attemptId, {
+        cause: rollbackError,
+        message:
+          `The Attempt pair could not be kept consistent: writing "${markdownPath}" failed and ` +
+          `restoring "${sidecarPath}" to its previous content failed too. The stored pair may now ` +
+          'disagree. The save did NOT succeed.',
+      });
+    }
+
+    throw new AttemptRepositoryError('PERSISTENCE_ROLLED_BACK', attemptId, {
+      cause: mirrorError,
+      message:
+        `Writing "${markdownPath}" failed and "${sidecarPath}" was restored to its previous ` +
+        'content, so the stored Attempt is exactly what it was. The save did NOT succeed.',
+    });
   }
 
   return {
