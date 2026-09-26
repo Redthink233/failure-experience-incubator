@@ -609,7 +609,17 @@ function formalCard(context: ViewContext, step: D9StepView): HTMLElement {
         }),
       ),
     );
-  } else {
+  } else if (!step.locked) {
+    /*
+     * 🔴 ONLY A REACHABLE STEP THAT HAS NOTHING TO SAVE MAY SAY 「已经正式保存」.
+     *
+     *    `FORMAL_ALREADY_SAVED` means "this record is already `Formal`, so there is no `Draft`
+     *    command left to offer". With `can_save` now also false for a LOCKED step, an unchecked
+     *    `else` made the card state a falsehood - it told the user a Draft had been saved. A locked
+     *    step keeps its own 「完成前一步后可继续」 hint instead and says nothing else.
+     *    (Caught in the real-browser re-verification: this branch has no unit test, because
+     *    `src/ui/components/**` is DOM scope and `tsconfig.test.json` carries no DOM lib.)
+     */
     body.push(el('p', { class: 'success', text: FORMAL_ALREADY_SAVED }));
   }
   if (pending) {
