@@ -178,6 +178,18 @@ describe('S01-06 ｜ IMPLEMENTATION INVARIANT｜authorization gating (U2)', () =
       custom_base_url: 'https://fixture.registry-fixture.test/v1/chat',
     });
     await session.saveSettings();
+    /*
+     * 🔴 TWO DIFFERENT REFUSALS, IN ORDER (`PSA-D2 = B`, `CORRECTION-03`). With no credential the save
+     *    is stopped at the INPUT gate before anything is composed, so the capability rule is not even
+     *    consulted - the provider stays `unconfigured`, it never becomes `unsupported`.
+     */
+    assert.equal(session.getState().provider.status, 'unconfigured', 'the credential gate refuses first');
+    assert.equal(session.getState().settings_errors.length > 0, true);
+    assert.equal(session.getState().settings_save_error, null, 'and this is not a composition failure');
+
+    /* Given a credential the draft gets PAST the gate - and THEN the capability rule reports. */
+    session.updateSettingsDraft({ api_key: 'sk-fixture-NOT-A-REAL-KEY-0000000000' });
+    await session.saveSettings();
     await session.attachWorkspace('fixture-workspace');
 
     const state = session.getState();

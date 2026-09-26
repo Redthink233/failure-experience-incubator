@@ -210,16 +210,16 @@ export function settingsCenter(context: ViewContext): HTMLElement | null {
   }
   const draft = state.settings_draft;
   const preset = findPreset(draft.provider_id);
-  const blocking = validateSettingsDraft(draft);
   /*
-   * 🔴 THE CREDENTIAL ADVICE NEEDS A FACT THE DRAFT DOES NOT CARRY (`CORRECTION-02` §3): after a
-   *    refresh the API Key field is empty while the session still HOLDS the key, and asking for a key
-   *    the user already gave is what the correction removes. The fact comes from `state`, so this
+   * 🔴 THE CREDENTIAL FACTS THE DRAFT CANNOT CARRY (`CORRECTION-02` §3 / `CORRECTION-03` §2): after a
+   *    refresh the field is empty while the session HOLDS the key. The same fact decides BOTH blocks -
+   *    「请填写 API Key」 is now a BLOCKING reason when nothing is available, and 「当前浏览器会话已有
+   *    API Key…」 is the positive advice when the session has one. It comes from `state`, so this
    *    component stays a pure function of the state it was handed.
    */
-  const warnings = settingsWarnings(draft, {
-    session_credential_present: state.settings_key_in_session,
-  });
+  const credential_fact = { session_credential_present: state.settings_key_in_session };
+  const blocking = validateSettingsDraft(draft, credential_fact);
+  const warnings = settingsWarnings(draft, credential_fact);
   const offers_base_url = preset === null || preset.allows_custom_base_url;
 
   return el(

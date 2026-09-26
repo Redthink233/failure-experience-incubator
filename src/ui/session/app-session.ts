@@ -487,14 +487,25 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
 
   async function composeGateway(): Promise<void> {
     const draft = state.settings_draft;
-    const errors = validateSettingsDraft(draft);
+    /*
+     * 🔴 THE CREDENTIAL GATE IS APPLIED HERE, AT THE SAVE (`PSA-D2 = B`, `CORRECTION-03` §2/§3/§10).
+     *    `credential_available = typed_api_key_present OR session_credential_present`; when neither
+     *    holds, `validateSettingsDraft` returns a reason and this function returns BEFORE building a
+     *    config or calling the gateway - so no provider is composed, the panel stays open, the state
+     *    stays `unconfigured` and the top bar keeps saying 「模型服务未配置」.
+     * 🔴 THE SESSION FACT IS ASKED OF THE STORE, not read from `settings_key_in_session`: the flag
+     *    exists so the PANEL can render, while the gate must decide on the store's current answer.
+     *    Both are refreshed from the same store, so they cannot disagree in practice.
+     */
+    const credential_fact = { session_credential_present: credentialInSession(draft.provider_id) };
+    const errors = validateSettingsDraft(draft, credential_fact);
     if (errors.length > 0) {
       set({ settings_errors: errors });
       return;
     }
-    const config = providerConfigOf(draft);
+    const config = providerConfigOf(draft, credential_fact);
     if (config === null) {
-      set({ settings_errors: validateSettingsDraft(draft) });
+      set({ settings_errors: validateSettingsDraft(draft, credential_fact) });
       return;
     }
     const result = deps.createGateway({ config, api_key: draft.api_key });
@@ -691,6 +702,10 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
        *    B. the gateway composes          ⇒ the provider becomes `ready`, the panel CLOSES;
        *    C. the composition is unsupported ⇒ `settings_save_error` is set, the panel stays OPEN.
        *    There is no fourth outcome and no silent one: every click lands in A, B or C.
+       * 🔴 A MISSING CREDENTIAL IS AN OUTCOME-A CASE (`PSA-D2 = B`, `CORRECTION-03`). It is a blocking
+       *    input reason, not a runtime failure: the user is told to fill the field, IN the panel, and
+       *    nothing is composed. That is what stops a configuration with no usable key from ever being
+       *    presented as `ready`.
        * 🔴 IT STILL MAKES NO PROVIDER CALL. Composing an adapter is not calling a model; the fake
        *    gateway in the tests records zero invocations across a save.
        */

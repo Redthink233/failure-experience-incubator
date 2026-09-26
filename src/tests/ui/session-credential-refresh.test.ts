@@ -279,7 +279,8 @@ describe('CORRECTION-01 ｜ IMPLEMENTATION INVARIANT｜session credential vs a p
     );
 
     /* The composed adapter must build its Authorization header from the SESSION store, not the form. */
-    const config = providerConfigOf(deepseekDraft(''));
+    /* 🔴 The empty key field is valid HERE because the session holds the credential (`PSA-D2 = B`). */
+    const config = providerConfigOf(deepseekDraft(''), { session_credential_present: true });
     assert.ok(config !== null, 'the DeepSeek preset must produce a config');
     const composed = composeBrowserProvider({
       config,

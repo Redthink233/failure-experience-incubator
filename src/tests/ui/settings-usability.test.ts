@@ -43,6 +43,7 @@ import {
   SETTINGS_BASE_URL_REQUIRED,
   SETTINGS_CONNECTION_DIRECT,
   SETTINGS_ERRORS_HEADING,
+  SETTINGS_KEY_REQUIRED,
   SETTINGS_MODEL_REQUIRED,
   SETTINGS_OPEN,
   SETTINGS_SECTION_MODEL,
@@ -681,7 +682,13 @@ describe('PRE-PSA-BLOCKER-01 ｜ S1-S6: the save button always says what happene
 
     const state = wired.session.getState();
     assert.equal(state.settings_open, true, 'a refused save must not close the panel');
-    assert.deepEqual(state.settings_errors, [SETTINGS_MODEL_REQUIRED]);
+    /*
+     * 🔴 TWO REASONS NOW, AND THE SECOND ONE IS THE HUMAN DECISION (`PSA-D2 = B`, `CORRECTION-03`):
+     *    this draft carries no credential either, and a model configuration is only saved when
+     *    `typed_api_key_present OR session_credential_present`. The MISSING MODEL is still reported
+     *    first - the assertion's own subject is unchanged.
+     */
+    assert.deepEqual(state.settings_errors, [SETTINGS_MODEL_REQUIRED, SETTINGS_KEY_REQUIRED]);
     assert.equal(state.settings_save_error, null);
     assert.equal(state.provider.status, 'unconfigured', 'nothing was composed');
     assert.equal(wired.configs.length, 0, 'an invalid draft never reaches the gateway');
@@ -699,7 +706,11 @@ describe('PRE-PSA-BLOCKER-01 ｜ S1-S6: the save button always says what happene
 
     const state = wired.session.getState();
     assert.equal(state.settings_open, true);
-    assert.deepEqual(state.settings_errors, [SETTINGS_BASE_URL_REQUIRED]);
+    /*
+     * 🔴 The forbidden URL is still reported, and a missing credential joins it for the same reason as
+     *    in S1 (`PSA-D2 = B`, `CORRECTION-03`). The draft's own subject - the URL rule - is unchanged.
+     */
+    assert.deepEqual(state.settings_errors, [SETTINGS_KEY_REQUIRED, SETTINGS_BASE_URL_REQUIRED]);
     assert.equal(wired.configs.length, 0);
   });
 
@@ -788,8 +799,13 @@ describe('PRE-PSA-BLOCKER-01 ｜ S1-S6: the save button always says what happene
 
   it('IMPLEMENTATION INVARIANT (S5 §7): the panel itself renders all three outcomes - none invisible', () => {
     const panel = panelSource();
-    /* 🔴 A - the validation reasons, derived from the draft inside the panel. */
-    assert.ok(panel.includes('validateSettingsDraft(draft)'), 'the panel must derive the reasons');
+    /* 🔴 A - the validation reasons, derived in the panel from the draft AND the credential fact
+     *    (`CORRECTION-03`: the same draft is blocking or acceptable depending on whether the session
+     *    already holds a key, so the panel must be given that fact rather than guess it). */
+    assert.ok(
+      /validateSettingsDraft\(\s*draft,/u.test(panel),
+      'the panel must derive the reasons from the draft + the credential fact',
+    );
     assert.ok(panel.includes('SETTINGS_ERRORS_HEADING'), 'A must have its own heading');
     assert.ok(panel.includes('feedbackBlock'), 'the outcomes must be rendered as blocks');
     /* 🔴 C - the composition failure, from the session state, in the same panel. */

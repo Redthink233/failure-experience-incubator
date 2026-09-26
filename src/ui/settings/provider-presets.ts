@@ -182,17 +182,44 @@ export function draftForPreset(preset: ProviderPreset, previous: SettingsDraft):
 }
 
 /**
+ * The credential facts a draft CANNOT carry, supplied by the caller.
+ *
+ * 🔴 `session_credential_present` is the only one, and it exists because the same draft means two
+ *    different things depending on whether the session store already holds a key for that provider:
+ *    an empty field is a legitimate "nothing to do" after a refresh (the stored key will be used) and
+ *    a blocking gap on a fresh session. The validator stays PURE - it reads no store itself.
+ */
+export interface CredentialPresence {
+  /** `true` when `M13`'s session store already holds a credential for the draft's provider. */
+  readonly session_credential_present?: boolean;
+}
+
+/**
  * The BLOCKING validation of a draft.
  *
- * 🔴 A missing API KEY IS NOT A BLOCKING ERROR. The composed object graph only needs a provider
- *    config, so the workspace can be read - and history browsed - before a key is entered. The key
- *    becomes necessary the moment a model actually has to answer, which is what the warning below
- *    says. Refusing to compose without a key would make the rail unreadable for no reason.
+ * 🔴 A MODEL CONFIGURATION IS ONLY SAVED WHEN A USABLE CREDENTIAL EXISTS (`PSA-D2 = B`, human
+ *    decision, `CORRECTION-03` §2/§3). The rule is exactly:
+ *
+ *        credential_available = typed_api_key_present OR session_credential_present
+ *
+ *    and when neither holds, this function refuses - the provider must not become `ready`, the panel
+ *    must stay open and the top bar must keep saying 「模型服务未配置」. Previously a missing key was
+ *    deliberately NOT blocking; that assumption is SUPERSEDED (see HANDOFF §23.10).
+ * 🔴 WHAT DID *NOT* CHANGE: a missing key still does not block BROWSING. Reading a workspace and
+ *    listing its records never went through this validator - the read port is built the moment a
+ *    directory is authorized, with no provider involved (`S01-06-D1`). The gate is on the SAVE, which
+ *    is the only act that claims a model connection exists.
+ * 🔴 WHY HERE AND NOT IN THE ADAPTER: refusing at `execute()` time is far too late - by then the
+ *    product has already told the user it is configured. `BrowserDirectAdapter` keeps
+ *    `PROVIDER_CREDENTIAL_MISSING` as the LAST line of runtime defence, which is a different job.
  * 🔴 These messages are all INPUT-side statements ("please fill X"). A failure that comes back from
  *    the model service is a RUNTIME notice and is rendered by the notice layer instead - the two are
  *    never conflated (task §44).
  */
-export function validateSettingsDraft(draft: SettingsDraft): readonly string[] {
+export function validateSettingsDraft(
+  draft: SettingsDraft,
+  options: CredentialPresence = {},
+): readonly string[] {
   const messages: string[] = [];
   const preset = findPreset(draft.provider_id);
   if (preset === null) {
@@ -201,6 +228,14 @@ export function validateSettingsDraft(draft: SettingsDraft): readonly string[] {
   }
   if (draft.model.trim().length === 0) {
     messages.push(SETTINGS_MODEL_REQUIRED);
+  }
+  /*
+   * 🔴 THE CREDENTIAL GATE. `typed_api_key_present` is the field as typed; `session_credential_present`
+   *    is answered by the caller from the session store. Either one is enough - and the second is why
+   *    a refresh does NOT force the user to retype a key they already gave.
+   */
+  if (draft.api_key.trim().length === 0 && options.session_credential_present !== true) {
+    messages.push(SETTINGS_KEY_REQUIRED);
   }
   if (preset.allows_custom_base_url) {
     if (preset.fixed_base_url === null && draft.custom_base_url.trim().length === 0) {
@@ -213,39 +248,42 @@ export function validateSettingsDraft(draft: SettingsDraft): readonly string[] {
 }
 
 /**
- * Non-blocking advice about the credential: true, and worth saying, but never a reason to refuse the
- * configuration.
+ * Non-blocking advice about the credential: useful information that is never a reason to refuse.
  *
- * 🔴 THE ADVICE DEPENDS ON A FACT THE DRAFT DOES NOT CARRY: whether this browser session ALREADY holds
- *    a credential for the selected provider (`CORRECTION-02` §3). After a refresh the field is empty
- *    while the session still holds the key, and in that state 「请填写 API Key」 is false advice -
- *    the user can save and the stored key will be used. The caller therefore passes the session fact
- *    in; this function stays pure and reads no store itself.
- * 🔴 IT NEVER PREVENTS A SAVE. Both outcomes are ADVICE. A missing key is not a blocking error -
- *    the composed object graph only needs a provider config, so the workspace can be read, and history
- *    browsed, before a key exists.
+ * 🔴 ONLY THE POSITIVE CASE IS ADVICE NOW (`CORRECTION-03` §11). "The session already holds a key, so
+ *    you can save as it stands" is good news the user cannot otherwise know - the field is empty. The
+ *    NEGATIVE case moved to `validateSettingsDraft`, because it is a genuine blocker, and rendering
+ *    the same sentence in both blocks would show it twice.
+ * 🔴 IT DEPENDS ON A FACT THE DRAFT DOES NOT CARRY: whether the session store already holds a
+ *    credential for the selected provider (`CORRECTION-02` §3). The caller passes it in; this function
+ *    stays pure and reads no store itself.
  */
 export function settingsWarnings(
   draft: SettingsDraft,
-  options: { readonly session_credential_present?: boolean } = {},
+  options: CredentialPresence = {},
 ): readonly string[] {
   if (draft.api_key.trim().length > 0) {
     return [];
   }
-  return options.session_credential_present === true
-    ? [SETTINGS_KEY_PRESENT_IN_SESSION]
-    : [SETTINGS_KEY_REQUIRED];
+  return options.session_credential_present === true ? [SETTINGS_KEY_PRESENT_IN_SESSION] : [];
 }
 
 /**
  * The `ProviderConfig` for a valid draft, or `null` when the draft is not valid / the preset is
  * unknown.
  *
+ * 🔴 IT TAKES THE SAME CREDENTIAL FACTS AS THE VALIDATOR, and for the same reason: a draft whose key
+ *    field is empty IS valid when the session already holds one for that provider, so the config can
+ *    be built. Omitting the options means "typed key only", which is the correct default for a caller
+ *    that has no session store to consult.
  * 🔴 The API KEY IS NOT READ HERE. Building the config and storing the credential are two separate
  *    acts, and only the second one touches the session store.
  */
-export function providerConfigOf(draft: SettingsDraft): ProviderConfig | null {
-  if (validateSettingsDraft(draft).length > 0) {
+export function providerConfigOf(
+  draft: SettingsDraft,
+  options: CredentialPresence = {},
+): ProviderConfig | null {
+  if (validateSettingsDraft(draft, options).length > 0) {
     return null;
   }
   const preset = findPreset(draft.provider_id);

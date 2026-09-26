@@ -52,6 +52,7 @@ import {
   findPreset,
   providerConfigOf,
   settingsWarnings,
+  validateSettingsDraft,
 } from '../../ui/settings/provider-presets.js';
 import { InMemoryWorkspaceStorage } from '../../workspace/memory-storage.js';
 import { REPO_ROOT, repoFiles, stripComments } from '../ai/source-scan.js';
@@ -181,10 +182,23 @@ async function configure(app: App, api_key: string): Promise<void> {
   await app.session.saveSettings();
 }
 
-/** The advice the panel would render, derived from state + the pure rule - no DOM needed. */
+/**
+ * The advice the panel would render, derived from state + the pure rule - no DOM needed.
+ *
+ * 🔴 ONLY THE POSITIVE CREDENTIAL CASE IS ADVICE (`CORRECTION-03` §11): "the session already holds a
+ *    key, so you may save as it stands". The negative case is a BLOCKING reason - see `blockingOf`.
+ */
 function adviceOf(app: App): readonly string[] {
   const state = app.session.getState();
   return settingsWarnings(state.settings_draft, {
+    session_credential_present: state.settings_key_in_session,
+  });
+}
+
+/** The BLOCKING reasons the panel would render. The credential gate lives here (`PSA-D2 = B`). */
+function blockingOf(app: App): readonly string[] {
+  const state = app.session.getState();
+  return validateSettingsDraft(state.settings_draft, {
     session_credential_present: state.settings_key_in_session,
   });
 }
@@ -305,7 +319,12 @@ describe('CORRECTION-02 ｜ IMPLEMENTATION INVARIANT｜the clear action really c
   it('IMPLEMENTATION INVARIANT (K9): after a clear no request can carry the old Authorization header', async () => {
     const app = buildApplication(openBrowserTab());
     await configure(app, FIXTURE_KEY);
-    const config = providerConfigOf(deepseekDraft(''));
+    /*
+     * 🔴 Built BEFORE the clear, i.e. while the session still holds the credential - which is exactly
+     *    what `session_credential_present: true` states. The config itself never contains a key; this
+     *    case is about the ADAPTER's runtime defence, which must keep working after the clear.
+     */
+    const config = providerConfigOf(deepseekDraft(''), { session_credential_present: true });
     assert.ok(config !== null, 'the DeepSeek preset must produce a config');
     const ref = refOf(DEEPSEEK);
     const invocation = {
@@ -436,11 +455,14 @@ describe('CORRECTION-02 ｜ IMPLEMENTATION INVARIANT｜refresh with an existing 
       SETTINGS_KEY_PRESENT_IN_SESSION.includes('当前浏览器会话已有 API Key'),
       'the canonical sentence states the fact',
     );
-    /* 🔴 It is advice, never a blocking reason: the draft itself validates. */
-    assert.deepEqual(
-      advice.filter((entry) => entry === SETTINGS_KEY_REQUIRED),
-      [],
-      'the key-required sentence is absent from the whole advice list',
+    /*
+     * 🔴 AND THE GATE IS OPEN IN THIS STATE (`PSA-D2 = B`): an empty field is legitimate precisely
+     *    because the session holds the credential, so NOTHING may block the save (`CORRECTION-03` §5).
+     */
+    assert.deepEqual(blockingOf(after), [], 'an existing session credential must leave the save unblocked');
+    assert.ok(
+      !blockingOf(after).includes(SETTINGS_KEY_REQUIRED),
+      'the key-required sentence must not appear as a blocking reason here',
     );
   });
 
@@ -552,10 +574,14 @@ describe('CORRECTION-02 ｜ IMPLEMENTATION INVARIANT｜a new session starts with
     fresh.session.openSettings();
     fresh.session.chooseSettingsPreset(DEEPSEEK);
 
-    const advice = adviceOf(fresh);
-    assert.ok(advice.includes(SETTINGS_KEY_REQUIRED), 'N2: it must ask for a key');
+    /*
+     * 🔴 ASKING FOR THE KEY IS A BLOCKING REASON SINCE `PSA-D2 = B` (`CORRECTION-03` §11): on a fresh
+     *    session with no typed key there is no credential at all, so the save is refused and the
+     *    sentence appears as a reason to fix - not as advice beside a save that would go through.
+     */
+    assert.ok(blockingOf(fresh).includes(SETTINGS_KEY_REQUIRED), 'N2: it must ask for a key');
     assert.ok(
-      !advice.includes(SETTINGS_KEY_PRESENT_IN_SESSION),
+      !adviceOf(fresh).includes(SETTINGS_KEY_PRESENT_IN_SESSION),
       'N3: it must NOT claim a key this session does not have',
     );
   });

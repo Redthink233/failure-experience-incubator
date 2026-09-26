@@ -165,6 +165,20 @@ export const SETTINGS_BASE_URL_REQUIRED = '这个 Provider 需要填写 Custom B
  */
 export const SETTINGS_BASE_URL_FORBIDDEN =
   '这个 Provider 的访问地址由产品提供，不能填写 Custom Base URL。';
+/**
+ * The blocking reason shown when a save has no usable credential (`CORRECTION-03` §11).
+ *
+ * 🔴 IT IS A BLOCKING REASON NOW, AND THAT IS A HUMAN DECISION (`PSA-D2 = B`). A model configuration
+ *    is only saved when `credential_available = typed_api_key_present OR session_credential_present`;
+ *    with neither, the save is refused, the panel stays open and the provider never reaches `ready`.
+ *    The sentence itself is unchanged - what changed is that it is now rendered as a reason to fix,
+ *    inside the panel, instead of as advice beside a save that would go through anyway.
+ * 🔴 IT IS STILL NOT SHOWN WHEN THE SESSION ALREADY HOLDS A KEY: in that state the empty field is
+ *    legitimate (nothing rehydrates the stored value into the form) and the panel says
+ *    `SETTINGS_KEY_PRESENT_IN_SESSION` instead.
+ * 🔴 IT DOES NOT BLOCK BROWSING. Reading a workspace never went through this gate (`S01-06-D1`), so
+ *    a user with no key can still open records, retrieval, insights, hypotheses and traceability.
+ */
 export const SETTINGS_KEY_REQUIRED = '请填写 API Key（仅当前会话使用）。';
 /**
  * Shown INSTEAD of `SETTINGS_KEY_REQUIRED` when this browser session already holds a credential for
@@ -175,9 +189,11 @@ export const SETTINGS_KEY_REQUIRED = '请填写 API Key（仅当前会话使用�
  *    credential IS still in the session and a save will succeed using it. 「请填写 API Key」 therefore
  *    described a requirement that no longer existed and invited the user to retype a key they had
  *    already given. This sentence states the fact and the two available actions instead.
- * 🔴 STILL NON-BLOCKING ADVICE, NOT AN ERROR, exactly like the string it replaces. A missing key has
- *    never prevented composing a provider (see `validateSettingsDraft`), and this copy does not
- *    change that rule - it only stops misdescribing the situation.
+ * 🔴 IT IS ADVICE, NOT AN ERROR, AND IT IS THE ONLY CREDENTIAL MESSAGE LEFT IN THAT CLASS
+ *    (`CORRECTION-03` §9/§11). "You can save as it stands" is never a reason to refuse a save - it is
+ *    the good news that makes an empty field acceptable, which is why it stays in the advice block
+ *    while the negative case moved to the blocking reasons. It creates no new provider state: the
+ *    provider is `ready` after such a save, exactly as after any other successful one.
  * 🔴 IT MUST NOT ECHO THE KEY. It says a credential EXISTS; it never shows it, not even in part.
  */
 export const SETTINGS_KEY_PRESENT_IN_SESSION =
