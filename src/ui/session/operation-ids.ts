@@ -22,6 +22,12 @@ export type UiActionKey =
   | 'follow-up-question'
   | 'follow-up-abandon'
   | 'cause-analysis'
+  /*
+   * 🔴 CORRECTION-01: persisting the candidate causes is a command of its own
+   *    (`persistCandidateCauses`), so it gets an action key of its own. It is deliberately NOT
+   *    `formal-save`: the user's decision is written the moment it is made, long before ⑤.
+   */
+  | 'cause-persistence'
   | 'formal-save'
   | 'retrieval-rerun'
   | 'insight-generation'

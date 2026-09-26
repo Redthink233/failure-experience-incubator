@@ -44,6 +44,8 @@ interface Calls {
   retrieval: number;
   trace: number;
   archive: number;
+  /** CORRECTION-01 (D2): how many times the decision was written to the record. */
+  persistCauses: number;
 }
 
 interface Wired {
@@ -65,7 +67,7 @@ function wire(): Wired {
     capture: harness.capture,
   });
 
-  const calls: Calls = { read: 0, list: 0, insights: 0, hypotheses: 0, retrieval: 0, trace: 0, archive: 0 };
+  const calls: Calls = { read: 0, list: 0, insights: 0, hypotheses: 0, retrieval: 0, trace: 0, archive: 0, persistCauses: 0 };
 
   const spied: UiWorkflowPort = {
     ...port,
@@ -92,6 +94,11 @@ function wire(): Wired {
     traceHypothesis: (hypothesis_id) => {
       calls.trace += 1;
       return port.traceHypothesis(hypothesis_id);
+    },
+    /* CORRECTION-01 (D2): the step ④ door into the record. */
+    persistCandidateCauses: (command) => {
+      calls.persistCauses += 1;
+      return port.persistCandidateCauses(command);
     },
     setAttemptArchived: (command) => {
       calls.archive += 1;
@@ -381,5 +388,48 @@ describe('S01-06 ｜ IMPLEMENTATION INVARIANT｜operation ids and archive (§46 
 
     await wired.session.setArchived(String(attempt_id), false);
     assert.equal(wired.session.getState().snapshot?.archive_state, 'active');
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * CORRECTION-01 - the cause decision must reach the record
+ * ------------------------------------------------------------------ */
+
+/** Drains the session's fire-and-forget chain (`decideCause` starts a `void run(...)`). */
+async function settleTicks(ticks = 12): Promise<void> {
+  for (let index = 0; index < ticks; index += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
+describe('CORRECTION-01 ｜ IMPLEMENTATION INVARIANT｜a cause decision is persisted (D2)', () => {
+  it('IMPLEMENTATION INVARIANT (D2): deciding one candidate cause calls `persistCandidateCauses` exactly once', async () => {
+    const wired = wire();
+    await openWorkspaceAndProvider(wired.session);
+    await startAttempt(wired.session);
+    await confirmAttempt(wired.session);
+    await wired.session.analyseCauses();
+
+    const proposal = wired.session.getState().cause_proposal;
+    assert.ok(proposal !== null, 'the analysis must produce a proposal');
+    const first = proposal?.candidates[0];
+    assert.ok(first !== undefined, 'the fixture proposes at least one candidate cause');
+    const first_id = String(first?.content_item_id ?? '');
+
+    assert.equal(wired.calls.persistCauses, 0, 'nothing may be written before the user decides');
+
+    wired.session.decideCause(first_id, 'accepted');
+    await settleTicks();
+
+    /*
+     * 🔴 THE REGRESSION GUARD. Before CORRECTION-01 `decideCause` only mirrored the decision into UI
+     *    state, so the record's `candidate_causes` stayed `[]`, `causes_recorded`
+     *    (`ui/presenters/steps.ts`) could never become true, ④ stayed `current` forever and ⑤ stayed
+     *    locked - a dead end with no reachable way out, which is exactly how the PSA-A rehearsal
+     *    reported it ("点击没有反应"). The application layer already exposed the command; only the
+     *    call site was missing, so asserting the CALL is what pins the fix.
+     */
+    assert.equal(wired.calls.persistCauses, 1, 'the decision must reach `persistCandidateCauses`');
+    assert.equal(wired.session.getState().cause_decisions[first_id], 'accepted');
   });
 });

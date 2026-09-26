@@ -24,6 +24,7 @@ import type {
   WorkflowNotice,
   WorkflowStepResult,
 } from '../../application/workflow/types.js';
+import { workflowNotice } from '../../application/workflow/errors.js';
 import type { WorkflowAttemptSummary } from '../../application/workflow/attempt-summaries.js';
 import type { CauseAnalysisProposal, CauseDecision } from '../../application/capture/types.js';
 import type { CaptureContentKey } from '../../application/capture/types.js';
@@ -979,8 +980,50 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       }
     },
 
+    /**
+     * 🔴 CORRECTION-01 (D2): the decision is PERSISTED, not only mirrored in UI state.
+     *
+     *    `persistCandidateCauses` is the record's ONLY door for a candidate cause
+     *    (`workflow-service.ts` step ④: "a candidate cause becomes part of the record only through
+     *    the explicit `persistCandidateCauses`"), and it used to be called from nowhere. So the
+     *    record's `candidate_causes` stayed `[]`, `causes_recorded`
+     *    (`presenters/steps.ts`) could never become true, ④ stayed `current` forever and ⑤ stayed
+     *    `locked` - a dead end with no reachable way out.
+     *
+     * 🔴 THE PERSISTED SET CARRIES EVERY CANDIDATE with its current decision state, so a cause the
+     *    user has not touched is stored as `unresolved`: visible and durable, never read as
+     *    confirmed (`AC-94`). Deciding one cause therefore materialises the whole set.
+     */
     decideCause(content_item_id, decision) {
-      set({ cause_decisions: { ...state.cause_decisions, [content_item_id]: decision } });
+      const active = requireCommandPort();
+      const attempt_id = selectedId();
+      const proposal = state.cause_proposal;
+      const decisions = { ...state.cause_decisions, [content_item_id]: decision };
+      set({ cause_decisions: decisions });
+      if (active === null || attempt_id === null || proposal === null) {
+        /*
+         * 🔴 `requireCommandPort` has already raised the dedicated `ai_requires_model` flag (its
+         *    documented, non-notice signal), and a null selection means no record is on screen -
+         *    in both cases there is no record to write to, and nothing was silently discarded.
+         */
+        return;
+      }
+      /*
+       * 🔴 THE KEY IS PER CAUSE: `run` forgets the ledger entry after a successful write, so a
+       *    later decision on the same cause gets a FRESH operation id and really writes again
+       *    instead of being swallowed as an idempotent replay.
+       */
+      void run(`cause-decision:${content_item_id}`, 'cause-persistence', async (operation_id) => {
+        const result = await active.persistCandidateCauses({
+          operation_id,
+          decision: active.decideCandidateCauses({
+            attempt_id,
+            candidates: proposal.candidates,
+            decisions,
+          }),
+        });
+        return record(result) ? 'ok' : 'retryable';
+      });
     },
 
     /* ---------------------------------------------------------------- *
@@ -990,7 +1033,25 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
     async saveFormal() {
       const active = requireCommandPort();
       const attempt_id = selectedId();
-      if (active === null || attempt_id === null) {
+      if (active === null) {
+        /*
+         * 🔴 `requireCommandPort` has already raised the dedicated `ai_requires_model` flag: "no
+         *    model is configured yet" is not a system failure and is deliberately not a notice
+         *    (`S01-06B` §8 / §13). The App Shell answers it by offering the settings panel.
+         */
+        return;
+      }
+      if (attempt_id === null) {
+        /*
+         * 🔴 CORRECTION-01 (D1): A USER-VISIBLE ACTION MUST NEVER END IN A SILENT `return`.
+         *
+         *    The previous single guard (`active === null || attempt_id === null`) collapsed both
+         *    cases into `return`, so tapping 「确认并保存这次尝试」 with no record on screen changed
+         *    nothing at all - no notice, no pending state, no write. To the user that is
+         *    indistinguishable from a broken button, which is exactly how the PSA-A rehearsal
+         *    reported it.
+         */
+        pushNotice(workflowNotice('ATTEMPT_NOT_FOUND'));
         return;
       }
       const proposal = state.cause_proposal;

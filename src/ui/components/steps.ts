@@ -581,7 +581,17 @@ function formalCard(context: ViewContext, step: D9StepView): HTMLElement {
    *    control that could only be refused. 🔴 The runtime statement below is NOT part of that: a real
    *    ⑥ failure after a save keeps its own sentence and its rerun button (§6).
    */
-  const can_save = actionOffered(state.snapshot, 'save_formal_attempt');
+  /*
+   * 🔴 CORRECTION-01 (D3): a step the flow model marks `todo` (i.e. `locked`, hint
+   *    「完成前一步后可继续」) must NOT offer its primary action.
+   *
+   *    `actionOffered` answers "is this command available for the record as it stands?" and said
+   *    yes for a plain `Draft` even while ④ was still unfinished. The card then drew an enabled
+   *    「确认并保存这次尝试」 next to a badge that said 「尚未开始」 - a control the record could not
+   *    honour, whose only possible outcome was a refusal. The step's own lock is the stronger
+   *    statement, so it wins.
+   */
+  const can_save = actionOffered(state.snapshot, 'save_formal_attempt') && !step.locked;
 
   const body: (Node | null)[] = [];
   if (can_save && !gate.ready) {
