@@ -220,12 +220,23 @@ function storedCredentialValues(tab: BrowserTab, provider_id: string): readonly 
  * ================================================================== */
 
 describe('CORRECTION-02 ｜ IMPLEMENTATION INVARIANT｜the clear action really clears (K1-K10)', () => {
-  it('IMPLEMENTATION INVARIANT (K1/K2): a saved key reaches the session store and the form keeps it', async () => {
+  it('IMPLEMENTATION INVARIANT (K1/K2): a saved key reaches the session store and LEAVES the form', async () => {
     const app = buildApplication(openBrowserTab());
     await configure(app, FIXTURE_KEY);
 
     assert.equal(app.session.getState().provider.status, 'ready');
-    assert.equal(app.session.getState().settings_draft.api_key, FIXTURE_KEY);
+    /*
+     * 🔴 SUPERSEDED IN PLACE - `FINAL-RAPID-B` §10 (2026-09-26). This case used to assert
+     *    `settings_draft.api_key === FIXTURE_KEY`, i.e. "the form keeps it". The save path now EMPTIES
+     *    that field once the key really is in the session store, so the plaintext stops being carried
+     *    by a field the panel re-renders, and reopening the panel shows an empty input (advice comes
+     *    from `settings_key_in_session`, the boolean, exactly as `CORRECTION-02` §4 intended).
+     *    The property K1/K2 exists for is UNCHANGED - a saved key reaches the store - so it is asserted
+     *    there, and the previous expectation is recorded here instead of being deleted. The boundary
+     *    (with NO credential port wired, the field keeps the key because nothing else holds it) is
+     *    pinned in `session-draft-plaintext.test.ts`.
+     */
+    assert.equal(app.session.getState().settings_draft.api_key, '', 'the plaintext leaves the form');
     assert.equal(app.credentials.has(refOf(DEEPSEEK)), true, 'K2: the store must hold the credential');
   });
 

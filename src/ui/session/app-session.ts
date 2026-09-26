@@ -15,6 +15,28 @@
  *    both are only reachable from an explicit user click. No command is triggered by a snapshot
  *    arriving, by a step becoming available, or by another command finishing.
  *
+ * ── THE ASYNC INTEGRITY RULES THIS FILE ALSO EXISTS TO ENFORCE (`FINAL-RAPID-B`) ──────
+ * 🔴 A LATE ANSWER NEVER WINS (§1). Every read is stamped with the workspace it started in, the
+ *    selection it was issued for and a monotonic request token; when it returns, all three must still
+ *    hold or the result is DROPPED. `selectAttempt(A)` followed by `selectAttempt(B)` therefore ends on
+ *    B even when A's read answers last.
+ * 🔴 AN OPERATION BELONGS TO THE WORKSPACE IT STARTED IN (§2). A workspace switch replaces both ports
+ *    and bumps the epoch; every post-`await` state write of an older operation is then a NO-OP, so an
+ *    in-flight read of A can never draw A's record into B's screen.
+ * 🔴 RECORD-SCOPED STATE RESETS AS ONE ACT (§3). One function clears everything that belongs to the
+ *    record on screen - snapshot, causes, decisions, edits, evidence, expansion, notices, pending - on
+ *    every path that changes which record the UI is about. It never touches the provider, the session
+ *    credential or the workspace authorization: those are session scope.
+ * 🔴 CAUSE DECISIONS ARE SERIALISED PER RECORD, AND NEVER DROPPED (§4 / §5). Writes for one record are
+ *    queued and coalesced, so the LAST decision the user made is the decision the record ends up with,
+ *    and a second click can never be swallowed by a pending first one.
+ * 🔴 ⑤ WAITS FOR ④ (§6). A formal save drains that record's cause queue first and is then the LAST
+ *    word on `candidate_causes`.
+ * 🔴 EVERY RECORD OPERATION NAMES ITS RECORD (§7). Operation ids and ledger keys carry the
+ *    `attempt_id`, so A's successful operation can never be replayed as B's.
+ * 🔴 A RECOVERY RUNS AGAINST THE RECORD THE NOTICE NAMED (§8), never against whatever happens to be
+ *    selected when the button is pressed.
+ *
  * Framework-neutral: NO DOM, NO Node runtime API, NO storage, NO network of its own.
  */
 
@@ -34,6 +56,7 @@ import { followUpQuestionFor } from '../copy.js';
 import type { TraceRowView } from '../presenters/hypotheses.js';
 import { tracePanelOf } from '../presenters/hypotheses.js';
 import { shortIdLabel } from '../presenters/fields.js';
+import type { RecoveryKey } from '../presenters/notices.js';
 import type { WorkspaceStatus } from '../presenters/rail.js';
 import type { SettingsDraft } from '../settings/provider-presets.js';
 import {
@@ -240,6 +263,27 @@ export function captureFieldForGap(gap: string): string {
   return gap === 'key_parameter' ? 'key_parameters' : gap;
 }
 
+/**
+ * A recovery a notice offers, WITH ITS TARGET (`FINAL-RAPID-B` §8).
+ *
+ * 🔴 THE TARGET IS PART OF THE REQUEST. A notice is rendered with the record it is about, and the
+ *    click must act on THAT record - "A failed, the user moved to B, and pressing A's button operated
+ *    B" is the defect this type exists to make unrepresentable.
+ */
+export interface NoticeRecoveryRequest {
+  readonly key: RecoveryKey;
+  readonly attempt_id: string | null;
+}
+
+/**
+ * What a recovery request actually did.
+ *
+ * 🔴 `refused` IS A REAL OUTCOME, NOT A SILENT ONE. When the named record cannot be brought on screen
+ *    (it is gone, or the workspace moved on) the command MUST NOT be run against a different record -
+ *    so nothing runs and the caller is told so.
+ */
+export type RecoveryOutcome = 'ran' | 'workspace_picker' | 'refused';
+
 export interface AppSession {
   getState(): AppSessionState;
   subscribe(listener: (state: AppSessionState) => void): () => void;
@@ -322,6 +366,14 @@ export interface AppSession {
   setArchived(attempt_id: string, archived: boolean): Promise<void>;
   dismissNotices(): void;
   flashMessage(message: string): void;
+  /**
+   * Runs the recovery a notice offers, AGAINST THE RECORD THE NOTICE NAMED (`FINAL-RAPID-B` §8).
+   *
+   * 🔴 IT IS ON THE SESSION AND NOT IN THE VIEW because only the session can (a) bring the target
+   *    record on screen safely and (b) prove the command really ran against it. The view keeps its
+   *    single responsibility: render the notice and hand the key + target back.
+   */
+  recoverNotice(recovery: NoticeRecoveryRequest): Promise<RecoveryOutcome>;
 }
 
 export interface AppSessionDeps {
@@ -348,6 +400,26 @@ export interface AppSessionDeps {
   readonly credentials?: SessionCredentialPort;
 }
 
+/**
+ * One record's `candidate_causes` write, and the queue that owns it (`FINAL-RAPID-B` §4 / §5 / §6).
+ *
+ * 🔴 THE PORT IS CAPTURED WHEN THE WRITE IS SCHEDULED, NEVER RE-READ AFTER AN `await`: a write that
+ *    started against one composition must not finish against another (task §2 of the brief).
+ * 🔴 `decisions` IS ALWAYS THE LATEST INTENT, not a snapshot of when the click happened. A queued
+ *    write therefore promotes the state the user has since reached, which is what makes
+ *    `accepted → rejected` end as `rejected`.
+ */
+interface CauseWrite {
+  readonly attempt_id: string;
+  readonly port: UiWorkflowPort;
+  proposal: CauseAnalysisProposal;
+  decisions: Readonly<Record<string, CauseDecision>>;
+  /** A newer decision arrived; the running drain must come round again. */
+  dirty: boolean;
+  /** The in-flight drain, so ⑤ can wait for the queue to empty (§6). */
+  running: Promise<void> | null;
+}
+
 export function createAppSession(deps: AppSessionDeps): AppSession {
   let state = initialState(deps.initial_draft);
   /**
@@ -361,6 +433,25 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
   let port: UiWorkflowPort | null = null;
   const listeners = new Set<(state: AppSessionState) => void>();
   const ledger = createOperationLedger(createOperationIdFactory());
+  /**
+   * WHICH WORKSPACE THE SCREEN IS ABOUT (`FINAL-RAPID-B` §1 / §2).
+   *
+   * 🔴 It is bumped by the two acts that replace the workspace - authorizing a directory and reporting
+   *    that the directory was lost. An operation remembers the value it started under; any state write
+   *    it attempts afterwards is dropped once the value has moved on.
+   */
+  let workspace_epoch = 0;
+  /**
+   * WHICH RECORD THE SCREEN IS ABOUT, and WHICH READ IS ALLOWED TO ANSWER.
+   *
+   * 🔴 `selection_epoch` changes on every act that re-points the centre (select a record, open ①, a
+   *    capture that produced a new one); `read_token` counts the reads themselves. A read must match
+   *    the workspace, the selection AND still be the newest request - otherwise it is stale.
+   */
+  let selection_epoch = 0;
+  let read_token = 0;
+  /** One queue per record: cause writes for the SAME record never run concurrently (§4). */
+  const cause_writes = new Map<string, CauseWrite>();
 
   function get(): AppSessionState {
     return state;
@@ -392,6 +483,62 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
   }
 
   /**
+   * Everything that belongs to the RECORD ON SCREEN, cleared as ONE act (`FINAL-RAPID-B` §3).
+   *
+   * 🔴 WHY ONE FUNCTION AND NOT FOUR CALL SITES: the workspace-switch bug was caused by four
+   *    hand-written partial clears that drifted apart - one path forgot the cause decisions, another
+   *    forgot the evidence. A single patch cannot drift from itself.
+   * 🔴 IT IS A PURE PATCH BUILDER so a command body can apply it through its operation scope
+   *    (`OperationScope.apply`), which is what keeps "a record created by an operation whose workspace
+   *    was replaced" from re-pointing the screen (§2).
+   * 🔴 WHAT IS CLEARED: the snapshot and its "missing" flag, the new-record panel, the ② follow-up
+   *    question and its answers, the ③ edits and result status, the ④ proposal and decisions, the ⑧
+   *    edits, the evidence panel, the ⑦ expansion, the generation refusal, the transient flash, the
+   *    notices raised BY record operations, every pending flag, and the "this needs a model" prompt.
+   * 🔴 WHAT IS NOT CLEARED - AND MUST NOT BE: `provider` (the session's model configuration), the
+   *    `settings_*` fields (the session credential and its draft) and `workspace` (the authorization).
+   *    They are SESSION / WORKSPACE scope; clearing them here is how a record switch would silently
+   *    log the user out and how a workspace switch would drop an already configured provider.
+   */
+  function recordScopedResetPatch(
+    next_attempt_id: string | null,
+    overrides: Partial<AppSessionState> = {},
+  ): Partial<AppSessionState> {
+    return {
+      selected_attempt_id: next_attempt_id,
+      snapshot: null,
+      attempt_missing: false,
+      new_attempt_open: false,
+      pending_question: null,
+      followup_answers: {},
+      confirmation_edits: {},
+      result_status_decision: 'unresolved',
+      result_status_text: null,
+      cause_proposal: null,
+      cause_decisions: {},
+      insight_edits: {},
+      evidence: null,
+      retrieval_expanded: false,
+      generation_refusal: null,
+      flash: null,
+      notices: [],
+      pending: {},
+      ai_requires_model: false,
+      ...overrides,
+    };
+  }
+
+  /** The reset above, applied now, and the one act that re-points the screen. */
+  function resetRecordScopedState(
+    next_attempt_id: string | null,
+    overrides: Partial<AppSessionState> = {},
+  ): void {
+    /* 🔴 A new selection invalidates every read already in flight (§1). */
+    selection_epoch += 1;
+    set(recordScopedResetPatch(next_attempt_id, overrides));
+  }
+
+  /**
    * Whether the session store currently holds a credential for this provider (`CORRECTION-02`).
    *
    * 🔴 A PURE QUESTION WITH A BOOLEAN ANSWER. No secret crosses this boundary, which is what keeps
@@ -408,9 +555,13 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
    *
    * 🔴 A notice is shown for BOTH layers: a `GATE` notice tells the user what to add, a `RUNTIME`
    *    notice says the system did not finish. Neither is ever re-worded here (task §44).
+   * 🔴 IT IS WORKSPACE-AWARE (`FINAL-RAPID-B` §2). An outcome that belongs to a workspace the user has
+   *    since left is not news about THIS screen, so its notice is not raised. The boolean is still
+   *    returned unchanged: whether the operation is allowed to end is the caller's decision, not the
+   *    notice's.
    */
-  function record<T>(result: WorkflowStepResult<T>): boolean {
-    if (result.notice !== null) {
+  function recordIfCurrent<T>(epoch: number, result: WorkflowStepResult<T>): boolean {
+    if (workspace_epoch === epoch && result.notice !== null) {
       pushNotice(result.notice);
     }
     return result.kind === 'delegated';
@@ -456,17 +607,45 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
     if (active === null) {
       return;
     }
+    /* 🔴 The rail is stamped with its workspace too: a list read from the previous directory must not
+     *    arrive after the user has chosen a new one (`FINAL-RAPID-B` §2). */
+    const epoch = workspace_epoch;
     const attempts = await active.listWorkflowAttempts();
+    if (epoch !== workspace_epoch) {
+      return;
+    }
     set({ attempts, attempts_loaded: true });
   }
 
+  /**
+   * Re-reads the record on screen - IF IT IS STILL THE ONE THE USER IS LOOKING AT.
+   *
+   * 🔴 THE READ IS STAMPED BEFORE IT LEAVES AND RE-CHECKED WHEN IT RETURNS (`FINAL-RAPID-B` §1). Four
+   *    facts must all still hold: the workspace, the selection, the selection's own id, and "this is
+   *    the newest read issued". A read of A that answers after the user has opened B is therefore
+   *    DISCARDED rather than allowed to overwrite B's snapshot - which is the race that made a slow
+   *    A flicker back over a fast B.
+   * 🔴 THE ORDER IS CHEAPEST-FIRST ON PURPOSE. The token check alone catches a superseded read; the
+   *    selection and id checks additionally catch a read issued and superseded by the SAME id (e.g.
+   *    re-selecting the record, or a write-triggered refresh racing a selection).
+   */
   async function refreshSnapshot(): Promise<void> {
     const active = requirePort();
     const attempt_id = selectedId();
     if (active === null || attempt_id === null) {
       return;
     }
+    const epoch = workspace_epoch;
+    const selection = selection_epoch;
+    read_token += 1;
+    const token = read_token;
     const result = await active.readWorkflow(attempt_id as ObjectId<'ATT'>);
+    if (epoch !== workspace_epoch || selection !== selection_epoch || token !== read_token) {
+      return;
+    }
+    if (selectedId() !== attempt_id) {
+      return;
+    }
     if (result.kind === 'snapshot') {
       set({ snapshot: result.snapshot, attempt_missing: false });
       return;
@@ -544,6 +723,19 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       });
       return;
     }
+    /*
+     * 🔴 THE PLAINTEXT LEAVES THE FORM ONLY WHEN IT REALLY LEFT THE FORM (`FINAL-RAPID-B` §10). The
+     *    condition is the SESSION STORE's own answer, re-asked after the composition: a key the store
+     *    now holds is no longer needed in `settings_draft.api_key`, and leaving it there means the
+     *    secret keeps being carried by a field that is re-rendered on every keystroke elsewhere.
+     * 🔴 AND WHEN NOTHING HOLDS IT, THE FIELD IS KEPT. With no credential store wired, clearing would
+     *    erase the only copy of the key and the very next save would be refused by the credential gate
+     *    (`PSA-D2 = B`) - a silent downgrade of a configuration the user just made work. The store's
+     *    answer is therefore the ONLY licence to clear.
+     * 🔴 IT IS READ FROM THE STORE, NOT FROM `key_in_session`: that flag also counts a merely TYPED key,
+     *    which is precisely the case that has nothing safe to clear into.
+     */
+    const key_stored = credentialInSession(String(config.provider_id));
     port = result.gateway.port;
     set({
       settings_errors: [],
@@ -551,6 +743,8 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       settings_key_in_session: key_in_session,
       settings_open: false,
       ai_requires_model: false,
+      /* 🔴 An emptied field here is what makes 「重新打开设置时输入框为空」 true by construction. */
+      settings_draft: key_stored ? { ...draft, api_key: '' } : draft,
       provider: {
         status: 'ready',
         provider_id: String(config.provider_id),
@@ -558,34 +752,210 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
         model: result.gateway.model,
         connection_label: result.gateway.connection_label,
         message: null,
+        /*
+         * 🔴 THE BADGE KEEPS ITS ESTABLISHED MEANING: "the configuration that was just composed carried
+         *    a key". It is read off `draft` - the draft AS SUBMITTED, which is why the emptying of
+         *    `settings_draft.api_key` below does not change the answer (§10). The field and the badge
+         *    are two different statements, and the existing suites pin both: a save with a typed key
+         *    reports `key_present: true`, a save whose form was empty (the session supplied the key)
+         *    reports `false`.
+         */
         key_present: draft.api_key.trim().length > 0,
       },
     });
   }
 
-  /** Runs one user action: pending flag, one operation id, one port call, one re-read. */
+  /**
+   * The scope handed to ONE operation body (`FINAL-RAPID-B` §2).
+   *
+   * 🔴 AN OPERATION BINDS ITS WORKSPACE AT THE START AND PROVES IT AT THE END. Every state write a
+   *    body performs after an `await` goes through `apply`, which is a no-op once the workspace has
+   *    been replaced - so an operation that started in A can never draw A's record, A's decisions or
+   *    A's notices onto B's screen.
+   * 🔴 `record` is the same rule for notices, and `retire` is the escape hatch for the one case the
+   *    outcome boolean cannot express: ⑤ completed while the automatic ⑥ did not (§7).
+   */
+  interface OperationScope {
+    readonly operation_id: string;
+    /** `true` while the workspace this operation started in is still the live one. */
+    isCurrent(): boolean;
+    /** Applies `patch` ONLY while the workspace is still the one this operation started in. */
+    apply(patch: Partial<AppSessionState>): void;
+    /** Records the outcome; its notice is raised only while still current. */
+    record<T>(result: WorkflowStepResult<T>): boolean;
+    /**
+     * Retires this operation's id, so a later click starts a GENUINELY NEW operation instead of
+     * replaying this one (§7).
+     */
+    retire(): void;
+  }
+
+  /**
+   * Runs one user action: pending flag, one operation id, one port call, one re-read.
+   *
+   * @param key the UI pending key - what `components/steps.ts` reads to disable a control. It stays
+   *        the plain action name on purpose; only the LEDGER key is record-scoped (see below).
+   * @param record_id the record this operation belongs to, or `null`. It becomes part of the
+   *        operation id AND of the ledger key (`formal-save:<attempt_id>`), so record B can never
+   *        inherit record A's successful operation (`FINAL-RAPID-B` §7).
+   */
   async function run(
     key: string,
     action: UiActionKey,
-    body: (operation_id: string) => Promise<'ok' | 'retryable' | 'skip'>,
+    record_id: string | null,
+    body: (scope: OperationScope) => Promise<'ok' | 'retryable' | 'skip'>,
   ): Promise<void> {
     if (state.pending[key] === true) {
       return;
     }
+    /* 🔴 THE WORKSPACE IS READ ONCE, BEFORE ANYTHING CAN CHANGE IT (§2). */
+    const epoch = workspace_epoch;
+    const ledger_key = record_id === null ? key : `${key}:${record_id}`;
     setPending(key, true);
     set({ flash: null });
     try {
-      const operation_id = ledger.operationIdFor(key, action);
-      const outcome = await body(operation_id);
+      const operation_id = ledger.operationIdFor(ledger_key, action, record_id);
+      const scope: OperationScope = {
+        operation_id,
+        isCurrent: () => workspace_epoch === epoch,
+        apply: (patch) => {
+          if (workspace_epoch === epoch) {
+            set(patch);
+          }
+        },
+        record: (result) => recordIfCurrent(epoch, result),
+        retire: () => {
+          ledger.forget(ledger_key);
+        },
+      };
+      const outcome = await body(scope);
       if (outcome === 'ok') {
-        ledger.forget(key);
+        ledger.forget(ledger_key);
       }
-      if (outcome !== 'skip') {
+      /*
+       * 🔴 NO RE-READ FOR A SUPERSEDED WORKSPACE: the ports it would call belong to a directory the
+       *    user has left, and the state it would write belongs to that same directory (§2).
+       */
+      if (outcome !== 'skip' && workspace_epoch === epoch) {
         await afterWrite();
       }
     } finally {
       setPending(key, false);
     }
+  }
+
+  /* ---------------------------------------------------------------- *
+   * The per-record cause-persistence queue (§4 / §5 / §6)
+   * ---------------------------------------------------------------- */
+
+  /**
+   * Queues one record's decisions for writing - SERIALISED, COALESCED AND NEVER SWALLOWED.
+   *
+   * 🔴 WHY A QUEUE AND NOT A TASK PER CLICK: every write carries the WHOLE `candidate_causes` set, so
+   *    two writes for the same record running at once can only be resolved by "whoever returns last
+   *    wins" - and a slow older write then overwrites a newer decision (§4). One drain at a time makes
+   *    the ORDER of writes the order of the clicks.
+   * 🔴 WHY COALESCING AND NOT SKIPPING: the previous code dropped a decision that arrived while one was
+   *    pending, so `accepted → rejected` persisted `accepted` (§5). Marking the queue dirty instead
+   *    means the running drain comes round again and writes the LATEST intent.
+   */
+  function scheduleCauseWrite(input: {
+    readonly attempt_id: string;
+    readonly port: UiWorkflowPort;
+    readonly proposal: CauseAnalysisProposal;
+    readonly decisions: Readonly<Record<string, CauseDecision>>;
+  }): void {
+    const existing = cause_writes.get(input.attempt_id);
+    if (existing === undefined) {
+      const write: CauseWrite = { ...input, dirty: true, running: null };
+      cause_writes.set(input.attempt_id, write);
+      write.running = drainCauseWrites(write);
+      return;
+    }
+    existing.proposal = input.proposal;
+    existing.decisions = input.decisions;
+    existing.dirty = true;
+    if (existing.running === null) {
+      existing.running = drainCauseWrites(existing);
+    }
+  }
+
+  /**
+   * Writes one record's decisions until nothing newer is waiting.
+   *
+   * 🔴 ONE WRITE AT A TIME, ONE RECORD AT A TIME. A different record has its own queue, so two records
+   *    never contend - but they never share a write either.
+   * 🔴 A SUCCESSFUL WRITE RETIRES ITS ID, so a changed decision is a NEW operation rather than a replay
+   *    the service would refuse to apply. A FAILED write keeps its id, so the next decision retries the
+   *    same operation - which is what `M4`'s idempotence needs.
+   * 🔴 THE DRAIN STOPS ON A SUPERSEDED WORKSPACE (§2) and on a retryable failure, and in both cases it
+   *    stops WITHOUT clearing what the user most recently said: `decisions` is still the latest intent,
+   *    so ⑤ persists it even when this queue could not.
+   */
+  async function drainCauseWrites(write: CauseWrite): Promise<void> {
+    const ledger_key = `cause-decision:${write.attempt_id}`;
+    try {
+      while (write.dirty) {
+        write.dirty = false;
+        const epoch = workspace_epoch;
+        const { attempt_id, port: active, proposal, decisions } = write;
+        const result = await active.persistCandidateCauses({
+          operation_id: ledger.operationIdFor(ledger_key, 'cause-persistence', attempt_id),
+          decision: active.decideCandidateCauses({
+            attempt_id,
+            candidates: proposal.candidates,
+            decisions,
+          }),
+        });
+        const ok = recordIfCurrent(epoch, result);
+        if (ok) {
+          ledger.forget(ledger_key);
+        }
+        if (epoch !== workspace_epoch) {
+          break;
+        }
+        if (!ok) {
+          break;
+        }
+        await afterWrite();
+      }
+    } finally {
+      write.running = null;
+    }
+  }
+
+  /**
+   * Waits until one record's cause writes have COMPLETELY drained (§6).
+   *
+   * 🔴 IT IS ⑤'s PRE-CONDITION. Reading `state.cause_decisions` without waiting would persist the
+   *    right decisions while an older queued write was still on its way to overwrite them - so ⑤ waits
+   *    for the queue, and the save it then performs is the LAST word on the record's causes.
+   * 🔴 IT RE-READS THE ENTRY AFTER EVERY AWAIT: a decision that arrives while we are waiting rejoins
+   *    the SAME drain (its promise is the one we are awaiting), so this loop cannot exit early.
+   */
+  async function drainCauseWritesFor(attempt_id: string): Promise<void> {
+    let write = cause_writes.get(attempt_id);
+    while (write !== undefined && write.running !== null) {
+      await write.running;
+      write = cause_writes.get(attempt_id);
+    }
+  }
+
+  /* ---------------------------------------------------------------- *
+   * Selection
+   * ---------------------------------------------------------------- */
+
+  /**
+   * Re-points the centre onto one record: clear everything scoped to the previous one, then read.
+   *
+   * 🔴 IT IS THE ONLY WAY THE SELECTION MOVES, so "a record change clears the record-scoped state"
+   *    holds on every path (§3) - including the recovery route, which has to bring a notice's target
+   *    on screen before it may run that notice's command (§8).
+   */
+  async function selectAttemptAndRead(attempt_id: string): Promise<void> {
+    resetRecordScopedState(attempt_id);
+    /* 🔴 Selecting a record ONLY reads it. No generation is triggered by opening a record. */
+    await refreshSnapshot();
   }
 
   /* ---------------------------------------------------------------- *
@@ -604,16 +974,33 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
 
     async attachWorkspace(label) {
       /*
+       * 🔴 THE WORKSPACE CHANGES BEFORE ANYTHING ELSE DOES (`FINAL-RAPID-B` §2). Bumping the epoch is
+       *    what stops an operation that is still in flight from the previous directory: from this line
+       *    on, its `apply` / `record` are no-ops, so a slow read of A cannot land after B was chosen.
+       *    Both ports are dropped for the same reason - a composition built over the old storage must
+       *    never serve the new one, and an `await` of an old operation must never write through it.
+       * 🔴 THE LEDGER AND THE CAUSE QUEUES ARE WORKSPACE SCOPE, not session scope: a successful
+       *    operation id from the previous directory must not be replayed into this one (§7), and a
+       *    queued write must not be aimed at a storage that is no longer open (§2).
        * 🔴 THE READER IS ESTABLISHED HERE, BEFORE ANY MODEL EXISTS. This is the whole point of
        *    S01-06-D1: after this call the rail can list records and the centre can open one, with no
        *    provider, no API Key and no successful capability resolution.
        */
+      workspace_epoch += 1;
       read_port = deps.attachStorage?.(label) ?? null;
+      port = null;
+      ledger.clear();
+      cause_writes.clear();
+      /*
+       * 🔴 THE CENTRE BELONGS TO THE OLD WORKSPACE: no snapshot, no causes, no decisions, no edits and
+       *    no notices survive the switch (§3). Without this, a switch could show B's rail next to A's
+       *    record - and the buttons on that record would then write A's state into B.
+       */
+      resetRecordScopedState(null);
       set({
         workspace: { status: 'connected', label, notice: null },
         attempts: [],
         attempts_loaded: false,
-        ai_requires_model: false,
       });
       /*
        * 🔴 The COMMAND composition is built over a concrete storage, so it is (re)built NOW - a model
@@ -636,9 +1023,16 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
        * 🔴 A WORKSPACE FAILURE IS A DIFFERENT STATEMENT FROM A PROVIDER FAILURE (S01-06B §13). Losing
        *    the directory really does remove every read - which is exactly why the two must be shown
        *    separately and never collapsed into one message.
+       * 🔴 IT IS ALSO A WORKSPACE CHANGE (`FINAL-RAPID-B` §2): the epoch moves, the ports and the
+       *    ledger are dropped, and the record on screen is released. A record that can no longer be
+       *    read must not be left looking open next to a workspace that needs re-authorizing.
        */
+      workspace_epoch += 1;
       read_port = null;
       port = null;
+      ledger.clear();
+      cause_writes.clear();
+      resetRecordScopedState(null);
       set({
         workspace: { status: 'needs_authorization', label: state.workspace.label, notice },
         attempts: [],
@@ -757,36 +1151,22 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
     },
 
     async selectAttempt(attempt_id) {
-      set({
-        selected_attempt_id: attempt_id,
-        new_attempt_open: false,
-        attempt_missing: false,
-        pending_question: null,
-        followup_answers: {},
-        confirmation_edits: {},
-        result_status_decision: 'unresolved',
-        result_status_text: null,
-        cause_proposal: null,
-        cause_decisions: {},
-        insight_edits: {},
-        retrieval_expanded: false,
-        evidence: null,
-        generation_refusal: null,
-        ai_requires_model: false,
-      });
-      /* 🔴 Selecting a record ONLY reads it. No generation is triggered by opening a record. */
-      await refreshSnapshot();
+      /*
+       * 🔴 THE WHOLE RECORD-SCOPED RESET, ON THE SHARED PATH (§3). Selecting another record used to
+       *    clear a hand-written subset of the state, so a stale cause proposal, evidence panel or
+       *    insight edit could stay on screen attached to the wrong record.
+       */
+      await selectAttemptAndRead(attempt_id);
     },
 
     openNewAttempt() {
-      set({
-        new_attempt_open: true,
-        selected_attempt_id: null,
-        snapshot: null,
-        raw_input: '',
-        evidence: null,
-        ai_requires_model: false,
-      });
+      /*
+       * 🔴 OPENING ① IS A RECORD CHANGE TOO. The record the user was editing leaves the screen, so its
+       *    snapshot, causes, decisions and edits leave with it (§3) - otherwise ① would appear over the
+       *    previous record's answers. `raw_input` is emptied because that IS the panel's field: it
+       *    belongs to the form rather than to a record, which is why it is not part of the shared reset.
+       */
+      resetRecordScopedState(null, { new_attempt_open: true, raw_input: '' });
     },
 
     closeNewAttempt() {
@@ -806,16 +1186,26 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null || state.raw_input.trim().length === 0) {
         return;
       }
-      await run('capture', 'capture', async (operation_id) => {
-        const result = await active.beginCapture({ operation_id, raw_text: state.raw_input });
-        const ok = record(result);
+      /*
+       * 🔴 THE SUBMITTED TEXT IS READ ONCE, BEFORE THE `await`. `raw_input` may legitimately change
+       *    while the capture is in flight (the user typing on), and the command must carry what the
+       *    user actually submitted rather than whatever the box holds when the request is built.
+       */
+      const raw_text = state.raw_input;
+      await run('capture', 'capture', null, async (scope) => {
+        const result = await active.beginCapture({ operation_id: scope.operation_id, raw_text });
+        const ok = scope.record(result);
         const attempt = result.value?.attempt ?? null;
         if (attempt !== null) {
-          set({
-            selected_attempt_id: String(attempt.attempt_id),
-            new_attempt_open: false,
-            raw_input: '',
-          });
+          /*
+           * 🔴 A NEW RECORD IS A NEW RECORD (§3): every record-scoped field of the previous one is
+           *    cleared as the new id takes over, so ② of the new attempt can never open on top of ③
+           *    of the old one. `scope.apply` keeps the reset inside this operation's workspace, so a
+           *    capture that finished after the user switched directories does not re-point the new
+           *    screen at the old workspace's record (§2).
+           * 🔴 `raw_input` is emptied HERE and not by the shared reset: it is the panel's own field.
+           */
+          scope.apply(recordScopedResetPatch(String(attempt.attempt_id), { raw_input: '' }));
           return 'ok';
         }
         return ok ? 'ok' : 'retryable';
@@ -842,20 +1232,29 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       }
       setPending('followup-ask', true);
       try {
-        const operation_id = ledger.operationIdFor(`follow-up-question:${gap}`, 'follow-up-question');
+        /*
+         * 🔴 THE QUESTION BELONGS TO THE RECORD IT WAS ASKED FOR (§7): both the ledger key and the id
+         *    name the attempt, so asking the same gap on another record is a different operation.
+         */
+        const epoch = workspace_epoch;
+        const ledger_key = `follow-up-question:${attempt_id}:${gap}`;
+        const question_id = ledger.operationIdFor(ledger_key, 'follow-up-question', attempt_id);
         const result = await active.askFollowUpQuestion({
-          operation_id,
+          operation_id: question_id,
           attempt_id: attempt_id as ObjectId<'ATT'>,
           question_text: questionTextFor(snapshot, gap),
           target_gap: gap,
         });
-        const ok = record(result);
+        const ok = recordIfCurrent(epoch, result);
         const asked = result.value?.question ?? null;
         if (asked !== null) {
-          ledger.forget(`follow-up-question:${gap}`);
-          set({ pending_question: { gap, text: asked.question_text } });
+          ledger.forget(ledger_key);
+          /* 🔴 A question for a workspace the user has left is never shown as the current one (§2). */
+          if (workspace_epoch === epoch) {
+            set({ pending_question: { gap, text: asked.question_text } });
+          }
         }
-        if (ok) {
+        if (ok && workspace_epoch === epoch) {
           await refreshSnapshot();
         }
       } finally {
@@ -873,15 +1272,15 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null || attempt_id === null) {
         return;
       }
-      await run(`follow-up-abandon:${gap}`, 'follow-up-abandon', async (operation_id) => {
+      await run(`follow-up-abandon:${gap}`, 'follow-up-abandon', attempt_id, async (scope) => {
         const result = await active.abandonFollowUpGap({
-          operation_id,
+          operation_id: scope.operation_id,
           attempt_id: attempt_id as ObjectId<'ATT'>,
           gap: gap as Parameters<typeof active.abandonFollowUpGap>[0]['gap'],
         });
-        const ok = record(result);
+        const ok = scope.record(result);
         if (ok) {
-          set({ pending_question: null });
+          scope.apply({ pending_question: null });
         }
         return ok ? 'ok' : 'retryable';
       });
@@ -931,12 +1330,12 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       const decision = state.result_status_decision;
       const text = state.result_status_text ?? proposedStatusText(state.snapshot);
 
-      await run('confirmation', 'confirmation', async (operation_id) => {
+      await run('confirmation', 'confirmation', attempt_id, async (scope) => {
         const result = await active.applyStructuredConfirmation({
-          operation_id,
+          operation_id: scope.operation_id,
           confirmation: {
             /* 🔴 Re-keyed by the workflow to the stable child id, so a retry replays (M15 §6). */
-            operation_id,
+            operation_id: scope.operation_id,
             attempt_id,
             ...(corrections.length === 0 ? {} : { corrections }),
             ...(decision === 'unresolved' && text === null
@@ -945,9 +1344,9 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
             user_confirmed: true,
           },
         });
-        const ok = record(result);
+        const ok = scope.record(result);
         if (ok) {
-          set({ confirmation_edits: {}, followup_answers: {}, pending_question: null });
+          scope.apply({ confirmation_edits: {}, followup_answers: {}, pending_question: null });
         }
         return ok ? 'ok' : 'retryable';
       });
@@ -963,21 +1362,23 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null || attempt_id === null) {
         return;
       }
-      setPending('cause-analysis', true);
-      set({ flash: null });
-      try {
+      /*
+       * 🔴 THE ANALYSIS IS A RECORD OPERATION (§7) and goes through the shared runner for that reason:
+       *    its id names the attempt, its state writes are workspace-guarded (§2) and its failure never
+       *    re-reads a directory the user has left.
+       * 🔴 A FAILURE DOES NOT RE-READ (`skip`): ④ produced nothing, so the record on screen is already
+       *    the truth. Only a delegated outcome refreshes the snapshot.
+       */
+      await run('cause-analysis', 'cause-analysis', attempt_id, async (scope) => {
         const result = await active.analyseCandidateCauses(attempt_id as ObjectId<'ATT'>);
-        const ok = record(result);
+        const ok = scope.record(result);
         const outcome = result.value;
         if (outcome !== null && outcome.kind === 'analysed') {
-          set({ cause_proposal: outcome.proposal, cause_decisions: {} });
+          /* 🔴 A NEW PROPOSAL REPLACES THE OLD DECISIONS, and both belong to THIS record (§3 / §4). */
+          scope.apply({ cause_proposal: outcome.proposal, cause_decisions: {} });
         }
-        if (ok) {
-          await afterWrite();
-        }
-      } finally {
-        setPending('cause-analysis', false);
-      }
+        return ok ? 'ok' : 'skip';
+      });
     },
 
     /**
@@ -999,6 +1400,12 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       const attempt_id = selectedId();
       const proposal = state.cause_proposal;
       const decisions = { ...state.cause_decisions, [content_item_id]: decision };
+      /*
+       * 🔴 THE SCREEN UPDATES IMMEDIATELY AND THE WRITE IS QUEUED, NOT SKIPPED (§4 / §5). Showing the
+       *    answer at once is what makes the control responsive; queueing it is what stops a second
+       *    click from being swallowed while the first write is in flight. `accepted → rejected` on the
+       *    same cause therefore ends `rejected` on screen AND in the record.
+       */
       set({ cause_decisions: decisions });
       if (active === null || attempt_id === null || proposal === null) {
         /*
@@ -1009,21 +1416,15 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
         return;
       }
       /*
-       * 🔴 THE KEY IS PER CAUSE: `run` forgets the ledger entry after a successful write, so a
-       *    later decision on the same cause gets a FRESH operation id and really writes again
-       *    instead of being swallowed as an idempotent replay.
+       * 🔴 ONE QUEUE PER RECORD, DRAINED ONE WRITE AT A TIME. Every write carries the WHOLE candidate
+       *    set, so two concurrent writes for the same record could only be ordered by "whoever returns
+       *    last" - which is exactly how an older write used to overwrite a newer decision. Serialising
+       *    makes the order of the writes the order of the clicks, and coalescing means the LATEST
+       *    intent is always what the last write carries.
+       * 🔴 THE PORT IS HANDED OVER HERE, not re-read after an `await`: a write that starts against one
+       *    composition must not finish against another (§2).
        */
-      void run(`cause-decision:${content_item_id}`, 'cause-persistence', async (operation_id) => {
-        const result = await active.persistCandidateCauses({
-          operation_id,
-          decision: active.decideCandidateCauses({
-            attempt_id,
-            candidates: proposal.candidates,
-            decisions,
-          }),
-        });
-        return record(result) ? 'ok' : 'retryable';
-      });
+      scheduleCauseWrite({ attempt_id, port: active, proposal, decisions });
     },
 
     /* ---------------------------------------------------------------- *
@@ -1054,6 +1455,13 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
         pushNotice(workflowNotice('ATTEMPT_NOT_FOUND'));
         return;
       }
+      /*
+       * 🔴 ⑤ WAITS FOR ④ (`FINAL-RAPID-B` §6). Every cause decision the user has made must be IN the
+       *    record before it is promoted, so this save first lets that record's queue drain and then
+       *    reads the decisions it sees - which also makes THIS save the last word on `candidate_causes`:
+       *    with the queue empty, no older cause write is left to put the old values back afterwards.
+       */
+      await drainCauseWritesFor(attempt_id);
       const proposal = state.cause_proposal;
       /* 🔴 The user's cause answers are decided by `M5`'s own pure rule, then persisted WITH the save. */
       const cause_decision =
@@ -1070,18 +1478,31 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
               ),
             });
 
-      await run('formal-save', 'formal-save', async (operation_id) => {
+      await run('formal-save', 'formal-save', attempt_id, async (scope) => {
         const result = await active.saveFormalAttempt({
-          operation_id,
+          operation_id: scope.operation_id,
           attempt_id: attempt_id as ObjectId<'ATT'>,
           user_explicitly_confirmed: true,
           ...(cause_decision === undefined ? {} : { candidate_causes: cause_decision }),
         });
-        const ok = record(result);
+        const ok = scope.record(result);
         const saved = result.value;
+        /*
+         * 🔴 THE ⑤ OPERATION ENDS THE MOMENT THE RECORD IS `Formal` - WHATEVER ⑥ DID (§7). A failed
+         *    AUTOMATIC ⑥ arrives as `RETRIEVAL_RUNTIME_INCOMPLETE` (`workflow-service.ts`), i.e. as a
+         *    RUNTIME notice whose `kind` is not `delegated`: read as "the save failed" it would leave
+         *    this operation pending a retry it does not need. Retrying ⑥ is the notice's own
+         *    `rerun_retrieval` command, which runs as `retrieval-rerun:<attempt_id>` and can never
+         *    replay this save. Retiring the id here is what makes that a property of the code.
+         */
+        const record_is_formal =
+          saved !== null && saved.save.attempt !== null && saved.save.attempt.state === 'Formal';
+        if (record_is_formal) {
+          scope.retire();
+        }
         if (saved !== null && saved.promotion_happened) {
           /* 🔴 ⑤ ⇒ ⑥ is automatic and lives in the service. The UI only reports that it happened. */
-          set({ flash: 'saved' });
+          scope.apply({ flash: 'saved' });
         }
         return ok ? 'ok' : 'retryable';
       });
@@ -1097,12 +1518,12 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null || attempt_id === null) {
         return;
       }
-      await run('retrieval-rerun', 'retrieval-rerun', async (operation_id) => {
+      await run('retrieval-rerun', 'retrieval-rerun', attempt_id, async (scope) => {
         const result = await active.rerunRetrieval({
-          operation_id,
+          operation_id: scope.operation_id,
           attempt_id: attempt_id as ObjectId<'ATT'>,
         });
-        const ok = record(result);
+        const ok = scope.record(result);
         /* 🔴 A rerun never cascades: no insight and no hypothesis is regenerated from here (§26). */
         return ok ? 'ok' : 'retryable';
       });
@@ -1139,13 +1560,13 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null || attempt_id === null) {
         return;
       }
-      await run('insight-generation', 'insight-generation', async (operation_id) => {
+      await run('insight-generation', 'insight-generation', attempt_id, async (scope) => {
         const result = await active.generateInsights({
-          operation_id,
+          operation_id: scope.operation_id,
           attempt_id: attempt_id as ObjectId<'ATT'>,
         });
-        const ok = record(result);
-        set({ generation_refusal: ok ? null : refusalTextOf(result.value) });
+        const ok = scope.record(result);
+        scope.apply({ generation_refusal: ok ? null : refusalTextOf(result.value) });
         return ok ? 'ok' : 'retryable';
       });
     },
@@ -1155,13 +1576,13 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null) {
         return;
       }
-      await run(`insight-action:${insight_id}`, 'insight-action', async (operation_id) => {
+      await run(`insight-action:${insight_id}`, 'insight-action', insight_id, async (scope) => {
         const result = await active.acceptInsight({
-          operation_id,
+          operation_id: scope.operation_id,
           insight_id: insight_id as ObjectId<'INS'>,
           user_explicitly_accepted: true,
         });
-        return record(result) ? 'ok' : 'retryable';
+        return scope.record(result) ? 'ok' : 'retryable';
       });
     },
 
@@ -1170,12 +1591,12 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null) {
         return;
       }
-      await run(`insight-action:${insight_id}`, 'insight-action', async (operation_id) => {
+      await run(`insight-action:${insight_id}`, 'insight-action', insight_id, async (scope) => {
         const result = await active.rejectInsight({
-          operation_id,
+          operation_id: scope.operation_id,
           insight_id: insight_id as ObjectId<'INS'>,
         });
-        return record(result) ? 'ok' : 'retryable';
+        return scope.record(result) ? 'ok' : 'retryable';
       });
     },
 
@@ -1184,12 +1605,12 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null) {
         return;
       }
-      await run(`insight-action:${insight_id}`, 'insight-action', async (operation_id) => {
+      await run(`insight-action:${insight_id}`, 'insight-action', insight_id, async (scope) => {
         const result = await active.revokeInsightAcceptance({
-          operation_id,
+          operation_id: scope.operation_id,
           insight_id: insight_id as ObjectId<'INS'>,
         });
-        return record(result) ? 'ok' : 'retryable';
+        return scope.record(result) ? 'ok' : 'retryable';
       });
     },
 
@@ -1203,17 +1624,17 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null || value === undefined) {
         return;
       }
-      await run(`insight-action:${insight_id}`, 'insight-action', async (operation_id) => {
+      await run(`insight-action:${insight_id}`, 'insight-action', insight_id, async (scope) => {
         const result = await active.editInsightContent({
-          operation_id,
+          operation_id: scope.operation_id,
           insight_id: insight_id as ObjectId<'INS'>,
           proposition: value,
         });
-        const ok = record(result);
+        const ok = scope.record(result);
         if (ok) {
           const next = { ...state.insight_edits };
           delete next[insight_id];
-          set({ insight_edits: next });
+          scope.apply({ insight_edits: next });
         }
         return ok ? 'ok' : 'retryable';
       });
@@ -1229,13 +1650,13 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null || attempt_id === null) {
         return;
       }
-      await run('hypothesis-generation', 'hypothesis-generation', async (operation_id) => {
+      await run('hypothesis-generation', 'hypothesis-generation', attempt_id, async (scope) => {
         const result = await active.generateHypotheses({
-          operation_id,
+          operation_id: scope.operation_id,
           attempt_id: attempt_id as ObjectId<'ATT'>,
         });
-        const ok = record(result);
-        set({ generation_refusal: ok ? null : refusalTextOf(result.value) });
+        const ok = scope.record(result);
+        scope.apply({ generation_refusal: ok ? null : refusalTextOf(result.value) });
         return ok ? 'ok' : 'retryable';
       });
     },
@@ -1245,13 +1666,13 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null) {
         return;
       }
-      await run(`hypothesis-action:${hypothesis_id}`, 'hypothesis-action', async (operation_id) => {
+      await run(`hypothesis-action:${hypothesis_id}`, 'hypothesis-action', hypothesis_id, async (scope) => {
         const result = await active.acceptHypothesis({
-          operation_id,
+          operation_id: scope.operation_id,
           hypothesis_id: hypothesis_id as ObjectId<'HYP'>,
           user_explicitly_accepted: true,
         });
-        return record(result) ? 'ok' : 'retryable';
+        return scope.record(result) ? 'ok' : 'retryable';
       });
     },
 
@@ -1260,12 +1681,12 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null) {
         return;
       }
-      await run(`hypothesis-action:${hypothesis_id}`, 'hypothesis-action', async (operation_id) => {
+      await run(`hypothesis-action:${hypothesis_id}`, 'hypothesis-action', hypothesis_id, async (scope) => {
         const result = await active.rejectHypothesis({
-          operation_id,
+          operation_id: scope.operation_id,
           hypothesis_id: hypothesis_id as ObjectId<'HYP'>,
         });
-        return record(result) ? 'ok' : 'retryable';
+        return scope.record(result) ? 'ok' : 'retryable';
       });
     },
 
@@ -1274,14 +1695,14 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null) {
         return;
       }
-      await run(`hypothesis-action:${hypothesis_id}`, 'hypothesis-action', async (operation_id) => {
+      await run(`hypothesis-action:${hypothesis_id}`, 'hypothesis-action', hypothesis_id, async (scope) => {
         /* 🔴 The SAVE slot only. The decision slot is untouched by this call (`D-042`). */
         const result = await active.saveModelSuggestion({
-          operation_id,
+          operation_id: scope.operation_id,
           hypothesis_id: hypothesis_id as ObjectId<'HYP'>,
           saved,
         });
-        return record(result) ? 'ok' : 'retryable';
+        return scope.record(result) ? 'ok' : 'retryable';
       });
     },
 
@@ -1290,14 +1711,14 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null) {
         return;
       }
-      await run(`hypothesis-action:${hypothesis_id}`, 'hypothesis-action', async (operation_id) => {
+      await run(`hypothesis-action:${hypothesis_id}`, 'hypothesis-action', hypothesis_id, async (scope) => {
         const result = await active.decideHypothesisCriterion({
-          operation_id,
+          operation_id: scope.operation_id,
           hypothesis_id: hypothesis_id as ObjectId<'HYP'>,
           content_item_id,
           decision_state,
         });
-        return record(result) ? 'ok' : 'retryable';
+        return scope.record(result) ? 'ok' : 'retryable';
       });
     },
 
@@ -1306,15 +1727,15 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null || value.trim().length === 0) {
         return;
       }
-      await run(`hypothesis-action:${hypothesis_id}`, 'hypothesis-action', async (operation_id) => {
+      await run(`hypothesis-action:${hypothesis_id}`, 'hypothesis-action', hypothesis_id, async (scope) => {
         /* 🔴 A user-supplied item is minted as the user's own `Fact` - never as an AI inference. */
         const content_item_id = `${hypothesis_id}:${slot}:user`;
         const result = await active.editHypothesisCriteria({
-          operation_id,
+          operation_id: scope.operation_id,
           hypothesis_id: hypothesis_id as ObjectId<'HYP'>,
           user_items: [{ slot, content_item_id, value }],
         });
-        return record(result) ? 'ok' : 'retryable';
+        return scope.record(result) ? 'ok' : 'retryable';
       });
     },
 
@@ -1323,7 +1744,17 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null) {
         return;
       }
+      /*
+       * 🔴 ⑩ IS A READ AND IS STAMPED LIKE ONE (§1 / §2). The evidence rail belongs to the workspace
+       *    and the record on screen, so a trace that answers after the user moved on must not open a
+       *    panel over the new record - nor raise a notice about the old one.
+       */
+      const epoch = workspace_epoch;
+      const selection = selection_epoch;
       const result = await active.traceHypothesis(hypothesis_id as ObjectId<'HYP'>);
+      if (epoch !== workspace_epoch || selection !== selection_epoch) {
+        return;
+      }
       if (result.value !== null && result.value !== undefined) {
         const panel = tracePanelOf(result.value);
         set({
@@ -1359,13 +1790,13 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (active === null) {
         return;
       }
-      await run(`archive:${attempt_id}`, 'archive', async (operation_id) => {
+      await run(`archive:${attempt_id}`, 'archive', attempt_id, async (scope) => {
         const result = await active.setAttemptArchived({
-          operation_id,
+          operation_id: scope.operation_id,
           attempt_id: attempt_id as ObjectId<'ATT'>,
           archive_state: archived ? 'archived' : 'active',
         });
-        return record(result) ? 'ok' : 'retryable';
+        return scope.record(result) ? 'ok' : 'retryable';
       });
     },
 
@@ -1375,6 +1806,64 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
 
     flashMessage(message) {
       set({ flash: message });
+    },
+
+    /* ---------------------------------------------------------------- *
+     * notices - the recovery route (§8 / §9)
+     * ---------------------------------------------------------------- */
+
+    async recoverNotice(request) {
+      /*
+       * 🔴 THE TARGET COMES FROM THE NOTICE, NEVER FROM THE SCREEN (`FINAL-RAPID-B` §8). This is the
+       *    fix for the reported defect: pressing A's 「重新检索」 while B was open used to re-run B's
+       *    retrieval and leave A exactly as broken as it was.
+       * 🔴 SAFE-SELECT, THEN RUN. A `D9` command like `rerunRetrieval` carries no attempt id, so the
+       *    only way to run it against a specific record is to have that record selected - therefore the
+       *    selection is made AND VERIFIED first, and a record that cannot be opened is refused rather
+       *    than silently substituted.
+       * 🔴 A REFUSAL IS RETURNED, NOT SWALLOWED: running the command against the wrong record is worse
+       *    than running nothing at all, because it reports a repair that never happened.
+       */
+      if (request.key === 'dismiss' || request.key === 'none') {
+        /* 🔴 「关闭」 means close, and nothing else (§9). */
+        session.dismissNotices();
+        return 'ran';
+      }
+      if (request.key === 'select_workspace' || request.key === 'grant_workspace_access') {
+        /*
+         * 🔴 THE PICKER BELONGS TO THE DOM LAYER: a directory may only be chosen from a real user
+         *    gesture, so the session reports that the picker is the remedy instead of opening anything
+         *    itself (S01-06 §9 / U3).
+         */
+        return 'workspace_picker';
+      }
+      const target = request.attempt_id;
+      if (target === null) {
+        /* 🔴 A record command with no record named cannot be honoured - and must NOT fall back to
+         *    whichever record happens to be selected. */
+        return 'refused';
+      }
+      if (selectedId() !== target) {
+        await selectAttemptAndRead(target);
+        /* 🔴 THE VERIFICATION: the selection really moved, the record really exists, and it really
+         *    read. Anything less and the command must not run. */
+        if (selectedId() !== target || state.attempt_missing || state.snapshot === null) {
+          return 'refused';
+        }
+      }
+      if (request.key === 'rerun_retrieval') {
+        await session.rerunRetrieval();
+        return 'ran';
+      }
+      if (request.key === 'regenerate_insights') {
+        await session.generateInsights();
+        return 'ran';
+      }
+      if (request.key === 'regenerate_hypotheses') {
+        await session.generateHypotheses();
+        return 'ran';
+      }
+      return 'refused';
     },
   };
 

@@ -20,8 +20,11 @@
  *    lifetime of the shell - not per render, and not on the panel - so it cannot accumulate; it acts
  *    only while the panel is open, and it cannot clear a key, save a draft or touch the workspace.
  * 🔴 THE NOTICE STRIP IS FED FROM THE SESSION AND THE SNAPSHOT, and its recovery buttons run the
- *    EXISTING workflow commands (task §45). No retry loop, no timer, no background queue is built
- *    here - or anywhere else in this App Shell.
+ *    EXISTING workflow commands (task §45) AGAINST THE RECORD THE NOTICE NAMES (`FINAL-RAPID-B` §8).
+ *    No retry loop, no timer, no background queue is built here - or anywhere else in this App Shell.
+ *    🔴 AND NO CONTROL HERE PROMISES SOMETHING IT DOES NOT DO (§9): the label and the action of every
+ *    notice button are decided together in `presenters/notices.ts`, so 「关闭」 closes and a retry is
+ *    only ever offered where a real command backs it.
  * 🔴 `original_error`, a `DOMException` and a raw provider body can never reach the DOM: the only
  *    failure text rendered is `WorkflowNotice.message`, a fixed product sentence produced by `M15`.
  *
@@ -34,7 +37,7 @@ import type { ViewContext } from './components/shell.js';
 import { leftRail } from './components/left-rail.js';
 import { evidenceRail } from './components/evidence-rail.js';
 import { workbench } from './components/steps.js';
-import { noticeViewOf, noticeViewsOf, retryLabel, shellRuntimeNoticeView } from './presenters/notices.js';
+import { noticeViewOf, noticeViewsOf, recoveryKeyOf, retryLabel, shellRuntimeNoticeView } from './presenters/notices.js';
 import type { NoticeView } from './presenters/notices.js';
 import { workspaceAllowsRead } from './presenters/rail.js';
 import { captureFocus, restoreFocus } from './settings/control-identity.js';
@@ -203,31 +206,30 @@ function settingsOverlay(context: ViewContext): HTMLElement {
   return el('div', { class: `settings-layer ${panel === null ? 'is-hidden' : ''}` }, panel);
 }
 
-/** Runs the recovery action a notice names - and only that one (task §45). */
+/**
+ * Runs the recovery action a notice names - and only that one (task §45), AGAINST THE RECORD THE
+ * NOTICE NAMES (`FINAL-RAPID-B` §8).
+ *
+ * 🔴 THE TARGET TRAVELS WITH THE NOTICE, AND IT IS NO LONGER DROPPED. This handler used to be handed
+ *    `attempt_id` and ignore it, running the command against whatever record was selected - so pressing
+ *    「重新检索」 on a notice about A while looking at B repaired B and left A exactly as broken as it
+ *    was, with a success message on top. The routing now lives on the session, because only the session
+ *    can bring the target on screen, VERIFY that it really is the record it read, and only then run the
+ *    command: a target that cannot be opened is REFUSED rather than replaced by the record on screen.
+ * 🔴 THE PICKER IS STILL A USER GESTURE. `select_workspace` / `grant_workspace_access` come back as
+ *    `workspace_picker`, and only then does this handler call the picker the click authorised - the
+ *    session never opens a directory on its own (S01-06 §9 / U3).
+ */
 async function runRecovery(
   session: AppSession,
   pickWorkspace: () => void,
   key: string,
-  _attempt_id: string | null,
+  attempt_id: string | null,
 ): Promise<void> {
-  if (key === 'rerun_retrieval') {
-    await session.rerunRetrieval();
-    return;
-  }
-  if (key === 'regenerate_insights') {
-    await session.generateInsights();
-    return;
-  }
-  if (key === 'regenerate_hypotheses') {
-    await session.generateHypotheses();
-    return;
-  }
-  if (key === 'select_workspace' || key === 'grant_workspace_access') {
-    /* 🔴 The picker needs a real user gesture, so the CLICK opens it - nothing is opened for the user. */
+  const outcome = await session.recoverNotice({ key: recoveryKeyOf(key), attempt_id });
+  if (outcome === 'workspace_picker') {
     pickWorkspace();
-    return;
   }
-  session.dismissNotices();
 }
 
 /** Clears a node (exported so a future route change can reset the shell deliberately). */
