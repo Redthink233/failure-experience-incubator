@@ -1,0 +1,11 @@
+{
+  "//": "BROWSER-AWARE scope: DOM + DOM.Iterable are available, node types are deliberately absent (`types: []`). Owns the browser-facing runtime: M2 (`src/browser/workspace/**`, the File System Access adapter) and M11/M13 (`src/browser/ai/**`, the Browser Direct provider adapter + session-only credential runtime); S01-06 adds the Web UI. It is a SEPARATE config so that gaining DOM here can never silently weaken tsconfig.core.json. Framework-neutral M10 contracts (`src/ai/**`) and domain types are reached through the normal import graph, never by copying them into this scope.",
+  "//scope": "S01-W1-INTEGRATE: real scope, no placeholder. The S01-01A `src/domain/ids/object-id.ts` placeholder was removed once `src/browser/**` contained real business modules; `src/browser/**/*.ts` is now the only entry and the import graph resolves Domain / M10 by itself.",
+  "//boundary": "This scope must NEVER reach the server: `src/browser/**` imports neither `src/server/proxy/**` nor `api/proxy/**` (asserted by `src/tests/proxy/dependency-direction.test.ts`). The two network shapes are separate runtimes that meet over the wire, not by import.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": []
+  },
+  "include": ["src/browser/**/*.ts"]
+}

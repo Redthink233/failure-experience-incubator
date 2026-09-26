@@ -1,0 +1,159 @@
+{
+  "run_id": "RUN-5",
+  "session": "独立判定会话 5",
+  "note": "DISPOSABLE / NON-PRODUCTION",
+  "judgments": {
+    "CASE-01": {
+      "dimension_results": {
+        "goal": {
+          "state": "matched",
+          "reason": "两侧都是把药材干燥到目标含水率，指向同一件事。"
+        },
+        "actual_attempt": {
+          "state": "compared_not_matched",
+          "reason": "一侧是热风并提高风速，另一侧是真空冷冻干燥，做法不同。"
+        },
+        "condition": {
+          "state": "compared_not_matched",
+          "reason": "一侧是热风温度与风速条件，另一侧是冻结与真空干燥条件，条件类型不同。"
+        },
+        "actual_result": {
+          "state": "compared_not_matched",
+          "reason": "一侧描述出现开裂且含水率偏高，另一侧描述无开裂且含水率达标，结果状态不同。"
+        }
+      }
+    },
+    "CASE-02": {
+      "dimension_results": {
+        "goal": {
+          "state": "compared_not_matched",
+          "reason": "一侧关注药材颜色变化，另一侧关注整体干燥时间，目标不同。"
+        },
+        "actual_attempt": {
+          "state": "matched",
+          "reason": "两侧都是采用热风干燥并保持相同风速，做法一致。"
+        },
+        "condition": {
+          "state": "matched",
+          "reason": "两侧给出的温度与风速条件一致。"
+        },
+        "actual_result": {
+          "state": "compared_not_matched",
+          "reason": "一侧描述颜色变深，另一侧描述干燥时间下降，结果不同。"
+        }
+      }
+    },
+    "CASE-03": {
+      "dimension_results": {
+        "goal": {
+          "state": "compared_not_matched",
+          "reason": "一侧是降低药材含水率，另一侧是提高图像分类准确率，目标领域不同。"
+        },
+        "actual_attempt": {
+          "state": "compared_not_matched",
+          "reason": "一侧是热风干燥，另一侧是训练卷积神经网络，做法不同。"
+        },
+        "condition": {
+          "state": "compared_not_matched",
+          "reason": "一侧是干燥温度条件，另一侧是训练批大小设置，条件类型不同。"
+        },
+        "actual_result": {
+          "state": "compared_not_matched",
+          "reason": "一侧关注含水率下降不足，另一侧关注验证集准确率提高，结果不同。"
+        }
+      }
+    },
+    "CASE-04": {
+      "dimension_results": {
+        "goal": {
+          "state": "matched",
+          "reason": "两侧都是要避免引用不存在的记录，指向同一件事。"
+        },
+        "actual_attempt": {
+          "state": "compared_not_matched",
+          "reason": "一侧是限制模型只能引用候选标识，另一侧是增加引用后的校验，做法不同。"
+        },
+        "actual_result": {
+          "state": "compared_not_matched",
+          "reason": "一侧说错误引用减少，另一侧说仍偶有无效引用，结果状态不同。"
+        }
+      }
+    },
+    "CASE-05": {
+      "dimension_results": {
+        "goal": {
+          "state": "compared_not_matched",
+          "reason": "一侧是验证新干燥方案能否改善过程，另一侧是分析后半程失水速度变化，目标不同。"
+        },
+        "actual_attempt": {
+          "state": "matched",
+          "reason": "两侧都是在调整干燥送风参数，做法同类。"
+        },
+        "condition": {
+          "state": "matched",
+          "reason": "两侧给出的都是干燥温度条件，条件类型相同。"
+        },
+        "actual_result": {
+          "state": "matched",
+          "reason": "两侧都描述后半程干燥速度明显下降，结果一致。"
+        }
+      }
+    },
+    "CASE-06": {
+      "dimension_results": {
+        "goal": {
+          "state": "compared_not_matched",
+          "reason": "一侧是降低药材干燥后含水率，另一侧是提升嘈杂环境下的语音识别准确率，目标领域不同。"
+        },
+        "actual_attempt": {
+          "state": "compared_not_matched",
+          "reason": "一侧是热风循环干燥，另一侧是加入降噪前端模块，做法不同。"
+        },
+        "condition": {
+          "state": "compared_not_matched",
+          "reason": "一侧是干燥温度条件，另一侧是信噪比条件，条件类型不同。"
+        },
+        "actual_result": {
+          "state": "compared_not_matched",
+          "reason": "一侧关注含水率下降不足，另一侧关注识别错误率下降，结果不同。"
+        }
+      }
+    },
+    "CASE-07": {
+      "dimension_results": {
+        "goal": {
+          "state": "matched",
+          "reason": "两侧都是要避免系统引用不存在的历史记录，指向同一件事。"
+        },
+        "actual_attempt": {
+          "state": "matched",
+          "reason": "两侧都是把候选记录标识集合传给模型并限制其只能从中选择引用，做法一致。"
+        },
+        "condition": {
+          "state": "matched",
+          "reason": "两侧都限定模型只能看到预先给出的候选记录集合，条件一致。"
+        },
+        "actual_result": {
+          "state": "matched",
+          "reason": "两侧都描述无效引用明显减少，结果一致。"
+        }
+      }
+    },
+    "CASE-08": {
+      "dimension_results": {
+        "goal": {
+          "state": "compared_not_matched",
+          "reason": "一侧是降低干燥过程的表面开裂，另一侧是缩短干燥时间，目标不同。"
+        },
+        "actual_attempt": {
+          "state": "matched",
+          "reason": "两侧都是降低干燥温度，做法一致。"
+        },
+        "condition": {
+          "state": "matched",
+          "reason": "两侧给出的都是干燥温度条件，条件类型相同。"
+        }
+      }
+    }
+  }
+}

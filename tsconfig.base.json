@@ -1,0 +1,28 @@
+{
+  "//": "S01-01A shared compiler options for EVERY tsconfig of this repository. This file deliberately declares NO `lib`, NO `types` and NO `include`: the type ENVIRONMENT of a scope (DOM present or not) is decided by the extending config, never inherited by accident. Scope configs: tsconfig.core.json (framework-neutral, NO DOM) / tsconfig.browser.json (DOM allowed) / tsconfig.server.json (Node runtime, NO DOM) / tsconfig.json (core + node tests) / tsconfig.build.json / tsconfig.test.json.",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    "noEmit": true
+  }
+}

@@ -1,0 +1,3732 @@
+{
+  "artifact_class": "DISPOSABLE / NON-PRODUCTION",
+  "spike_id": "SP-03R",
+  "title": "Level A「严格语义重叠」(D-050) 复测",
+  "premise": "D-050 = CONFIRMED（严格语义重叠判据）；本次复测不重新讨论 D-050。",
+  "counting_note": "primary_24 = 8 CASE × 3 RUN = 24 次；extended_48 = 8 CASE × 6 RUN = 48 次，**48 已包含前 24**，不存在 24 + 48 = 72 的关系。",
+  "environment": {
+    "judge_mechanism": "本机 LearnBuddy 会话内新起的独立 AI 判定子会话（每次 = 全新上下文、无共享历史、无结果复用；显式禁止读取本机文件）",
+    "model_identifier": "未由环境暴露（无 API 层模型标识）",
+    "temperature_configurable": false,
+    "seed_configurable": false,
+    "structured_output_engine": "不可用（无 JSON Schema 强约束接口）；以提示词约束 + 程序侧 schema 校验替代",
+    "independent_api_level_call": false,
+    "independent_session_level_call": true,
+    "latency_measurable": false,
+    "judging_criterion_source": "docs/DECISIONS.md D-050（严格语义重叠；CONFIRMED）"
+  },
+  "gold_standard": "SP-03_cases.json（未修改；未重算）",
+  "ingest_notes": [],
+  "structural_probe": {
+    "H1_H8_unknown_not_sent_to_model": true,
+    "H3_level_b_not_in_model_input": true,
+    "H9_result_status_irrelevant": true,
+    "H4_inference_excluded": true,
+    "H2_validator_positive_control": true,
+    "H10_no_embedding_needed": true,
+    "H5_related_derived": true
+  },
+  "structural_probe_output": [
+    "PROBE-H1/H8  unknown 维度不进模型输入 : PASS",
+    "PROBE-H3(输入) Level B 不进模型输入      : PASS",
+    "PROBE-H9       result_status 不影响判定输入 : PASS",
+    "PROBE-H4       Inference 不进 Level A     : PASS",
+    "PROBE-H2       校验器正对照（应报违禁）  : PASS；违禁键命中数 = 3",
+    "PROBE-H10      无 embedding 即可形成命中集合: PASS（判定链仅含结构规则 + 布尔判定）",
+    "PROBE-H5       related 由 matched 集合派生  : PASS（装配层唯一派生语句）"
+  ],
+  "validator_positive_control_violations": [
+    "positive_control.dimension_results.goal.similarity -> 违禁字段名「similarity」",
+    "positive_control.dimension_results.goal.similarity -> 出现裸数值 0.87",
+    "positive_control.dimension_results.goal.confidence -> 违禁字段名「confidence」",
+    "positive_control.dimension_results.goal.confidence -> 出现裸数值 0.9",
+    "positive_control.dimension_results.actual_attempt.score -> 违禁字段名「score」",
+    "positive_control.dimension_results.actual_attempt.score -> 出现裸数值 3"
+  ],
+  "h_invariants": {
+    "H1_unknown_to_uncompared_100pct": true,
+    "H2_no_numeric_anywhere": true,
+    "H3_level_b_never_admits": true,
+    "H4_inference_excluded": true,
+    "H5_related_strictly_derived": true,
+    "H6_CASE-03_related_false": true,
+    "H7_CASE-06_related_false": true,
+    "H8_CASE-04_condition_uncompared": true,
+    "H9_result_status_irrelevant": true,
+    "H10_no_embedding_needed": true,
+    "_n_pass": 10
+  },
+  "r_checks_primary_24": {
+    "R1_CASE-01_actual_result_never_matched": true,
+    "R2_CASE-02_goal_never_matched": true,
+    "R3_CASE-08_condition_never_matched": true,
+    "R4_CASE-07_four_dims_all_matched": true,
+    "R5_matched_set_stable_per_case": true,
+    "R6_no_related_flip": true,
+    "R7_no_level_b_dependency": true,
+    "R8_no_numeric_similarity": true,
+    "_unstable_matched_set": [],
+    "_unstable_related": [],
+    "_uncompared_set": [],
+    "_all_pass": true
+  },
+  "r_checks_extended_48": {
+    "R1_CASE-01_actual_result_never_matched": true,
+    "R2_CASE-02_goal_never_matched": true,
+    "R3_CASE-08_condition_never_matched": true,
+    "R4_CASE-07_four_dims_all_matched": true,
+    "R5_matched_set_stable_per_case": true,
+    "R6_no_related_flip": true,
+    "R7_no_level_b_dependency": true,
+    "R8_no_numeric_similarity": true,
+    "_unstable_matched_set": [],
+    "_unstable_related": [],
+    "_uncompared_set": [],
+    "_all_pass": true
+  },
+  "primary_24": {
+    "runs": [
+      {
+        "run_id": "RUN-1",
+        "session": "独立判定会话 1",
+        "judgments": {
+          "CASE-01": {
+            "case_id": "CASE-01",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达把药材干燥到目标含水率这一相同目标。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风并提高风速，另一侧改用真空冷冻干燥，具体方案并不相同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风温度配合风速的条件，另一侧是低温冻结后真空干燥的条件，内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧描述表面开裂且含水率仍偏高，另一侧描述无明显开裂且含水率达标，观察结论方向相反。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-02": {
+            "case_id": "CASE-02",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低药材的颜色变化，另一侧要缩短整体干燥时间，待解决的问题不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达用热风干燥药材并保持同一风速，属于同义改写。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧给出的是同一温度与同一风速的条件，只是书写形式不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到颜色明显变深，另一侧观察到干燥时间有所下降，观察到的现象不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-03": {
+            "case_id": "CASE-03",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低烘干后的含水率，另一侧要提高图像分类准确率，目标内容完全不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风干燥，另一侧训练卷积神经网络，核心方案与技术对象不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧给出的是干燥温度条件，另一侧给出的是训练批量设置，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧结果是含水率下降不足，另一侧结果是验证集准确率提高，属于不同领域的观察结论。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-04": {
+            "case_id": "CASE-04",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [
+              "condition"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达避免系统引用并不存在的历史记录，实质目标相同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧通过限定模型只能引用候选编号，另一侧通过增加引用后校验，具体做法不同。"
+              },
+              "condition": {
+                "state": "uncompared",
+                "reason": "源侧、候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧报告错误引用次数减少，另一侧报告仍偶尔出现无效引用，观察到的结论方向不一致。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-05": {
+            "case_id": "CASE-05",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要验证新干燥方案能否改善过程，另一侧要分析后半程失水速度变化，所指目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "调整热风参数与调整送风参数在干燥语境下表达的是同一核心行动，属于同义改写。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "两侧给出的干燥温度取值不同，条件内容不一致。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧都描述后半程干燥速度明显下降，观察结果完全相同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-06": {
+            "case_id": "CASE-06",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低药材干燥后的含水率，另一侧要提升嘈杂环境下的语音识别准确率，目标完全不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风循环干燥，另一侧加入降噪前端模块，核心方案不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧给出的是干燥温度条件，另一侧给出的是信噪比条件，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧结果是含水率下降不足，另一侧结果是识别错误率下降，观察结论不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-07": {
+            "case_id": "CASE-07",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal",
+              "actual_attempt",
+              "condition",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达避免系统生成或引用并不存在的历史记录，实质目标相同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达把候选记录编号集合交给模型并限定其只能从中选择引用，属于同义改写。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "固定候选集合与让模型只能看到预先给出的候选记录集合，表达的是同一条件。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "无效引用明显减少与幻觉引用减少表达的是同一观察结果，属于语义等价改写。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-08": {
+            "case_id": "CASE-08",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt"
+            ],
+            "uncompared_dimensions": [
+              "actual_result"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低干燥过程的表面开裂，另一侧要缩短干燥时间，待解决的问题不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "降低热风温度与降低干燥温度表达的是同一核心行动，属于同义改写。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "两侧给出的干燥温度取值不同，条件内容不一致。"
+              },
+              "actual_result": {
+                "state": "uncompared",
+                "reason": "候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          }
+        }
+      },
+      {
+        "run_id": "RUN-2",
+        "session": "独立判定会话 2",
+        "judgments": {
+          "CASE-01": {
+            "case_id": "CASE-01",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都表达把药材含水率降到目标范围的同一具体目标，只是措辞不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风配合提高风速，另一侧是真空冷冻干燥，核心方案完全不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧给出热风温度与风速条件，另一侧是冻结后真空干燥的条件，条件内容不相同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧是出现开裂且含水率仍偏高，另一侧是无明显开裂且含水率达标，结论方向相反。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-02": {
+            "case_id": "CASE-02",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低颜色变化，另一侧要缩短干燥时间，属于不同目标。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达采用同温度同风速的热风干燥，是同一方案的等价改写。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧表达的是同样的温度与风速条件，仅书写形式不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到颜色明显变深，另一侧观察到干燥时间下降，观察结果不是同一现象。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-03": {
+            "case_id": "CASE-03",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低烘干后含水率，另一侧要提高图像分类准确率，目标不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧用热风干燥，另一侧训练卷积神经网络，核心对象与行动不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧条件为温度，另一侧条件为批大小，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧是含水率下降不足，另一侧是验证集准确率提高，观察结果分属不同现象。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-04": {
+            "case_id": "CASE-04",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [
+              "condition"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都表达避免系统引用不存在的历史记录，是同一目标的不同说法。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是限制模型只能引用候选标识，另一侧是事后增加引用校验，做法不同。"
+              },
+              "condition": {
+                "state": "uncompared",
+                "reason": "源侧、候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧说错误引用次数减少，另一侧说仍偶尔出现无效引用，结论方向不一致。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-05": {
+            "case_id": "CASE-05",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要验证新干燥方案能否改善过程，另一侧要分析后半程失水速度变化，所针对的问题不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "调整热风参数与调整送风参数表达的是同一类且实质相同的参数调节行动。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧温度是五十五度，另一侧是五十度，具体条件不同。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧都表达后半程干燥速度明显下降这一相同观察结果。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-06": {
+            "case_id": "CASE-06",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低药材干燥后含水率，另一侧要提高嘈杂环境下的语音识别准确率，目标不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风循环干燥，另一侧是加入降噪前端模块，方案与对象均不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧条件是温度，另一侧条件是信噪比，条件内容不相同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧是含水率下降不足，另一侧是识别错误率下降，观察结果属于不同现象。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-07": {
+            "case_id": "CASE-07",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal",
+              "actual_attempt",
+              "condition",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都表达避免系统引用不存在的历史记录，是同一目标的等价表述。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达把候选标识集合交给模型并限定其只能从中选择引用，属于同一做法。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "固定候选集合与模型只能看到预先给出的候选记录集合，表达的是同一条件。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "无效引用明显减少与幻觉引用减少表达的是同一观察结果。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-08": {
+            "case_id": "CASE-08",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt"
+            ],
+            "uncompared_dimensions": [
+              "actual_result"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低干燥过程表面开裂，另一侧要缩短干燥时间，目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "降低热风温度与降低干燥温度表达的是同一实质行动。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧温度是五十度，另一侧是七十度，具体条件不同。"
+              },
+              "actual_result": {
+                "state": "uncompared",
+                "reason": "候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          }
+        }
+      },
+      {
+        "run_id": "RUN-3",
+        "session": "独立判定会话 3",
+        "judgments": {
+          "CASE-01": {
+            "case_id": "CASE-01",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达把药材干燥到目标含水率这一相同目标，只是措辞不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是靠提高风速的热风烘干，另一侧是真空冷冻干燥，具体做法不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧给出的是热风温度加风速的条件，另一侧是低温冻结后真空干燥的条件，内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧表现为表面开裂且含水率仍偏高，另一侧表现为无明显开裂且含水率达标，结论方向相反。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-02": {
+            "case_id": "CASE-02",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低颜色变化，另一侧要缩短整体干燥时间，具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达采用相同温度的热风干燥并保持相同风速，属于语义等价的改写。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧给出的温度与风速条件实质内容一致，只是书写方式略有差别。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到颜色明显变深，另一侧观察到干燥时间下降，观察结果不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-03": {
+            "case_id": "CASE-03",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低烘干后含水率，另一侧要提高图像分类准确率，具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风干燥，另一侧训练卷积神经网络，核心方案不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧条件为热风温度，另一侧条件为训练批量大小，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到含水率下降不足，另一侧观察到验证集准确率提高，观察结果不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-04": {
+            "case_id": "CASE-04",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [
+              "condition"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达避免系统引用不存在的历史记录这一相同目标，措辞互为改写。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧靠限制模型只能引用候选标识，另一侧靠增加引用后的校验，具体做法不同。"
+              },
+              "condition": {
+                "state": "uncompared",
+                "reason": "源侧、候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧是错误引用次数减少，另一侧是仍偶尔出现无效引用，结论方向不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-05": {
+            "case_id": "CASE-05",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要验证新干燥方案能否改善过程，另一侧要分析后半程失水速度变化，具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达调整热风送风参数这同一动作，属于语义等价的改写。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧设定的温度与另一侧设定的温度不同，条件内容不一致。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧都观察到后半程干燥速度明显下降，观察结果一致。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-06": {
+            "case_id": "CASE-06",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低药材干燥后的含水率，另一侧要提升嘈杂环境下的语音识别准确率，具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风循环干燥，另一侧加入降噪前端模块，核心方案不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧条件为干燥温度，另一侧条件为信噪比水平，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到含水率下降不足，另一侧观察到识别错误率下降，观察结果不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-07": {
+            "case_id": "CASE-07",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal",
+              "actual_attempt",
+              "condition",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达避免 AI 生成并不存在的历史记录引用这一相同目标，措辞互为改写。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达把允许引用的候选记录标识集合交给模型并限制其只能从中选择，属于语义等价的改写。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧都表达候选记录集合被预先固定并只向模型呈现这一条件，内容一致。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧都表达无效的幻觉引用明显减少，观察结果一致。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-08": {
+            "case_id": "CASE-08",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt"
+            ],
+            "uncompared_dimensions": [
+              "actual_result"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低干燥过程的表面开裂，另一侧要缩短干燥时间，具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达降低干燥所用的热风温度这一相同动作，属于语义等价的改写。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧设定的温度偏低而另一侧设定的温度偏高，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "uncompared",
+                "reason": "候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          }
+        }
+      }
+    ],
+    "validation": [],
+    "per_case": {
+      "CASE-01": {
+        "title": "仅 goal 命中",
+        "gold": {
+          "related": true,
+          "related_strict": true,
+          "matched_exact": [
+            "goal"
+          ],
+          "matched_must_include": [
+            "goal"
+          ],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-02": {
+        "title": "approach + condition 命中",
+        "gold": {
+          "related": true,
+          "related_strict": true,
+          "matched_exact": [
+            "actual_attempt",
+            "condition"
+          ],
+          "matched_must_include": [
+            "actual_attempt",
+            "condition"
+          ],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-03": {
+        "title": "Level A 全不重叠",
+        "gold": {
+          "related": false,
+          "related_strict": true,
+          "matched_exact": [],
+          "matched_must_include": [],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-04": {
+        "title": "unknown 必须进入 uncompared",
+        "gold": {
+          "related": null,
+          "related_strict": false,
+          "matched_exact": null,
+          "matched_must_include": [
+            "goal"
+          ],
+          "uncompared_exact": [
+            "condition"
+          ],
+          "dimensions_must_not_be_matched": [
+            "condition"
+          ]
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [
+              "condition"
+            ],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "uncompared",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [
+              "condition"
+            ],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "uncompared",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [
+              "condition"
+            ],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "uncompared",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-05": {
+        "title": "result_status = Unknown 不得污染 Level A",
+        "gold": {
+          "related": true,
+          "related_strict": true,
+          "matched_exact": null,
+          "matched_must_include": [
+            "actual_result"
+          ],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-06": {
+        "title": "Level B 陷阱（同 Project / 同标签 / 同环境）",
+        "gold": {
+          "related": false,
+          "related_strict": true,
+          "matched_exact": [],
+          "matched_must_include": [],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-07": {
+        "title": "语义改写压力样本",
+        "gold": {
+          "related": true,
+          "related_strict": true,
+          "matched_exact": [
+            "goal",
+            "actual_attempt",
+            "condition",
+            "actual_result"
+          ],
+          "matched_must_include": [
+            "goal",
+            "actual_attempt",
+            "condition",
+            "actual_result"
+          ],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result",
+              "condition",
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result",
+              "condition",
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result",
+              "condition",
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-08": {
+        "title": "matched + uncompared 混合",
+        "gold": {
+          "related": true,
+          "related_strict": true,
+          "matched_exact": null,
+          "matched_must_include": [
+            "actual_attempt"
+          ],
+          "uncompared_exact": [
+            "actual_result"
+          ],
+          "dimensions_must_not_be_matched": [
+            "actual_result"
+          ]
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "actual_attempt"
+            ],
+            "uncompared": [
+              "actual_result"
+            ],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "uncompared"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "actual_attempt"
+            ],
+            "uncompared": [
+              "actual_result"
+            ],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "uncompared"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "actual_attempt"
+            ],
+            "uncompared": [
+              "actual_result"
+            ],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "uncompared"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      }
+    },
+    "summary": {
+      "n_cases": 8,
+      "n_runs_per_case": 3,
+      "n_judgments": 24,
+      "cases_all_runs_match_gold": [
+        "CASE-01",
+        "CASE-02",
+        "CASE-03",
+        "CASE-04",
+        "CASE-05",
+        "CASE-06",
+        "CASE-07",
+        "CASE-08"
+      ],
+      "cases_with_deviation": [],
+      "unstable_related": [],
+      "unstable_matched_set": [],
+      "unstable_uncompared_set": [],
+      "schema_violations": 0,
+      "related_flip_cases": []
+    }
+  },
+  "extended_48": {
+    "runs": [
+      {
+        "run_id": "RUN-1",
+        "session": "独立判定会话 1",
+        "judgments": {
+          "CASE-01": {
+            "case_id": "CASE-01",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达把药材干燥到目标含水率这一相同目标。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风并提高风速，另一侧改用真空冷冻干燥，具体方案并不相同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风温度配合风速的条件，另一侧是低温冻结后真空干燥的条件，内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧描述表面开裂且含水率仍偏高，另一侧描述无明显开裂且含水率达标，观察结论方向相反。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-02": {
+            "case_id": "CASE-02",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低药材的颜色变化，另一侧要缩短整体干燥时间，待解决的问题不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达用热风干燥药材并保持同一风速，属于同义改写。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧给出的是同一温度与同一风速的条件，只是书写形式不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到颜色明显变深，另一侧观察到干燥时间有所下降，观察到的现象不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-03": {
+            "case_id": "CASE-03",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低烘干后的含水率，另一侧要提高图像分类准确率，目标内容完全不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风干燥，另一侧训练卷积神经网络，核心方案与技术对象不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧给出的是干燥温度条件，另一侧给出的是训练批量设置，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧结果是含水率下降不足，另一侧结果是验证集准确率提高，属于不同领域的观察结论。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-04": {
+            "case_id": "CASE-04",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [
+              "condition"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达避免系统引用并不存在的历史记录，实质目标相同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧通过限定模型只能引用候选编号，另一侧通过增加引用后校验，具体做法不同。"
+              },
+              "condition": {
+                "state": "uncompared",
+                "reason": "源侧、候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧报告错误引用次数减少，另一侧报告仍偶尔出现无效引用，观察到的结论方向不一致。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-05": {
+            "case_id": "CASE-05",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要验证新干燥方案能否改善过程，另一侧要分析后半程失水速度变化，所指目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "调整热风参数与调整送风参数在干燥语境下表达的是同一核心行动，属于同义改写。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "两侧给出的干燥温度取值不同，条件内容不一致。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧都描述后半程干燥速度明显下降，观察结果完全相同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-06": {
+            "case_id": "CASE-06",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低药材干燥后的含水率，另一侧要提升嘈杂环境下的语音识别准确率，目标完全不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风循环干燥，另一侧加入降噪前端模块，核心方案不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧给出的是干燥温度条件，另一侧给出的是信噪比条件，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧结果是含水率下降不足，另一侧结果是识别错误率下降，观察结论不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-07": {
+            "case_id": "CASE-07",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal",
+              "actual_attempt",
+              "condition",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达避免系统生成或引用并不存在的历史记录，实质目标相同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达把候选记录编号集合交给模型并限定其只能从中选择引用，属于同义改写。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "固定候选集合与让模型只能看到预先给出的候选记录集合，表达的是同一条件。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "无效引用明显减少与幻觉引用减少表达的是同一观察结果，属于语义等价改写。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-08": {
+            "case_id": "CASE-08",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt"
+            ],
+            "uncompared_dimensions": [
+              "actual_result"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低干燥过程的表面开裂，另一侧要缩短干燥时间，待解决的问题不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "降低热风温度与降低干燥温度表达的是同一核心行动，属于同义改写。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "两侧给出的干燥温度取值不同，条件内容不一致。"
+              },
+              "actual_result": {
+                "state": "uncompared",
+                "reason": "候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          }
+        }
+      },
+      {
+        "run_id": "RUN-2",
+        "session": "独立判定会话 2",
+        "judgments": {
+          "CASE-01": {
+            "case_id": "CASE-01",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都表达把药材含水率降到目标范围的同一具体目标，只是措辞不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风配合提高风速，另一侧是真空冷冻干燥，核心方案完全不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧给出热风温度与风速条件，另一侧是冻结后真空干燥的条件，条件内容不相同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧是出现开裂且含水率仍偏高，另一侧是无明显开裂且含水率达标，结论方向相反。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-02": {
+            "case_id": "CASE-02",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低颜色变化，另一侧要缩短干燥时间，属于不同目标。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达采用同温度同风速的热风干燥，是同一方案的等价改写。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧表达的是同样的温度与风速条件，仅书写形式不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到颜色明显变深，另一侧观察到干燥时间下降，观察结果不是同一现象。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-03": {
+            "case_id": "CASE-03",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低烘干后含水率，另一侧要提高图像分类准确率，目标不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧用热风干燥，另一侧训练卷积神经网络，核心对象与行动不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧条件为温度，另一侧条件为批大小，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧是含水率下降不足，另一侧是验证集准确率提高，观察结果分属不同现象。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-04": {
+            "case_id": "CASE-04",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [
+              "condition"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都表达避免系统引用不存在的历史记录，是同一目标的不同说法。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是限制模型只能引用候选标识，另一侧是事后增加引用校验，做法不同。"
+              },
+              "condition": {
+                "state": "uncompared",
+                "reason": "源侧、候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧说错误引用次数减少，另一侧说仍偶尔出现无效引用，结论方向不一致。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-05": {
+            "case_id": "CASE-05",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要验证新干燥方案能否改善过程，另一侧要分析后半程失水速度变化，所针对的问题不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "调整热风参数与调整送风参数表达的是同一类且实质相同的参数调节行动。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧温度是五十五度，另一侧是五十度，具体条件不同。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧都表达后半程干燥速度明显下降这一相同观察结果。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-06": {
+            "case_id": "CASE-06",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低药材干燥后含水率，另一侧要提高嘈杂环境下的语音识别准确率，目标不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风循环干燥，另一侧是加入降噪前端模块，方案与对象均不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧条件是温度，另一侧条件是信噪比，条件内容不相同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧是含水率下降不足，另一侧是识别错误率下降，观察结果属于不同现象。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-07": {
+            "case_id": "CASE-07",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal",
+              "actual_attempt",
+              "condition",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都表达避免系统引用不存在的历史记录，是同一目标的等价表述。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达把候选标识集合交给模型并限定其只能从中选择引用，属于同一做法。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "固定候选集合与模型只能看到预先给出的候选记录集合，表达的是同一条件。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "无效引用明显减少与幻觉引用减少表达的是同一观察结果。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-08": {
+            "case_id": "CASE-08",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt"
+            ],
+            "uncompared_dimensions": [
+              "actual_result"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低干燥过程表面开裂，另一侧要缩短干燥时间，目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "降低热风温度与降低干燥温度表达的是同一实质行动。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧温度是五十度，另一侧是七十度，具体条件不同。"
+              },
+              "actual_result": {
+                "state": "uncompared",
+                "reason": "候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          }
+        }
+      },
+      {
+        "run_id": "RUN-3",
+        "session": "独立判定会话 3",
+        "judgments": {
+          "CASE-01": {
+            "case_id": "CASE-01",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达把药材干燥到目标含水率这一相同目标，只是措辞不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是靠提高风速的热风烘干，另一侧是真空冷冻干燥，具体做法不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧给出的是热风温度加风速的条件，另一侧是低温冻结后真空干燥的条件，内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧表现为表面开裂且含水率仍偏高，另一侧表现为无明显开裂且含水率达标，结论方向相反。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-02": {
+            "case_id": "CASE-02",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低颜色变化，另一侧要缩短整体干燥时间，具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达采用相同温度的热风干燥并保持相同风速，属于语义等价的改写。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧给出的温度与风速条件实质内容一致，只是书写方式略有差别。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到颜色明显变深，另一侧观察到干燥时间下降，观察结果不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-03": {
+            "case_id": "CASE-03",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低烘干后含水率，另一侧要提高图像分类准确率，具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风干燥，另一侧训练卷积神经网络，核心方案不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧条件为热风温度，另一侧条件为训练批量大小，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到含水率下降不足，另一侧观察到验证集准确率提高，观察结果不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-04": {
+            "case_id": "CASE-04",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [
+              "condition"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达避免系统引用不存在的历史记录这一相同目标，措辞互为改写。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧靠限制模型只能引用候选标识，另一侧靠增加引用后的校验，具体做法不同。"
+              },
+              "condition": {
+                "state": "uncompared",
+                "reason": "源侧、候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧是错误引用次数减少，另一侧是仍偶尔出现无效引用，结论方向不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-05": {
+            "case_id": "CASE-05",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要验证新干燥方案能否改善过程，另一侧要分析后半程失水速度变化，具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达调整热风送风参数这同一动作，属于语义等价的改写。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧设定的温度与另一侧设定的温度不同，条件内容不一致。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧都观察到后半程干燥速度明显下降，观察结果一致。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-06": {
+            "case_id": "CASE-06",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低药材干燥后的含水率，另一侧要提升嘈杂环境下的语音识别准确率，具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风循环干燥，另一侧加入降噪前端模块，核心方案不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧条件为干燥温度，另一侧条件为信噪比水平，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到含水率下降不足，另一侧观察到识别错误率下降，观察结果不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-07": {
+            "case_id": "CASE-07",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal",
+              "actual_attempt",
+              "condition",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达避免 AI 生成并不存在的历史记录引用这一相同目标，措辞互为改写。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达把允许引用的候选记录标识集合交给模型并限制其只能从中选择，属于语义等价的改写。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧都表达候选记录集合被预先固定并只向模型呈现这一条件，内容一致。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧都表达无效的幻觉引用明显减少，观察结果一致。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-08": {
+            "case_id": "CASE-08",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt"
+            ],
+            "uncompared_dimensions": [
+              "actual_result"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低干燥过程的表面开裂，另一侧要缩短干燥时间，具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都表达降低干燥所用的热风温度这一相同动作，属于语义等价的改写。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧设定的温度偏低而另一侧设定的温度偏高，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "uncompared",
+                "reason": "候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          }
+        }
+      },
+      {
+        "run_id": "RUN-4",
+        "session": "独立判定会话 4",
+        "judgments": {
+          "CASE-01": {
+            "case_id": "CASE-01",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达把药材干燥到目标含水率，只是措辞与语序不同，实质目标一致。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧用热风并提高风速，另一侧用真空冷冻干燥，属于不同的干燥做法。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风温度与风速的组合，另一侧是冻结后真空干燥的低温条件，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧报告出现开裂且含水率仍偏高，另一侧报告没有开裂且含水率达标，观察结论相反。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-02": {
+            "case_id": "CASE-02",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧关注药材颜色变化，另一侧关注整体干燥时长，待解决的问题不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都是同一温度热风干燥并保持同一风速，方案表述等价。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧的温度与风速取值完全一致，只是书写繁简不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧说颜色变深，另一侧说干燥时间下降，观察到的现象不是同一回事。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-03": {
+            "case_id": "CASE-03",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧是降低烘干后含水率，另一侧是提高图像分类准确率，属于完全不同的目标。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风干燥，另一侧是训练卷积神经网络，核心行动与技术对象不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧给出干燥温度，另一侧给出训练批大小，条件内容互不相干。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧说含水率下降不足，另一侧说验证集准确率提高，结论方向不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-04": {
+            "case_id": "CASE-04",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [
+              "condition"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都指向不让系统引用并不存在的历史记录，是同一目标的不同说法。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧靠限制模型可选引用范围，另一侧靠引用之后的校验，做法不同。"
+              },
+              "condition": {
+                "state": "uncompared",
+                "reason": "源侧、候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧说错误引用次数减少，另一侧说仍偶尔出现无效引用，描述的结果状态并不等价。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-05": {
+            "case_id": "CASE-05",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧是验证新干燥方案能否改善过程，另一侧是分析后半程失水速度变化，具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧说的都是调整送风即热风的参数，实质是同一做法。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "两侧给出的温度取值不同，条件不构成等价。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧描述的后半程干燥速度变化完全一致。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-06": {
+            "case_id": "CASE-06",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧是降低药材干燥后的含水率，另一侧是提升嘈杂环境下的语音识别准确率，目标不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风循环干燥，另一侧是加入降噪前端模块，方案与技术对象不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧是干燥温度，另一侧是信噪比，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧说含水率下降不足，另一侧说识别错误率下降，观察结论不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-07": {
+            "case_id": "CASE-07",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal",
+              "actual_attempt",
+              "condition",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都要求 AI 不引用不存在或虚假的历史记录，目标一致。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都是把可引用的候选记录编号交给模型并限制其只能从中选择，做法等价。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧都限定模型只能看到预先给定的候选记录集合，条件一致。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "一侧说无效引用明显减少，另一侧说幻觉引用减少，观察结论等价。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-08": {
+            "case_id": "CASE-08",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt"
+            ],
+            "uncompared_dimensions": [
+              "actual_result"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧关注干燥过程表面开裂，另一侧关注干燥时间，待解决的问题不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧说的都是把干燥温度降下来，做法实质相同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "两侧的温度取值不同，条件不等价。"
+              },
+              "actual_result": {
+                "state": "uncompared",
+                "reason": "候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          }
+        }
+      },
+      {
+        "run_id": "RUN-5",
+        "session": "独立判定会话 5",
+        "judgments": {
+          "CASE-01": {
+            "case_id": "CASE-01",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达把药材含水率降到目标水平这一相同目标。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风并提高风速，另一侧采用真空冷冻干燥，具体做法不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风温度与风速条件，另一侧是冻结后真空干燥的条件，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧报告出现开裂且含水率仍偏高，另一侧报告无明显开裂且含水率达标，结论方向相反。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-02": {
+            "case_id": "CASE-02",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧着眼于减少颜色变化，另一侧着眼于缩短干燥时间，待解决的问题不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都是以同一温度的热风并按同一风速进行干燥，做法实质一致。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧条件都是该温度与同一风速，只是写法繁简不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到颜色明显变深，另一侧观察到干燥时间下降，观察到的现象不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-03": {
+            "case_id": "CASE-03",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低含水率，另一侧要提高图像分类准确率，目标属于完全不同的问题。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风干燥，另一侧训练卷积神经网络，方案对象毫无关联。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧是干燥温度条件，另一侧是训练批大小设置，条件内容完全不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧是含水率下降不足，另一侧是验证集准确率提高，结论方向不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-04": {
+            "case_id": "CASE-04",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [
+              "condition"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都指向避免模型引用不存在的历史记录这一相同问题。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧靠限制模型可引用的范围来约束，另一侧靠在引用之后增加校验，采取的行动不同。"
+              },
+              "condition": {
+                "state": "uncompared",
+                "reason": "源侧、候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧报告错误引用次数减少，另一侧报告仍偶有无效引用，观察到的结果不一致。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-05": {
+            "case_id": "CASE-05",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要验证新方案能否改善整个干燥过程，另一侧要分析后半程失水速度的变化，关注的具体目标不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "一侧调整热风参数，另一侧调整送风参数，指的是同一类参数调整，行动实质相同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "两侧设定的温度取值不同，条件内容不一致。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧都报告后半程干燥速度明显下降，观察到的现象相同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-06": {
+            "case_id": "CASE-06",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低药材含水率，另一侧要提高嘈杂环境下的语音识别准确率，目标完全不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风循环干燥，另一侧加入降噪前端模块，方案对象不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧是干燥温度条件，另一侧是信噪比条件，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧是含水率下降不足，另一侧是识别错误率下降，观察结论不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-07": {
+            "case_id": "CASE-07",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal",
+              "actual_attempt",
+              "condition",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都表达避免系统生成或引用不存在的历史记录这一相同目标。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "一侧把可引用的记录列表交给模型并限制输出，另一侧要求模型只能从给定候选中选择引用，做法实质相同。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧都限定模型只能在预先给定的候选记录范围内引用，条件内容一致。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧都报告无效或虚假引用减少，观察到的现象相同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-08": {
+            "case_id": "CASE-08",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt"
+            ],
+            "uncompared_dimensions": [
+              "actual_result"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要减少表面开裂，另一侧要缩短干燥时间，待解决的问题不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都是降低干燥温度，行动实质相同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "两侧给出的温度取值不同，条件内容不一致。"
+              },
+              "actual_result": {
+                "state": "uncompared",
+                "reason": "候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          }
+        }
+      },
+      {
+        "run_id": "RUN-6",
+        "session": "独立判定会话 6",
+        "judgments": {
+          "CASE-01": {
+            "case_id": "CASE-01",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达把药材干燥到目标含水率这一相同目标。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧采用热风并提高风速，另一侧采用真空冷冻干燥，具体方案不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风温度与风速条件，另一侧是先冻结再真空干燥的条件，内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧出现开裂且含水率偏高，另一侧无开裂且含水率达标，观察结论方向相反。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-02": {
+            "case_id": "CASE-02",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低颜色变化，另一侧要缩短干燥时间，目标内容不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都是采用热风干燥并保持同样风速的同一做法。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧的温度和风速表达内容一致。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧观察到颜色变深，另一侧观察到干燥时间下降，结果内容不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-03": {
+            "case_id": "CASE-03",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低药材含水率，另一侧要提高图像分类准确率，目标内容不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风干燥，另一侧是训练卷积神经网络，核心方案不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧给出干燥温度，另一侧给出批大小，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧含水率下降不足，另一侧验证集准确率提高，结果内容不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-04": {
+            "case_id": "CASE-04",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal"
+            ],
+            "uncompared_dimensions": [
+              "condition"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达避免系统引用不存在的历史记录这一相同目标。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧限制模型只能引用候选标识，另一侧增加引用后校验，做法不同。"
+              },
+              "condition": {
+                "state": "uncompared",
+                "reason": "源侧、候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧错误引用次数减少，另一侧仍偶尔出现无效引用，观察结论方向不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-05": {
+            "case_id": "CASE-05",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要验证新干燥方案能否改善过程，另一侧要分析后半程失水速度变化，目标内容不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "调整热风参数与调整送风参数表达的是同一核心做法。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "两侧给出的温度条件取值不同。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "两侧表达的是同一观察现象，即后半程干燥速度明显下降。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-06": {
+            "case_id": "CASE-06",
+            "related": false,
+            "matched_level_a_dimensions": [],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低药材含水率，另一侧要提升嘈杂环境下的语音识别准确率，目标内容不同。"
+              },
+              "actual_attempt": {
+                "state": "compared_not_matched",
+                "reason": "一侧是热风循环干燥，另一侧是加入降噪前端模块，核心方案不同。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "一侧给出干燥温度，另一侧给出信噪比，条件内容不同。"
+              },
+              "actual_result": {
+                "state": "compared_not_matched",
+                "reason": "一侧含水率下降不足，另一侧识别错误率下降，结果内容不同。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-07": {
+            "case_id": "CASE-07",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "goal",
+              "actual_attempt",
+              "condition",
+              "actual_result"
+            ],
+            "uncompared_dimensions": [],
+            "dimension_results": {
+              "goal": {
+                "state": "matched",
+                "reason": "两侧都在表达避免 AI 生成或引用不存在的历史记录这一相同目标。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "两侧都是把候选记录标识交给模型并限定其只能从候选中选择引用的同一做法。"
+              },
+              "condition": {
+                "state": "matched",
+                "reason": "两侧都在表达模型仅能看到预先给定的候选记录集合这一相同条件。"
+              },
+              "actual_result": {
+                "state": "matched",
+                "reason": "无效引用明显减少与幻觉引用减少表达的是同一观察结果。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          },
+          "CASE-08": {
+            "case_id": "CASE-08",
+            "related": true,
+            "matched_level_a_dimensions": [
+              "actual_attempt"
+            ],
+            "uncompared_dimensions": [
+              "actual_result"
+            ],
+            "dimension_results": {
+              "goal": {
+                "state": "compared_not_matched",
+                "reason": "一侧要降低干燥过程的表面开裂，另一侧要缩短干燥时间，目标内容不同。"
+              },
+              "actual_attempt": {
+                "state": "matched",
+                "reason": "降低热风温度与降低干燥温度表达的是同一核心做法。"
+              },
+              "condition": {
+                "state": "compared_not_matched",
+                "reason": "两侧给出的温度条件取值不同。"
+              },
+              "actual_result": {
+                "state": "uncompared",
+                "reason": "候选侧该维度为「未提供 / 未知」，按规则不参与比对。"
+              }
+            },
+            "implementation_defects": [],
+            "_gold_deviations": []
+          }
+        }
+      }
+    ],
+    "validation": [],
+    "per_case": {
+      "CASE-01": {
+        "title": "仅 goal 命中",
+        "gold": {
+          "related": true,
+          "related_strict": true,
+          "matched_exact": [
+            "goal"
+          ],
+          "matched_must_include": [
+            "goal"
+          ],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-4",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-5",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-6",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-02": {
+        "title": "approach + condition 命中",
+        "gold": {
+          "related": true,
+          "related_strict": true,
+          "matched_exact": [
+            "actual_attempt",
+            "condition"
+          ],
+          "matched_must_include": [
+            "actual_attempt",
+            "condition"
+          ],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-4",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-5",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-6",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "condition"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-03": {
+        "title": "Level A 全不重叠",
+        "gold": {
+          "related": false,
+          "related_strict": true,
+          "matched_exact": [],
+          "matched_must_include": [],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-4",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-5",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-6",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-04": {
+        "title": "unknown 必须进入 uncompared",
+        "gold": {
+          "related": null,
+          "related_strict": false,
+          "matched_exact": null,
+          "matched_must_include": [
+            "goal"
+          ],
+          "uncompared_exact": [
+            "condition"
+          ],
+          "dimensions_must_not_be_matched": [
+            "condition"
+          ]
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [
+              "condition"
+            ],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "uncompared",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [
+              "condition"
+            ],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "uncompared",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [
+              "condition"
+            ],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "uncompared",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-4",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [
+              "condition"
+            ],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "uncompared",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-5",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [
+              "condition"
+            ],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "uncompared",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-6",
+            "related": true,
+            "matched": [
+              "goal"
+            ],
+            "uncompared": [
+              "condition"
+            ],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "uncompared",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-05": {
+        "title": "result_status = Unknown 不得污染 Level A",
+        "gold": {
+          "related": true,
+          "related_strict": true,
+          "matched_exact": null,
+          "matched_must_include": [
+            "actual_result"
+          ],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-4",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-5",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-6",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-06": {
+        "title": "Level B 陷阱（同 Project / 同标签 / 同环境）",
+        "gold": {
+          "related": false,
+          "related_strict": true,
+          "matched_exact": [],
+          "matched_must_include": [],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-4",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-5",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-6",
+            "related": false,
+            "matched": [],
+            "uncompared": [],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "compared_not_matched",
+              "condition": "compared_not_matched",
+              "actual_result": "compared_not_matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-07": {
+        "title": "语义改写压力样本",
+        "gold": {
+          "related": true,
+          "related_strict": true,
+          "matched_exact": [
+            "goal",
+            "actual_attempt",
+            "condition",
+            "actual_result"
+          ],
+          "matched_must_include": [
+            "goal",
+            "actual_attempt",
+            "condition",
+            "actual_result"
+          ],
+          "uncompared_exact": [],
+          "dimensions_must_not_be_matched": []
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result",
+              "condition",
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result",
+              "condition",
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result",
+              "condition",
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-4",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result",
+              "condition",
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-5",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result",
+              "condition",
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-6",
+            "related": true,
+            "matched": [
+              "actual_attempt",
+              "actual_result",
+              "condition",
+              "goal"
+            ],
+            "uncompared": [],
+            "states": {
+              "goal": "matched",
+              "actual_attempt": "matched",
+              "condition": "matched",
+              "actual_result": "matched"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      },
+      "CASE-08": {
+        "title": "matched + uncompared 混合",
+        "gold": {
+          "related": true,
+          "related_strict": true,
+          "matched_exact": null,
+          "matched_must_include": [
+            "actual_attempt"
+          ],
+          "uncompared_exact": [
+            "actual_result"
+          ],
+          "dimensions_must_not_be_matched": [
+            "actual_result"
+          ]
+        },
+        "runs": [
+          {
+            "run_id": "RUN-1",
+            "related": true,
+            "matched": [
+              "actual_attempt"
+            ],
+            "uncompared": [
+              "actual_result"
+            ],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "uncompared"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-2",
+            "related": true,
+            "matched": [
+              "actual_attempt"
+            ],
+            "uncompared": [
+              "actual_result"
+            ],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "uncompared"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-3",
+            "related": true,
+            "matched": [
+              "actual_attempt"
+            ],
+            "uncompared": [
+              "actual_result"
+            ],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "uncompared"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-4",
+            "related": true,
+            "matched": [
+              "actual_attempt"
+            ],
+            "uncompared": [
+              "actual_result"
+            ],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "uncompared"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-5",
+            "related": true,
+            "matched": [
+              "actual_attempt"
+            ],
+            "uncompared": [
+              "actual_result"
+            ],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "uncompared"
+            },
+            "deviations": []
+          },
+          {
+            "run_id": "RUN-6",
+            "related": true,
+            "matched": [
+              "actual_attempt"
+            ],
+            "uncompared": [
+              "actual_result"
+            ],
+            "states": {
+              "goal": "compared_not_matched",
+              "actual_attempt": "matched",
+              "condition": "compared_not_matched",
+              "actual_result": "uncompared"
+            },
+            "deviations": []
+          }
+        ],
+        "stable_related": true,
+        "stable_matched_set": true,
+        "stable_uncompared_set": true,
+        "all_runs_match_gold": true
+      }
+    },
+    "summary": {
+      "n_cases": 8,
+      "n_runs_per_case": 6,
+      "n_judgments": 48,
+      "cases_all_runs_match_gold": [
+        "CASE-01",
+        "CASE-02",
+        "CASE-03",
+        "CASE-04",
+        "CASE-05",
+        "CASE-06",
+        "CASE-07",
+        "CASE-08"
+      ],
+      "cases_with_deviation": [],
+      "unstable_related": [],
+      "unstable_matched_set": [],
+      "unstable_uncompared_set": [],
+      "schema_violations": 0,
+      "related_flip_cases": []
+    }
+  },
+  "SP-03R_RESULT": "PASS",
+  "result_basis": {
+    "h_pass": "10 / 10",
+    "R_all_pass_primary": true,
+    "primary_stable_matched_set": true,
+    "primary_stable_related": true,
+    "primary_stable_uncompared_set": true,
+    "note": "SP-03R 只给出技术实验证据；不下 TQ04 结论。"
+  }
+}

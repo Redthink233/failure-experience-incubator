@@ -1,0 +1,896 @@
+/*
+ * S01-06 ｜ App Shell stylesheet.
+ *
+ * 🔴 VISUAL LANGUAGE (task §53): a research tool that looks trustworthy. Light background, neutral
+ *    grey text, ONE indigo accent, green only for an explicit success, amber for a candidate /
+ *    something that needs attention, red only for a rejection or a real failure. No gradient, no
+ *    neon, no glassmorphism, no 3D.
+ * 🔴 COLOUR IS NEVER THE ONLY SIGNAL (task §59): every coloured state also carries a text label, so
+ *    the screen still reads correctly in greyscale.
+ * 🔴 DENSITY (task §54): the current step is the loudest thing on the screen, a finished step is
+ *    quieter but still readable, and a step that has not been reached is an outline.
+ * 🔴 DESKTOP FIRST (task §5): the three-column layout is the primary experience at 1280×720; below
+ *    ~1200px the Evidence Rail turns into an overlay drawer rather than being dropped.
+ */
+
+:root {
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --panel-soft: #fafbfc;
+  --line: #e2e5ea;
+  --line-strong: #cbd2dc;
+  --text: #232833;
+  --text-soft: #5b6472;
+  --text-faint: #8a93a2;
+  --accent: #3b5bdb;
+  --accent-soft: #eef1fd;
+  --ok: #2f855a;
+  --ok-soft: #eaf7f0;
+  --warn: #b7791f;
+  --warn-soft: #fdf6e6;
+  --danger: #c53030;
+  --danger-soft: #fdecec;
+  --radius: 8px;
+  --gap: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
+    'Hiragino Sans GB', sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* ---------- Top bar ---------- */
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: 10px 18px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.top-bar-brand .product-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.top-bar-brand .product-tagline {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.top-bar-status {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ---------- Badges ---------- */
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-soft);
+  color: var(--text-soft);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.badge-formal,
+.badge-step-done,
+.badge-insight-accepted {
+  background: var(--ok-soft);
+  border-color: #bfe3cd;
+  color: var(--ok);
+}
+
+.badge-draft,
+.badge-step-todo {
+  background: var(--panel-soft);
+  color: var(--text-faint);
+}
+
+.badge-step-current {
+  background: var(--accent-soft);
+  border-color: #c3cdf7;
+  color: var(--accent);
+}
+
+/* A Demo badge is deliberately not subtle (task §41). */
+.badge-demo {
+  background: var(--warn-soft);
+  border-color: #ecd39b;
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.badge-live,
+.badge-workspace,
+.badge-provider {
+  background: var(--panel-soft);
+  color: var(--text-soft);
+}
+
+.badge-archived {
+  background: #f1f2f4;
+  border-style: dashed;
+  color: var(--text-faint);
+}
+
+.badge-cause-accepted,
+.badge-decision-accepted {
+  background: var(--ok-soft);
+  border-color: #bfe3cd;
+  color: var(--ok);
+}
+
+.badge-cause-rejected,
+.badge-decision-rejected,
+.badge-insight-rejected {
+  background: var(--danger-soft);
+  border-color: #f0c4c4;
+  color: var(--danger);
+}
+
+.badge-cause-unresolved,
+.badge-decision-undecided,
+.badge-insight-candidate {
+  background: var(--warn-soft);
+  border-color: #ecd39b;
+  color: var(--warn);
+}
+
+.badge-model {
+  background: var(--warn-soft);
+  border-color: #ecd39b;
+  color: var(--warn);
+}
+
+.badge-grounded {
+  background: var(--accent-soft);
+  border-color: #c3cdf7;
+  color: var(--accent);
+}
+
+.badge-readonly {
+  color: var(--text-faint);
+}
+
+/* ---------- Layout ---------- */
+
+.app-layout {
+  display: grid;
+  /* M16 polish: the left rail carries Chinese titles + a 96-character excerpt, so 264px forced both
+     to wrap into tall, cramped lines. Widening it (and trimming the evidence rail, which only ever
+     shows short summaries) removes the squeezing without changing the three-region structure. */
+  grid-template-columns: 320px minmax(0, 1fr) 312px;
+  gap: var(--gap);
+  padding: var(--gap);
+  align-items: start;
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
+.workbench-column,
+.workbench {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  max-width: 900px;
+}
+
+/* Before authorization there are no rails, so the entry card spans the whole grid instead of
+   being squeezed into the rail column. */
+.workbench-solo {
+  grid-column: 1 / -1;
+  max-width: 820px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.rail {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  position: sticky;
+  top: 62px;
+  max-height: calc(100vh - 78px);
+  overflow: auto;
+}
+
+/* Below ~1200px the Evidence Rail becomes an overlay drawer instead of disappearing. */
+@media (max-width: 1200px) {
+  .app-layout {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+
+  .rail-right {
+    position: fixed;
+    top: 56px;
+    right: 0;
+    width: 340px;
+    max-height: calc(100vh - 68px);
+    box-shadow: -8px 0 24px rgb(35 40 51 / 12%);
+    z-index: 30;
+  }
+}
+
+/* ---------- Cards ---------- */
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.card-hero,
+.card-entry {
+  padding: 22px 20px;
+}
+
+.hero-title {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.hero-subtitle {
+  color: var(--text-soft);
+  margin: 0 0 12px;
+}
+
+.hero-steps,
+.plain-list {
+  margin: 8px 0;
+  padding-left: 20px;
+  color: var(--text-soft);
+}
+
+.plain-item {
+  list-style: none;
+}
+
+.section-title {
+  font-size: 16px;
+  margin: 12px 0 6px;
+}
+
+.sub-title {
+  font-size: 14px;
+  margin: 10px 0 6px;
+}
+
+.step-card {
+  border-left: 3px solid var(--line-strong);
+}
+
+.step-card.step-current {
+  border-left-color: var(--accent);
+  box-shadow: 0 1px 2px rgb(35 40 51 / 6%);
+}
+
+.step-card.step-done {
+  background: var(--panel-soft);
+}
+
+.step-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.step-number {
+  font-size: 16px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.step-question {
+  font-size: 15px;
+  flex: 1;
+}
+
+.step-card.step-todo .step-question {
+  color: var(--text-faint);
+}
+
+.hint,
+.note {
+  color: var(--text-faint);
+  font-size: 12px;
+  margin: 6px 0;
+}
+
+.raw-text {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--line-strong);
+  background: var(--panel-soft);
+  color: var(--text-soft);
+  white-space: pre-wrap;
+}
+
+/* ---------- Forms ---------- */
+
+.form-row {
+  margin: 8px 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-soft);
+  margin-bottom: 4px;
+}
+
+.input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+
+.input:focus-visible,
+.btn:focus-visible,
+.attempt-main:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.input-area {
+  resize: vertical;
+}
+
+.input-hero {
+  min-height: 120px;
+}
+
+.btn {
+  padding: 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-soft);
+}
+
+.btn-tiny {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+/* ---------- Left rail ---------- */
+
+.attempt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.attempt-item {
+  border-top: 1px solid var(--line);
+  padding: 8px 0;
+}
+
+.attempt-item.is-selected {
+  background: var(--accent-soft);
+  border-radius: 6px;
+  padding-left: 6px;
+}
+
+.attempt-item.is-archived {
+  opacity: 0.6;
+}
+
+.attempt-main {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.attempt-title {
+  font-weight: 600;
+}
+
+.attempt-excerpt,
+.attempt-time {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+/*
+ * M16 polish: the rail is a SUMMARY, and the view model already truncates the excerpt to a display
+ * budget (`ATTEMPT_SUMMARY_EXCERPT_MAX`). Clamping to three rendered lines is the visual counterpart
+ * of that same budget, so one record no longer swallows half the rail. The full text is never lost -
+ * it is what the centre panel renders when the line is opened.
+ */
+.attempt-excerpt {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  line-height: 1.45;
+}
+
+.attempt-title {
+  line-height: 1.35;
+}
+
+.attempt-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.attempt-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+/* ---------- Field grid (② / ③) ---------- */
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.field-cell {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--panel-soft);
+}
+
+/* An AI-produced value is visibly not the user's own words (task §19). */
+.field-cell.source-ai {
+  border-left: 3px solid var(--warn);
+}
+
+.field-cell.source-user {
+  border-left: 3px solid var(--ok);
+}
+
+.field-cell.source-unknown {
+  border-left: 3px dashed var(--line-strong);
+}
+
+.field-label {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.field-value {
+  white-space: pre-wrap;
+}
+
+.field-source,
+.field-origin {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* ---------- Follow-up ---------- */
+
+.followup {
+  border-top: 1px dashed var(--line-strong);
+  padding-top: 8px;
+  margin-top: 10px;
+}
+
+.question-box {
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--accent-soft);
+  margin: 6px 0;
+}
+
+.question-source,
+.layer-source,
+.cause-source,
+.insight-source,
+.evidence-path {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.question-text {
+  font-weight: 600;
+}
+
+.layer {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 9px;
+  margin: 6px 0;
+}
+
+.layer-user {
+  border-left: 3px solid var(--ok);
+}
+
+.layer-ai {
+  border-left: 3px solid var(--warn);
+}
+
+/* ---------- ④ / ⑦ / ⑧ / ⑨ cards ---------- */
+
+.cause-card,
+.comparison-card,
+.insight-card,
+.hypothesis-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin: 8px 0;
+  background: var(--panel-soft);
+}
+
+.cause-card.state-accepted {
+  border-left: 3px solid var(--ok);
+}
+
+.cause-card.state-rejected {
+  border-left: 3px solid var(--danger);
+}
+
+.cause-card.state-unresolved {
+  border-left: 3px dashed var(--warn);
+}
+
+.insight-card.state-accepted,
+.insight-card.is-asset {
+  border-left: 3px solid var(--ok);
+}
+
+.insight-card.state-candidate {
+  border-left: 3px solid var(--warn);
+}
+
+.insight-card.state-rejected {
+  border-left: 3px solid var(--danger);
+}
+
+.hypothesis-card.is-grounded {
+  border-left: 3px solid var(--accent);
+}
+
+.hypothesis-card.is-model {
+  border-left: 3px solid var(--warn);
+  border-style: dashed;
+}
+
+.insight-head,
+.hypothesis-head,
+.cause-meta,
+.evidence-head,
+.evidence-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.insight-proposition,
+.cause-statement,
+.item-value,
+.layer-value {
+  white-space: pre-wrap;
+}
+
+.point-block {
+  border-top: 1px dotted var(--line-strong);
+  padding: 6px 0;
+}
+
+.point-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.point-dim {
+  color: var(--text-faint);
+  margin-right: 6px;
+}
+
+.gate-list {
+  margin: 6px 0;
+}
+
+.gate {
+  padding: 4px 0;
+  border-top: 1px dotted var(--line);
+}
+
+.gate-ok .gate-head {
+  color: var(--ok);
+}
+
+.gate-missing .gate-head {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.gate-missing-item {
+  border-left: 2px solid var(--warn-soft);
+  padding-left: 8px;
+  margin: 4px 0;
+}
+
+.kv {
+  display: flex;
+  gap: 8px;
+  margin: 3px 0;
+}
+
+.kv-key {
+  flex: 0 0 96px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.kv-value {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+}
+
+.item {
+  border-top: 1px dotted var(--line-strong);
+  padding: 6px 0;
+}
+
+.item-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.item-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.item-missing {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.criterion {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 6px 0;
+  background: #fff;
+}
+
+.criterion.source-ai {
+  border-left: 3px solid var(--warn);
+}
+
+.criterion.source-user {
+  border-left: 3px solid var(--ok);
+}
+
+.trace-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px dotted var(--line-strong);
+  padding: 6px 0;
+}
+
+.trace-title {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- Evidence rail ---------- */
+
+.evidence-row {
+  border-top: 1px solid var(--line);
+  padding: 8px 0;
+}
+
+.evidence-field {
+  font-weight: 600;
+}
+
+.evidence-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+}
+
+.role {
+  font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text-soft);
+}
+
+.role-依据,
+.role-grounding {
+  border-color: #c3cdf7;
+  color: var(--accent);
+}
+
+.role-支持,
+.role-support {
+  border-color: #bfe3cd;
+  color: var(--ok);
+}
+
+.role-反驳,
+.role-contradict {
+  border-color: #f0c4c4;
+  color: var(--danger);
+}
+
+.role-上下文,
+.role-context {
+  color: var(--text-faint);
+}
+
+/* ---------- Notices ---------- */
+
+.notice-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notice-card,
+.notice {
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 6px 0;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-soft);
+}
+
+/* A GATE is something to add; a RUNTIME failure is the system not finishing (task §44). */
+.notice-gate {
+  border-left: 4px solid var(--warn);
+  background: var(--warn-soft);
+}
+
+.notice-runtime {
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+/*
+ * NEITHER gate NOR runtime: nothing failed and nothing is missing from the record. This one says
+ * the requested action needs a model, and it is the only notice-shaped element that offers a
+ * settings button instead of a retry (S01-06B §8).
+ */
+.notice-guide {
+  border-left: 4px solid var(--line-strong);
+  background: var(--panel-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.notice-heading {
+  font-weight: 600;
+}
+
+.notice-hint {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.progress {
+  color: var(--accent);
+}
+
+.success {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+/* ---------- Settings overlay ---------- */
+
+.settings-layer.is-hidden {
+  display: none;
+}
+
+.settings-layer {
+  position: fixed;
+  inset: 0;
+  background: rgb(35 40 51 / 28%);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 40;
+}
+
+.card-settings {
+  width: 420px;
+  max-width: 92vw;
+  height: 100%;
+  overflow: auto;
+  border-radius: 0;
+  border-left: 1px solid var(--line);
+}

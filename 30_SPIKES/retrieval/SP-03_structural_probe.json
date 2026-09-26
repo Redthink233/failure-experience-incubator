@@ -1,0 +1,29 @@
+{
+  "ok": {
+    "H1_H8_unknown_not_sent_to_model": true,
+    "H3_level_b_not_in_model_input": true,
+    "H9_result_status_irrelevant": true,
+    "H4_inference_excluded": true,
+    "H2_validator_positive_control": true,
+    "H10_no_embedding_needed": true,
+    "H5_related_derived": true
+  },
+  "detail": [
+    "PROBE-H1/H8  unknown 维度不进模型输入 : PASS",
+    "PROBE-H3(输入) Level B 不进模型输入      : PASS",
+    "PROBE-H9       result_status 不影响判定输入 : PASS",
+    "PROBE-H4       Inference 不进 Level A     : PASS",
+    "PROBE-H2       校验器正对照（应报违禁）  : PASS",
+    "    · positive_control.dimension_results.goal.similarity -> 违禁字段名「similarity」",
+    "    · positive_control.dimension_results.goal.similarity -> 出现裸数值 0.87（判定输出不得含任何数值）",
+    "    · positive_control.dimension_results.goal.confidence -> 违禁字段名「confidence」",
+    "    · positive_control.dimension_results.goal.confidence -> 出现裸数值 0.9（判定输出不得含任何数值）",
+    "    · positive_control.dimension_results.actual_attempt.score -> 违禁字段名「score」",
+    "    · positive_control.dimension_results.actual_attempt.score -> 出现裸数值 3（判定输出不得含任何数值）",
+    "    违禁键命中数 = 3（similarity / confidence / score 应被全部命中）",
+    "PROBE-H10      无 embedding 即可形成命中集合: PASS（判定链仅含结构规则 + 布尔判定，无向量组件）",
+    "PROBE-H5       related 由 matched 集合派生  : PASS（assemble_judgment 中相关断言的唯一来源）",
+    "",
+    "结构性探针汇总：{\"H1_H8_unknown_not_sent_to_model\": true, \"H3_level_b_not_in_model_input\": true, \"H9_result_status_irrelevant\": true, \"H4_inference_excluded\": true, \"H2_validator_positive_control\": true, \"H10_no_embedding_needed\": true, \"H5_related_derived\": true}"
+  ]
+}

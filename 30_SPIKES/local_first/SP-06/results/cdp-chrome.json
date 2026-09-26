@@ -1,0 +1,388 @@
+{
+  "browser_key": "chrome",
+  "exe": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "NATURE": "DISPOSABLE / NON-PRODUCTION",
+  "LIMITATION": "🔴 无法自动化的项：原生 folder picker 与用户手势（Select Workspace / 读 / 建 / 改 / 改名 / 撤销权限）⇒ MANUAL OBSERVATION。本探针只覆盖不需手势的观测。",
+  "steps": [
+    {
+      "step": "navigate probe page",
+      "ready": "complete"
+    },
+    {
+      "step": "feature detect",
+      "result": {
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+        "isSecureContext": true,
+        "location_origin": "http://127.0.0.1:8791",
+        "hasShowDirectoryPicker": true,
+        "hasShowOpenFilePicker": true,
+        "hasShowSaveFilePicker": true,
+        "hasFileSystemHandle": true,
+        "hasFileSystemDirectoryHandle": true,
+        "hasSessionStorage": true,
+        "hasLocalStorage": true,
+        "hasIndexedDB": true,
+        "hasCookieEnabled": true,
+        "hasCachesAPI": true,
+        "visibilityState": "visible",
+        "NOTE": "能力存在 ≠ 交互可用；原生 picker 必须由真实用户手势触发（见 S6-01/S6-04–S6-07）"
+      }
+    }
+  ],
+  "browser_version_cli": "�������е�������Ự�д򿪡�",
+  "server_spawn_pid": 2180,
+  "probe_server": {
+    "ok": true,
+    "port": 8791
+  },
+  "browser_profile_dir": "C:\\Users\\Red16\\AppData\\Local\\Temp\\sp06-chrome-uTSXDk",
+  "browser_spawn_pid": 26668,
+  "cdp_version": {
+    "Browser": "Chrome/154.0.8037.57",
+    "Protocol-Version": "1.3",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+    "V8-Version": "15.4.80.11",
+    "WebKit-Version": "537.36 (@73c14f6228d7cd537c855007e8f88678969cc0eb)",
+    "webSocketDebuggerUrl": "ws://127.0.0.1:9331/devtools/browser/75b39ff3-b625-4449-8798-49f75fb088ca"
+  },
+  "target": {
+    "id": "B5466E650B4AE3E9BD0901E07E23F7EE",
+    "type": "page",
+    "url": "about:blank"
+  },
+  "feature_detect": {
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+    "isSecureContext": true,
+    "location_origin": "http://127.0.0.1:8791",
+    "hasShowDirectoryPicker": true,
+    "hasShowOpenFilePicker": true,
+    "hasShowSaveFilePicker": true,
+    "hasFileSystemHandle": true,
+    "hasFileSystemDirectoryHandle": true,
+    "hasSessionStorage": true,
+    "hasLocalStorage": true,
+    "hasIndexedDB": true,
+    "hasCookieEnabled": true,
+    "hasCachesAPI": true,
+    "visibilityState": "visible",
+    "NOTE": "能力存在 ≠ 交互可用；原生 picker 必须由真实用户手势触发（见 S6-01/S6-04–S6-07）"
+  },
+  "automated": {
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+    "items": {
+      "leak": {
+        "sessionStorage_present": true,
+        "sessionStorage_contains_marker": true,
+        "localStorage_keys": [],
+        "localStorage_contains_marker": false,
+        "indexedDB_databases": [],
+        "cookie_contains_marker": false,
+        "cookie_names": [],
+        "caches_keys": [],
+        "durable_leak_found": false
+      },
+      "direct_cors": {
+        "ok": true,
+        "cross_origin": true,
+        "page_origin": "http://127.0.0.1:8791",
+        "provider_origin": "http://127.0.0.1:8792",
+        "status": 200,
+        "cors_passed": true,
+        "provider": "MOCK_CORS_CAPABLE_CROSS_ORIGIN",
+        "cors_header_sent": "Access-Control-Allow-Origin: *",
+        "auth_header_present_at_provider": true,
+        "credential_echoed_by_provider": "REDACTED"
+      },
+      "direct_no_cors": {
+        "ok": false,
+        "cross_origin": true,
+        "cors_passed": false,
+        "error": "TypeError: Failed to fetch",
+        "interpretation": "这是 D-055 中\"Browser Direct 不可行\"的真实浏览器观测：缺少 CORS 响应头 ⇒ 跨源请求被浏览器拦截"
+      },
+      "via_proxy": {
+        "ok": true,
+        "status": 200,
+        "proxy": "THIN",
+        "resolved_by": "provider_id → registered adapter → fixed host",
+        "forwarded_to": "http://127.0.0.1:8791/mock/provider-no-cors",
+        "credential_leaked_to_log": false
+      },
+      "arbitrary_target": {
+        "registered_provider + target_url=loopback": {
+          "status": 200,
+          "error": null,
+          "ignored_client_target_fields": [
+            "target_url"
+          ],
+          "target_url_followed": false,
+          "forwarded_to": "http://127.0.0.1:8791/mock/provider-no-cors"
+        },
+        "registered_provider + target_url=metadata": {
+          "status": 200,
+          "error": null,
+          "ignored_client_target_fields": [
+            "target_url"
+          ],
+          "target_url_followed": false,
+          "forwarded_to": "http://127.0.0.1:8791/mock/provider-no-cors"
+        },
+        "unknown provider + target_url": {
+          "status": 400,
+          "error": "UNKNOWN_PROVIDER",
+          "ignored_client_target_fields": [
+            "target_url"
+          ],
+          "target_url_followed": null,
+          "forwarded_to": null
+        },
+        "no provider_id + target_url": {
+          "status": 400,
+          "error": "PROVIDER_ID_REQUIRED",
+          "ignored_client_target_fields": [
+            "target_url"
+          ],
+          "target_url_followed": null,
+          "forwarded_to": null
+        },
+        "registered_provider + base_url + host + scheme": {
+          "status": 200,
+          "error": null,
+          "ignored_client_target_fields": [
+            "base_url",
+            "host",
+            "scheme"
+          ],
+          "target_url_followed": false,
+          "forwarded_to": "http://127.0.0.1:8791/mock/provider-no-cors"
+        }
+      },
+      "minimal_context": {
+        "server_received_body_keys": [
+          "current_attempt_facts",
+          "matched_dimensions"
+        ],
+        "server_received_fields": [],
+        "minimal_context_forwarded": [
+          "current_attempt_facts",
+          "matched_dimensions"
+        ],
+        "marker_test": "🔴 标记串只出现在显式加入时（用于证明服务端只转发请求体，不接收 Workspace 目录内容）",
+        "marker_forwarded_keys": [
+          "current_attempt_facts",
+          "matched_dimensions",
+          "FIXTURE_MARKER"
+        ]
+      },
+      "server_log": {
+        "entries": 18,
+        "entries_carrying_authorization_value": 0,
+        "note": "🔴 服务端只登记 auth_header_present（布尔），不登记 Authorization 值",
+        "credential_plaintext_in_log": false
+      }
+    },
+    "log": [
+      {
+        "at": "2026-09-24T08:01:06.299Z",
+        "name": "detect",
+        "value": {
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/154.0.0.0 Safari/537.36",
+          "isSecureContext": true,
+          "location_origin": "http://127.0.0.1:8791",
+          "hasShowDirectoryPicker": true,
+          "hasShowOpenFilePicker": true,
+          "hasShowSaveFilePicker": true,
+          "hasFileSystemHandle": true,
+          "hasFileSystemDirectoryHandle": true,
+          "hasSessionStorage": true,
+          "hasLocalStorage": true,
+          "hasIndexedDB": true,
+          "hasCookieEnabled": true,
+          "hasCachesAPI": true,
+          "visibilityState": "visible",
+          "NOTE": "能力存在 ≠ 交互可用；原生 picker 必须由真实用户手势触发（见 S6-01/S6-04–S6-07）"
+        }
+      },
+      {
+        "at": "2026-09-24T08:01:06.299Z",
+        "name": "credSet",
+        "value": {
+          "ok": true,
+          "stored_in": "sessionStorage",
+          "key": "sp06.session.credential",
+          "value": "MASKED(***0001)"
+        }
+      },
+      {
+        "at": "2026-09-24T08:01:06.299Z",
+        "name": "credGet",
+        "value": {
+          "ok": true,
+          "present": true,
+          "value": "MASKED(***0001)"
+        }
+      },
+      {
+        "at": "2026-09-24T08:01:06.310Z",
+        "name": "durableLeakScan",
+        "value": {
+          "sessionStorage_present": true,
+          "sessionStorage_contains_marker": true,
+          "localStorage_keys": [],
+          "localStorage_contains_marker": false,
+          "indexedDB_databases": [],
+          "cookie_contains_marker": false,
+          "cookie_names": [],
+          "caches_keys": [],
+          "durable_leak_found": false
+        }
+      },
+      {
+        "at": "2026-09-24T08:01:06.349Z",
+        "name": "netDirectCors",
+        "value": {
+          "ok": true,
+          "cross_origin": true,
+          "page_origin": "http://127.0.0.1:8791",
+          "provider_origin": "http://127.0.0.1:8792",
+          "status": 200,
+          "cors_passed": true,
+          "provider": "MOCK_CORS_CAPABLE_CROSS_ORIGIN",
+          "cors_header_sent": "Access-Control-Allow-Origin: *",
+          "auth_header_present_at_provider": true,
+          "credential_echoed_by_provider": "REDACTED"
+        }
+      },
+      {
+        "at": "2026-09-24T08:01:06.359Z",
+        "name": "netDirectNoCors",
+        "value": {
+          "ok": false,
+          "cross_origin": true,
+          "cors_passed": false,
+          "error": "TypeError: Failed to fetch",
+          "interpretation": "这是 D-055 中\"Browser Direct 不可行\"的真实浏览器观测：缺少 CORS 响应头 ⇒ 跨源请求被浏览器拦截"
+        }
+      },
+      {
+        "at": "2026-09-24T08:01:06.392Z",
+        "name": "netViaProxy",
+        "value": {
+          "ok": true,
+          "status": 200,
+          "proxy": "THIN",
+          "resolved_by": "provider_id → registered adapter → fixed host",
+          "forwarded_to": "http://127.0.0.1:8791/mock/provider-no-cors",
+          "credential_leaked_to_log": false
+        }
+      },
+      {
+        "at": "2026-09-24T08:01:06.449Z",
+        "name": "netProxyArbitraryTarget",
+        "value": {
+          "registered_provider + target_url=loopback": {
+            "status": 200,
+            "error": null,
+            "ignored_client_target_fields": [
+              "target_url"
+            ],
+            "target_url_followed": false,
+            "forwarded_to": "http://127.0.0.1:8791/mock/provider-no-cors"
+          },
+          "registered_provider + target_url=metadata": {
+            "status": 200,
+            "error": null,
+            "ignored_client_target_fields": [
+              "target_url"
+            ],
+            "target_url_followed": false,
+            "forwarded_to": "http://127.0.0.1:8791/mock/provider-no-cors"
+          },
+          "unknown provider + target_url": {
+            "status": 400,
+            "error": "UNKNOWN_PROVIDER",
+            "ignored_client_target_fields": [
+              "target_url"
+            ],
+            "target_url_followed": null,
+            "forwarded_to": null
+          },
+          "no provider_id + target_url": {
+            "status": 400,
+            "error": "PROVIDER_ID_REQUIRED",
+            "ignored_client_target_fields": [
+              "target_url"
+            ],
+            "target_url_followed": null,
+            "forwarded_to": null
+          },
+          "registered_provider + base_url + host + scheme": {
+            "status": 200,
+            "error": null,
+            "ignored_client_target_fields": [
+              "base_url",
+              "host",
+              "scheme"
+            ],
+            "target_url_followed": false,
+            "forwarded_to": "http://127.0.0.1:8791/mock/provider-no-cors"
+          }
+        }
+      },
+      {
+        "at": "2026-09-24T08:01:06.476Z",
+        "name": "netProxyMinimalContext",
+        "value": {
+          "server_received_body_keys": [
+            "current_attempt_facts",
+            "matched_dimensions"
+          ],
+          "server_received_fields": [],
+          "minimal_context_forwarded": [
+            "current_attempt_facts",
+            "matched_dimensions"
+          ],
+          "marker_test": "🔴 标记串只出现在显式加入时（用于证明服务端只转发请求体，不接收 Workspace 目录内容）",
+          "marker_forwarded_keys": [
+            "current_attempt_facts",
+            "matched_dimensions",
+            "FIXTURE_MARKER"
+          ]
+        }
+      },
+      {
+        "at": "2026-09-24T08:01:06.486Z",
+        "name": "serverLogScan",
+        "value": {
+          "entries": 18,
+          "entries_carrying_authorization_value": 0,
+          "note": "🔴 服务端只登记 auth_header_present（布尔），不登记 Authorization 值",
+          "credential_plaintext_in_log": false
+        }
+      }
+    ]
+  },
+  "after_reload": {
+    "present_after_reload": true,
+    "value_masked": "***0001",
+    "note": "同会话内刷新后仍可读到 ⇒ 符合 D-056（会话级，非\"刷新即失效\"）"
+  },
+  "after_clear": {
+    "ok": true,
+    "present_after": false
+  },
+  "screenshot": "C:\\Users\\Red16\\Desktop\\失败经验孵化助手\\30_SPIKES\\local_first\\SP-06\\screenshots\\chrome-probe.png",
+  "verdicts": {
+    "secure_context": true,
+    "fs_access_api_present": true,
+    "credential_session_scoped_after_reload": true,
+    "credential_durable_leak_found": false,
+    "direct_cors_passed": true,
+    "direct_no_cors_blocked_by_browser": true,
+    "proxy_path_ok": true,
+    "proxy_arbitrary_target_rejected_or_ignored": true,
+    "server_log_credential_plaintext": false,
+    "credential_cleared_after_clear": true
+  },
+  "status": "COMPLETED"
+}

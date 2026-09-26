@@ -1,0 +1,88 @@
+{
+  "object_type": "Attempt",
+  "schema_version": "1",
+  "attempt_id": "ATT_DEM0A040000000000000000000",
+  "project_id": "PRJ_DEM0PRB0000000000000000000",
+  "state": "Formal",
+  "archive_state": "active",
+  "raw_text": {
+    "content_item_id": "ATT_DEM0A040000000000000000000:raw_text",
+    "source_type": "Fact",
+    "value": "这次的目标是降低颜色变化，用的是热风干燥、调整送风参数这条路线，烘干温度设的是 50°C，结果待复测，尚未判定。"
+  },
+  "goal": {
+    "presence_state": "present",
+    "item": {
+      "content_item_id": "ATT_DEM0A040000000000000000000:goal",
+      "source_type": "Fact",
+      "value": "降低颜色变化"
+    }
+  },
+  "actual_attempt": {
+    "presence_state": "present",
+    "item": {
+      "content_item_id": "ATT_DEM0A040000000000000000000:actual_attempt",
+      "source_type": "Fact",
+      "value": "热风干燥 + 调整送风参数"
+    }
+  },
+  "condition": {
+    "presence_state": "present",
+    "item": {
+      "content_item_id": "ATT_DEM0A040000000000000000000:condition",
+      "source_type": "Fact",
+      "value": "50°C"
+    }
+  },
+  "actual_result": {
+    "presence_state": "present",
+    "item": {
+      "content_item_id": "ATT_DEM0A040000000000000000000:actual_result",
+      "source_type": "Fact",
+      "value": "待复测，尚未判定"
+    }
+  },
+  "result_status": {
+    "presence_state": "present",
+    "item": {
+      "content_item_id": "ATT_DEM0A040000000000000000000:result_status",
+      "source_type": "Inference",
+      "confirmation_class": "decision",
+      "decision_state": "accepted",
+      "value": "Unknown"
+    }
+  },
+  "expected_result": {
+    "presence_state": "unknown"
+  },
+  "judgment_basis": {
+    "presence_state": "unknown"
+  },
+  "key_parameters": [],
+  "candidate_causes": [],
+  "occurred_at": {
+    "presence_state": "unknown"
+  },
+  "environment": {
+    "presence_state": "unknown"
+  },
+  "cost": {
+    "presence_state": "unknown"
+  },
+  "user_note": {
+    "presence_state": "unknown"
+  },
+  "failure_tags": [],
+  "created_at": "2026-08-05T10:00:00.000Z",
+  "updated_at": "2026-08-05T10:00:00.000Z",
+  "data_source_nature": "demo_sample",
+  "content_items": [],
+  "draft_state": {
+    "attempt_id": "ATT_DEM0A040000000000000000000",
+    "parse_state": "not_parsed",
+    "asked_key_question_count": 0,
+    "abandoned_gap_set": [],
+    "asked_gap_set": [],
+    "gap_priority_hint": null
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "//": "S01-06 WEB scope - the browser-side App Shell. It owns `src/ui/**` (presenters + DOM components), `app/**` (the HTML/TS entry) and reaches `src/browser/**` (the M2 storage adapter and the M15 composition root) through the normal import graph.",
+  "//why-a-separate-config": "`src/ui/**` genuinely needs DOM *types*. It therefore must NOT be compiled by tsconfig.core.json / tsconfig.json (NO DOM, the structural proof that the framework-neutral layers stay framework-neutral) nor by tsconfig.browser.json (`types: []`, and its include list is `src/browser/**` only). Adding DOM to the core to make UI code compile is exactly the move this split exists to prevent.",
+  "//output": "Emits real browser ESM to `dist-web/` - a directory the core build (`dist/`) and the test builds (`dist-test/`, `dist-proxy-test/`) never touch, so no build can overwrite another's output. Source order is preserved (rootDir `.`), so `app/main.js` resolves `../src/ui/...` inside `dist-web/` without a bundler.",
+  "//no-bundler": "`module: ES2022` + the repository's explicit `.js` import specifiers produce output a browser can load directly with `<script type=\"module\">`. No bundler, no extra dependency, and no Node builtin can be pulled into the browser runtime because none of the imported modules reference one (asserted by `src/tests/ui/web-bundle.test.ts`).",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": [],
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "noEmit": false,
+    "outDir": "dist-web",
+    "rootDir": ".",
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/ui/**/*.ts", "src/browser/**/*.ts", "app/**/*.ts"]
+}

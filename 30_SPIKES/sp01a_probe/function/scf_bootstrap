@@ -1,0 +1,18 @@
+#!/bin/bash
+# SP-01a MINIMAL ENVIRONMENT PROBE -- DISPOSABLE / NON-PRODUCTION
+# 用途：仅用于 SP-01a（编码前 / Gate B 前）最小探针的 Web Server 启动。
+# 依据（官方）：CloudBase《启动文件说明》/ 腾讯云《启动文件说明》
+#   - 固定文件名 scf_bootstrap（其他名称不生效）
+#   - 需可执行权限（777 或 755）
+#   - Shell 脚本首行必须 #!/bin/bash
+#   - 启动命令必须用绝对路径 /var/lang/node24/bin/node
+#   - 监听地址建议 0.0.0.0（不可用 127.0.0.1）；Web 函数默认端口 9000
+#   - 文件结尾必须为 LF（不得为 CRLF）
+#   - 标准环境下仅 /tmp 可读写
+#
+# 对应 R1 Runtime = Node.js 24.11
+# 绝对路径依据：CloudBase《运行环境支持》Node.js 24.11 -> /var/lang/node24/bin/node
+
+export PORT=9000
+
+/var/lang/node24/bin/node app.js

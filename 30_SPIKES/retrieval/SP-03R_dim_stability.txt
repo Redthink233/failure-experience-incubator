@@ -1,0 +1,84 @@
+========================================================================
+primary_24  —— 8 CASE x 3 RUN = 24 次判定
+========================================================================
+  CASE-01   goal            states(3 RUN) = matched             稳定
+  CASE-01   actual_attempt  states(3 RUN) = compared_not_matched 稳定
+  CASE-01   condition       states(3 RUN) = compared_not_matched 稳定
+  CASE-01   actual_result   states(3 RUN) = compared_not_matched 稳定
+  CASE-02   goal            states(3 RUN) = compared_not_matched 稳定
+  CASE-02   actual_attempt  states(3 RUN) = matched             稳定
+  CASE-02   condition       states(3 RUN) = matched             稳定
+  CASE-02   actual_result   states(3 RUN) = compared_not_matched 稳定
+  CASE-03   goal            states(3 RUN) = compared_not_matched 稳定
+  CASE-03   actual_attempt  states(3 RUN) = compared_not_matched 稳定
+  CASE-03   condition       states(3 RUN) = compared_not_matched 稳定
+  CASE-03   actual_result   states(3 RUN) = compared_not_matched 稳定
+  CASE-04   goal            states(3 RUN) = matched             稳定
+  CASE-04   actual_attempt  states(3 RUN) = compared_not_matched 稳定
+  CASE-04   condition       states(3 RUN) = uncompared          稳定
+  CASE-04   actual_result   states(3 RUN) = compared_not_matched 稳定
+  CASE-05   goal            states(3 RUN) = compared_not_matched 稳定
+  CASE-05   actual_attempt  states(3 RUN) = matched             稳定
+  CASE-05   condition       states(3 RUN) = compared_not_matched 稳定
+  CASE-05   actual_result   states(3 RUN) = matched             稳定
+  CASE-06   goal            states(3 RUN) = compared_not_matched 稳定
+  CASE-06   actual_attempt  states(3 RUN) = compared_not_matched 稳定
+  CASE-06   condition       states(3 RUN) = compared_not_matched 稳定
+  CASE-06   actual_result   states(3 RUN) = compared_not_matched 稳定
+  CASE-07   goal            states(3 RUN) = matched             稳定
+  CASE-07   actual_attempt  states(3 RUN) = matched             稳定
+  CASE-07   condition       states(3 RUN) = matched             稳定
+  CASE-07   actual_result   states(3 RUN) = matched             稳定
+  CASE-08   goal            states(3 RUN) = compared_not_matched 稳定
+  CASE-08   actual_attempt  states(3 RUN) = matched             稳定
+  CASE-08   condition       states(3 RUN) = compared_not_matched 稳定
+  CASE-08   actual_result   states(3 RUN) = uncompared          稳定
+
+  → Level A 维度槽位 = 32（8 CASE x 4 维度，含由 Step 0 规则写定的 uncompared）
+     · 交给判定会话的可比对维度对 = 30（= SP-03 的同一集合；等值维度 pairs 未变）
+     · 由结构性规则写定的 uncompared 槽位 = 2（CASE-04.condition / CASE-08.actual_result）
+     · 判定会话产出的维度判定条数 = 30 x 3 = 90
+
+========================================================================
+extended_48  —— 8 CASE x 6 RUN = 48 次判定
+========================================================================
+  CASE-01   goal            states(6 RUN) = matched             稳定
+  CASE-01   actual_attempt  states(6 RUN) = compared_not_matched 稳定
+  CASE-01   condition       states(6 RUN) = compared_not_matched 稳定
+  CASE-01   actual_result   states(6 RUN) = compared_not_matched 稳定
+  CASE-02   goal            states(6 RUN) = compared_not_matched 稳定
+  CASE-02   actual_attempt  states(6 RUN) = matched             稳定
+  CASE-02   condition       states(6 RUN) = matched             稳定
+  CASE-02   actual_result   states(6 RUN) = compared_not_matched 稳定
+  CASE-03   goal            states(6 RUN) = compared_not_matched 稳定
+  CASE-03   actual_attempt  states(6 RUN) = compared_not_matched 稳定
+  CASE-03   condition       states(6 RUN) = compared_not_matched 稳定
+  CASE-03   actual_result   states(6 RUN) = compared_not_matched 稳定
+  CASE-04   goal            states(6 RUN) = matched             稳定
+  CASE-04   actual_attempt  states(6 RUN) = compared_not_matched 稳定
+  CASE-04   condition       states(6 RUN) = uncompared          稳定
+  CASE-04   actual_result   states(6 RUN) = compared_not_matched 稳定
+  CASE-05   goal            states(6 RUN) = compared_not_matched 稳定
+  CASE-05   actual_attempt  states(6 RUN) = matched             稳定
+  CASE-05   condition       states(6 RUN) = compared_not_matched 稳定
+  CASE-05   actual_result   states(6 RUN) = matched             稳定
+  CASE-06   goal            states(6 RUN) = compared_not_matched 稳定
+  CASE-06   actual_attempt  states(6 RUN) = compared_not_matched 稳定
+  CASE-06   condition       states(6 RUN) = compared_not_matched 稳定
+  CASE-06   actual_result   states(6 RUN) = compared_not_matched 稳定
+  CASE-07   goal            states(6 RUN) = matched             稳定
+  CASE-07   actual_attempt  states(6 RUN) = matched             稳定
+  CASE-07   condition       states(6 RUN) = matched             稳定
+  CASE-07   actual_result   states(6 RUN) = matched             稳定
+  CASE-08   goal            states(6 RUN) = compared_not_matched 稳定
+  CASE-08   actual_attempt  states(6 RUN) = matched             稳定
+  CASE-08   condition       states(6 RUN) = compared_not_matched 稳定
+  CASE-08   actual_result   states(6 RUN) = uncompared          稳定
+
+  → Level A 维度槽位 = 32（8 CASE x 4 维度，含由 Step 0 规则写定的 uncompared）
+     · 交给判定会话的可比对维度对 = 30（= SP-03 的同一集合；等值维度 pairs 未变）
+     · 由结构性规则写定的 uncompared 槽位 = 2（CASE-04.condition / CASE-08.actual_result）
+     · 判定会话产出的维度判定条数 = 30 x 6 = 180
+
+维度级不稳定项 = 0 （无）
+注：纳入统计的 32 个维度槽位 = 8 CASE x 4 Level A 维度；其中交给判定会话的 30 个与 SP-03 完全同一集合

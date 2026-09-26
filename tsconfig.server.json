@@ -1,0 +1,10 @@
+{
+  "//": "SERVER / Node-runtime scope for the M12 Thin Proxy layer. Covers the Node transport shell (`api/proxy/**`), the M12 pure policy/security modules (`src/server/proxy/**`) and the M10 contract they implement (`src/ai/**`). lib = ES2022 (NO DOM) + types = [node]. It is a SEPARATE config so that a Node type environment can never silently leak into the core or the browser scope.",
+  "//scope": "S01-W1-INTEGRATE: real scope, no placeholder. The S01-01A `src/domain/ids/object-id.ts` placeholder was removed when the first real server sources landed; every `include` entry below now resolves to genuine business code.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": ["api/proxy/**/*.ts", "src/server/**/*.ts", "src/ai/**/*.ts"]
+}

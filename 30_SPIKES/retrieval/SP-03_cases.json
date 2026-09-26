@@ -1,0 +1,408 @@
+{
+  "artifact_class": "DISPOSABLE / NON-PRODUCTION",
+  "spike_id": "SP-03",
+  "title": "Level A 相关性判定（命中 / 未比对集合）可行性",
+  "phase": "S00-03｜技术架构与实现方案收敛",
+  "generated_by": "本地 LearnBuddy 独立 Spike 会话",
+  "generated_at": "2026-09-19",
+  "authority_note": "本文档是 Spike 夹具，不是 canonical，不是实现依据，不得被产品文档引用。判定规则来源 = docs/architecture/04_RETRIEVAL_AND_COMPARISON.md §B/§C/§D（PROPOSED / S03-D）；语义来源 = docs/DECISIONS.md D-019 / D-020 / D-025 / D-027 与 docs/05_DATA_MODEL.md。",
+  "gold_standard_frozen": true,
+  "gold_standard_note": "全部预期结果在发起任何模型判定之前写入本文件；测试后不修改。",
+  "level_a_dimensions": ["goal", "actual_attempt", "condition", "actual_result"],
+  "level_b_fields": ["project_id", "failure_tag", "version_env"],
+  "cases": [
+    {
+      "case_id": "CASE-01",
+      "title": "仅 goal 命中",
+      "fixture_origin": "任务书 §七 CASE-01（原文给定）",
+      "construct_note": "Level A 文本原文照录；Level B（project_id / failure_tag / version_env）由 Spike 赋值且故意全部不同，用于反向验证「Level B 不同也不影响 Level A 命中」。",
+      "source": {
+        "attempt_id": "SRC-01",
+        "project_id": "P-药材工艺",
+        "failure_tag": ["热风干燥"],
+        "version_env": "干燥设备A/v1",
+        "result_status": "Failed",
+        "dimensions": {
+          "goal": {"value": "将热风烘干后的药材含水率降低到目标范围", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "60°C 热风并提高风速", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "60°C，风速 2 m/s", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "表面出现开裂，最终含水率仍偏高", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "candidate": {
+        "attempt_id": "CAND-01",
+        "project_id": "P-工艺优化",
+        "failure_tag": ["冷冻干燥"],
+        "version_env": "干燥设备B/v2",
+        "result_status": "Success",
+        "dimensions": {
+          "goal": {"value": "把药材干燥到目标含水率", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "采用真空冷冻干燥", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "-40°C 冻结后真空干燥", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "无明显开裂，含水率达到要求", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "gold": {
+        "related": true,
+        "related_strict": true,
+        "matched_exact": ["goal"],
+        "matched_must_include": ["goal"],
+        "matched_must_exclude": [],
+        "uncompared_exact": [],
+        "dimensions_must_not_be_matched": [],
+        "notes": "任务书原文预期：matched = goal，uncompared = 空，related = true。未列出的维度按 §C.3 归为 compared_not_matched（内部量，不发布）。"
+      }
+    },
+    {
+      "case_id": "CASE-02",
+      "title": "approach + condition 命中",
+      "fixture_origin": "任务书 §七 CASE-02（原文给定）",
+      "construct_note": "Level A 文本原文照录；Level B 的 project_id / version_env 相同、failure_tag 不同。",
+      "source": {
+        "attempt_id": "SRC-02",
+        "project_id": "P-药材工艺",
+        "failure_tag": ["颜色控制"],
+        "version_env": "干燥设备A/v1",
+        "result_status": "Failed",
+        "dimensions": {
+          "goal": {"value": "降低药材颜色变化", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "60°C 热风干燥，风速 2 m/s", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "温度 60°C，风速 2 m/s", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "颜色明显变深", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "candidate": {
+        "attempt_id": "CAND-02",
+        "project_id": "P-药材工艺",
+        "failure_tag": ["干燥时长"],
+        "version_env": "干燥设备A/v1",
+        "result_status": "Partial",
+        "dimensions": {
+          "goal": {"value": "缩短整体干燥时间", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "采用 60°C 热风干燥并保持 2 m/s 风速", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "60°C，2 m/s", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "干燥时间有所下降", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "gold": {
+        "related": true,
+        "related_strict": true,
+        "matched_exact": ["actual_attempt", "condition"],
+        "matched_must_include": ["actual_attempt", "condition"],
+        "matched_must_exclude": [],
+        "uncompared_exact": [],
+        "dimensions_must_not_be_matched": [],
+        "notes": "任务书原文预期：matched = actual_attempt + condition，related = true。goal 与 actual_result 预期 compared_not_matched。"
+      }
+    },
+    {
+      "case_id": "CASE-03",
+      "title": "Level A 全不重叠",
+      "fixture_origin": "任务书 §七 CASE-03（原文给定）",
+      "construct_note": "Level A 文本原文照录；Level B 三项全部不同（同时作为 CASE-06 的对照组：Level A 全不重叠 + Level B 不同 ⇒ 必须不相关）。",
+      "source": {
+        "attempt_id": "SRC-03",
+        "project_id": "P-药材工艺",
+        "failure_tag": ["含水率"],
+        "version_env": "干燥设备A/v1",
+        "result_status": "Failed",
+        "dimensions": {
+          "goal": {"value": "降低烘干后含水率", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "热风干燥", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "60°C", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "含水率下降不足", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "candidate": {
+        "attempt_id": "CAND-03",
+        "project_id": "P-视觉模型",
+        "failure_tag": ["模型训练"],
+        "version_env": "GPU服务器B/v1",
+        "result_status": "Success",
+        "dimensions": {
+          "goal": {"value": "提高图像分类准确率", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "训练卷积神经网络", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "batch size 32", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "验证集准确率提高", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "gold": {
+        "related": false,
+        "related_strict": true,
+        "matched_exact": [],
+        "matched_must_include": [],
+        "matched_must_exclude": ["goal", "actual_attempt", "condition", "actual_result"],
+        "uncompared_exact": [],
+        "dimensions_must_not_be_matched": [],
+        "notes": "任务书原文预期：matched = 空，uncompared = 空，related = false。四维度全部 present 且互不重叠 ⇒ 全部 compared_not_matched。"
+      }
+    },
+    {
+      "case_id": "CASE-04",
+      "title": "unknown 必须进入 uncompared",
+      "fixture_origin": "任务书 §七 CASE-04（原文给定）",
+      "construct_note": "Level A 文本原文照录；condition 双侧 presence_state = unknown（值域为空）。",
+      "source": {
+        "attempt_id": "SRC-04",
+        "project_id": "P-引用可信",
+        "failure_tag": ["幻觉引用"],
+        "version_env": "模型M/v1",
+        "result_status": "Partial",
+        "dimensions": {
+          "goal": {"value": "降低模型幻觉引用", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "限制模型只能引用候选 ID", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": null, "presence_state": "unknown", "source_type": null},
+          "actual_result": {"value": "错误引用次数减少", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "candidate": {
+        "attempt_id": "CAND-04",
+        "project_id": "P-引用可信",
+        "failure_tag": ["引用校验"],
+        "version_env": "模型M/v1",
+        "result_status": "Failed",
+        "dimensions": {
+          "goal": {"value": "避免系统引用不存在的历史记录", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "增加引用后校验", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": null, "presence_state": "unknown", "source_type": null},
+          "actual_result": {"value": "仍偶尔出现无效引用", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "gold": {
+        "related": null,
+        "related_strict": false,
+        "matched_exact": null,
+        "matched_must_include": ["goal"],
+        "matched_must_exclude": [],
+        "uncompared_exact": ["condition"],
+        "dimensions_must_not_be_matched": ["condition"],
+        "notes": "任务书原文预期：condition = uncompared（硬预期）；goal 允许语义判定为 matched（软预期）。related 未在任务书中固定 ⇒ 本 Spike 不固定其 Gold 值，只记录 3 次运行的一致性。硬约束 H8：condition 在所有运行中必须为 uncompared。"
+      }
+    },
+    {
+      "case_id": "CASE-05",
+      "title": "result_status = Unknown 不得污染 Level A",
+      "fixture_origin": "任务书 §七 CASE-05（原文给定）",
+      "construct_note": "Level A 文本原文照录；源侧 result_status = Unknown、候选侧 = Failed（两侧不同）。",
+      "source": {
+        "attempt_id": "SRC-05",
+        "project_id": "P-干燥工艺",
+        "failure_tag": ["过程曲线"],
+        "version_env": "干燥设备A/v1",
+        "result_status": "Unknown",
+        "dimensions": {
+          "goal": {"value": "验证新干燥方案是否能改善过程", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "调整热风参数", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "55°C", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "后半程干燥速度明显下降", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "candidate": {
+        "attempt_id": "CAND-05",
+        "project_id": "P-干燥工艺",
+        "failure_tag": ["过程曲线"],
+        "version_env": "干燥设备A/v1",
+        "result_status": "Failed",
+        "dimensions": {
+          "goal": {"value": "分析后半程失水速度变化", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "调整送风参数", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "50°C", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "后半程干燥速度明显下降", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "gold": {
+        "related": true,
+        "related_strict": true,
+        "matched_exact": null,
+        "matched_must_include": ["actual_result"],
+        "matched_must_exclude": [],
+        "uncompared_exact": [],
+        "dimensions_must_not_be_matched": [],
+        "notes": "任务书原文预期：actual_result 命中；result_status 不得参与任何 Level A 判断。goal / actual_attempt / condition 的预期未在任务书中固定（三处在语义上处于边界：调整热风 vs 调整送风、55°C vs 50°C）⇒ 不固定其 Gold 值，只记录一致性。"
+      }
+    },
+    {
+      "case_id": "CASE-06",
+      "title": "Level B 陷阱（同 Project / 同标签 / 同环境）",
+      "fixture_origin": "任务书 §七 CASE-06（任务书只规定 Level B 相同 + Level A 全不同，未给文本）",
+      "construct_note": "Level A 四维度文本由 Spike 构造（明显跨领域不重叠）；Level B 三项在两侧完全相同。构造在发起任何模型判定之前完成。",
+      "source": {
+        "attempt_id": "SRC-06",
+        "project_id": "P-DEMO-SHARED",
+        "failure_tag": ["工艺参数"],
+        "version_env": "设备X/v1",
+        "result_status": "Failed",
+        "dimensions": {
+          "goal": {"value": "降低药材干燥后的含水率", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "热风循环干燥", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "60°C", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "含水率下降不足", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "candidate": {
+        "attempt_id": "CAND-06",
+        "project_id": "P-DEMO-SHARED",
+        "failure_tag": ["工艺参数"],
+        "version_env": "设备X/v1",
+        "result_status": "Failed",
+        "dimensions": {
+          "goal": {"value": "提升语音识别在嘈杂环境下的准确率", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "加入降噪前端模块", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "信噪比 5dB", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "识别错误率下降", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "gold": {
+        "related": false,
+        "related_strict": true,
+        "matched_exact": [],
+        "matched_must_include": [],
+        "matched_must_exclude": ["goal", "actual_attempt", "condition", "actual_result"],
+        "uncompared_exact": [],
+        "dimensions_must_not_be_matched": [],
+        "notes": "任务书原文预期：matched = 空，related = false。H7：不得因同 Project / 同标签 / 同环境而变为 related。"
+      }
+    },
+    {
+      "case_id": "CASE-07",
+      "title": "语义改写压力样本",
+      "fixture_origin": "任务书 §七 CASE-07（原文给定）",
+      "construct_note": "Level A 文本原文照录；两侧措辞不同但语义等价。",
+      "source": {
+        "attempt_id": "SRC-07",
+        "project_id": "P-引用可信",
+        "failure_tag": ["幻觉引用"],
+        "version_env": "模型M/v1",
+        "result_status": "Partial",
+        "dimensions": {
+          "goal": {"value": "避免 AI 引用并不存在的历史 Attempt", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "把允许引用的 Attempt ID 列表传给模型并限制输出", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "固定候选集合", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "无效引用明显减少", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "candidate": {
+        "attempt_id": "CAND-07",
+        "project_id": "P-引用可信",
+        "failure_tag": ["幻觉引用"],
+        "version_env": "模型M/v1",
+        "result_status": "Partial",
+        "dimensions": {
+          "goal": {"value": "让系统不要生成虚假的历史记录引用", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "要求模型只能从给定的候选记录 ID 中选择引用", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "模型只能看到预先给出的候选记录集合", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "幻觉引用减少", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "gold": {
+        "related": true,
+        "related_strict": true,
+        "matched_exact": ["goal", "actual_attempt", "condition", "actual_result"],
+        "matched_must_include": ["goal", "actual_attempt", "condition", "actual_result"],
+        "matched_must_exclude": [],
+        "uncompared_exact": [],
+        "dimensions_must_not_be_matched": [],
+        "notes": "任务书「人工预期」：四维度全部 matched。本 CASE 是语义改写压力样本，不属结构性 fixture；重点检查是否出现 related true↔false 反复翻转。"
+      }
+    },
+    {
+      "case_id": "CASE-08",
+      "title": "matched + uncompared 混合",
+      "fixture_origin": "任务书 §七 CASE-08（原文给定）",
+      "construct_note": "Level A 文本原文照录；候选侧 actual_result 的 presence_state = unknown。",
+      "source": {
+        "attempt_id": "SRC-08",
+        "project_id": "P-干燥工艺",
+        "failure_tag": ["开裂"],
+        "version_env": "干燥设备A/v1",
+        "result_status": "Partial",
+        "dimensions": {
+          "goal": {"value": "降低干燥过程表面开裂", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "降低热风温度", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "50°C", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": "开裂明显减少", "presence_state": "present", "source_type": "Fact"}
+        }
+      },
+      "candidate": {
+        "attempt_id": "CAND-08",
+        "project_id": "P-干燥设备B",
+        "failure_tag": ["时长"],
+        "version_env": "干燥设备B/v1",
+        "result_status": "Partial",
+        "dimensions": {
+          "goal": {"value": "缩短干燥时间", "presence_state": "present", "source_type": "Fact"},
+          "actual_attempt": {"value": "降低干燥温度", "presence_state": "present", "source_type": "Fact"},
+          "condition": {"value": "70°C", "presence_state": "present", "source_type": "Fact"},
+          "actual_result": {"value": null, "presence_state": "unknown", "source_type": null}
+        }
+      },
+      "gold": {
+        "related": true,
+        "related_strict": true,
+        "matched_exact": null,
+        "matched_must_include": ["actual_attempt"],
+        "matched_must_exclude": [],
+        "uncompared_exact": ["actual_result"],
+        "dimensions_must_not_be_matched": ["actual_result"],
+        "notes": "任务书原文预期：actual_attempt = matched；actual_result = uncompared；related = true。关键：uncompared 不得取消由 actual_attempt 建立的相关资格。condition（50°C vs 70°C）的预期未在任务书中固定 ⇒ 不固定其 Gold 值。"
+      }
+    }
+  ],
+  "structural_probes": [
+    {
+      "probe_id": "PROBE-H2",
+      "target_invariant": "H2",
+      "description": "Schema 校验器必须拒绝含数值相似度 / score / confidence / 百分比 / 等级的判定输出。",
+      "positive_control": {
+        "bad_output_sample": {
+          "related": true,
+          "matched_level_a_dimensions": ["goal"],
+          "uncompared_dimensions": [],
+          "dimension_results": {
+            "goal": {"state": "matched", "reason": "目标一致", "similarity": 0.87, "confidence": 0.9},
+            "actual_attempt": {"state": "compared_not_matched", "reason": "不同", "score": 3},
+            "condition": {"state": "compared_not_matched", "reason": "不同"},
+            "actual_result": {"state": "compared_not_matched", "reason": "不同"}
+          }
+        },
+        "expect": "校验器必须判定为 INVALID，并逐一列出违禁字段 similarity / confidence / score。"
+      }
+    },
+    {
+      "probe_id": "PROBE-H4",
+      "target_invariant": "H4",
+      "description": "source_type = Inference 的条目不得进入 Level A 比较输入；对应维度不得判为 matched。",
+      "synthetic_dimension": {
+        "case_ref": "CASE-01",
+        "dimension": "condition",
+        "source_side_source_type": "Fact",
+        "candidate_side_source_type": "Inference",
+        "expect": "该维度不得为 matched；必须登记为判定错误（实现缺陷），且不得把 Inference 值送入模型比较。"
+      }
+    },
+    {
+      "probe_id": "PROBE-H9",
+      "target_invariant": "H9",
+      "description": "对 CASE-05 构造 result_status 互换的两个变体，断言送入判定链的投影完全相同。",
+      "expect": "两个变体的判定输入投影逐字节相同 ⇒ result_status 结构性地不参与任何维度判定。"
+    },
+    {
+      "probe_id": "PROBE-H1-H8",
+      "target_invariant": "H1 / H8",
+      "description": "断言 presence_state = unknown 的维度不出现在送入模型的判定输入中。",
+      "expect": "CASE-04 的 condition 与 CASE-08 的 candidate.actual_result 必须不在模型输入投影中。"
+    },
+    {
+      "probe_id": "PROBE-H3",
+      "target_invariant": "H3",
+      "description": "断言 Level B 字段（project_id / failure_tag / version_env）不出现在任何送入模型的判定输入中。",
+      "expect": "模型输入投影中不存在任何 Level B 字段；且 CASE-06（Level B 三项相同、Level A 全不重叠）的 related 必须为 false。"
+    },
+    {
+      "probe_id": "PROBE-H10",
+      "target_invariant": "H10",
+      "description": "判定链必须能在无 embedding / 无向量存储的条件下形成命中集合。",
+      "expect": "判定链由两级构成：结构性规则（Step0 / Step1 / related 派生）+ 受约束的布尔重叠判定；不存在向量组件。"
+    }
+  ]
+}

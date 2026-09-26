@@ -1,0 +1,15 @@
+{
+  "//": "CORE / framework-neutral scope. lib = ES2022 (NO DOM) and types = [node] ONLY. Layer 1 (src/domain) and Layer 2 (src/workspace) MUST stay framework-neutral, so `window` / `document` / `FileSystemDirectoryHandle` / `showDirectoryPicker` are not even TYPEABLE here. Since S01-W1-PREP this scope ALSO covers src/ai/** - but ONLY the M10 framework-neutral contract layer (provider interface / capability / normalized request-result). The browser and server RUNTIME implementations of that contract live in their own scopes (tsconfig.browser.json / tsconfig.server.json) and must never be added here. Since S01-05-INTEGRATE the scope ALSO covers src/application/** - the `D9` steps ①-⑤ orchestration. Since S01-03 it ALSO covers src/retrieval/** - the `M6` retriever / comparator (layer 3). That layer is framework-neutral by construction too (no DOM type, no Node runtime API, no network client, no ambient storage): it consumes the domain projection, the `M2` storage abstraction and the `M10` provider INTERFACE, so it is compiled by the SAME NO-DOM configuration as the layers below it. This is the structural compile-time proof of 'No UI / no browser API / no Node runtime API in the core' and it must never gain DOM to make browser code compile.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": [
+    "src/domain/**/*.ts",
+    "src/workspace/**/*.ts",
+    "src/ai/**/*.ts",
+    "src/application/**/*.ts",
+    "src/retrieval/**/*.ts"
+  ]
+}

@@ -1,0 +1,375 @@
+{
+  "NATURE": "DISPOSABLE / NON-PRODUCTION",
+  "LIMITATION": "探针不发送任何真实外网攻击；注册上游与 SSRF 哨兵均在本机回环。metadata endpoint（169.254.169.254）无法在本机绑定 ⇒ 只做 guard 单元验证（默认语义下 BLOCKED），不做真实网络请求。为让 mock 上游可被访问，探针在\"注册表中枢可达性\"校验上使用了 probe-only 的 allowLoopback 开关；🔴 默认语义（= 正式实现口径）对回环 / RFC1918 / link-local / metadata 一律 BLOCKED，见 guard_unit_tests。",
+  "topology": {
+    "thin_proxy": "http://127.0.0.1:61961",
+    "known_upstream": "http://127.0.0.1:61959",
+    "ssrf_trap": "http://127.0.0.1:61960"
+  },
+  "cases": [
+    {
+      "name": "1. registered provider, no client target field",
+      "request_body": {
+        "provider_id": "provider_x_registered",
+        "payload": {
+          "prompt": "hi"
+        }
+      },
+      "status": 200,
+      "response": {
+        "proxy": "THIN",
+        "resolved_by": "provider_id → registered adapter → fixed host",
+        "forwarded_to": "http://127.0.0.1:61959/v1/chat/completions",
+        "ignored_client_target_fields": [],
+        "target_url_followed": false,
+        "upstream_response": {
+          "upstream": "KNOWN_PROVIDER_MOCK",
+          "received_path": "/v1/chat/completions",
+          "received_host_header": "127.0.0.1:61959",
+          "ok": true
+        }
+      },
+      "trap_hits_after_call_total": 0,
+      "trap_delta": 0,
+      "pass": true
+    },
+    {
+      "name": "2. registered provider + target_url = SSRF trap (loopback)",
+      "request_body": {
+        "provider_id": "provider_x_registered",
+        "target_url": "http://127.0.0.1:61960/steal",
+        "payload": {
+          "prompt": "hi"
+        }
+      },
+      "status": 200,
+      "response": {
+        "proxy": "THIN",
+        "resolved_by": "provider_id → registered adapter → fixed host",
+        "forwarded_to": "http://127.0.0.1:61959/v1/chat/completions",
+        "ignored_client_target_fields": [
+          "target_url"
+        ],
+        "target_url_followed": false,
+        "upstream_response": {
+          "upstream": "KNOWN_PROVIDER_MOCK",
+          "received_path": "/v1/chat/completions",
+          "received_host_header": "127.0.0.1:61959",
+          "ok": true
+        }
+      },
+      "trap_hits_after_call_total": 0,
+      "trap_delta": 0,
+      "pass": true
+    },
+    {
+      "name": "3. registered provider + target_url = cloud metadata endpoint",
+      "request_body": {
+        "provider_id": "provider_x_registered",
+        "target_url": "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+        "payload": {}
+      },
+      "status": 200,
+      "response": {
+        "proxy": "THIN",
+        "resolved_by": "provider_id → registered adapter → fixed host",
+        "forwarded_to": "http://127.0.0.1:61959/v1/chat/completions",
+        "ignored_client_target_fields": [
+          "target_url"
+        ],
+        "target_url_followed": false,
+        "upstream_response": {
+          "upstream": "KNOWN_PROVIDER_MOCK",
+          "received_path": "/v1/chat/completions",
+          "received_host_header": "127.0.0.1:61959",
+          "ok": true
+        }
+      },
+      "trap_hits_after_call_total": 0,
+      "trap_delta": 0,
+      "pass": true
+    },
+    {
+      "name": "4. unknown provider_id + arbitrary target_url",
+      "request_body": {
+        "provider_id": "not_registered",
+        "target_url": "http://127.0.0.1:61960/steal",
+        "payload": {}
+      },
+      "status": 400,
+      "response": {
+        "error": "UNKNOWN_PROVIDER",
+        "note": "provider_id 未在服务器端注册 ⇒ 拒绝；不得据 client 提交的任意 target 代请求",
+        "ignored_client_target_fields": [
+          "target_url"
+        ]
+      },
+      "trap_hits_after_call_total": 0,
+      "trap_delta": 0,
+      "pass": true
+    },
+    {
+      "name": "5. no provider_id at all",
+      "request_body": {
+        "target_url": "http://127.0.0.1:61960/steal"
+      },
+      "status": 400,
+      "response": {
+        "error": "PROVIDER_ID_REQUIRED",
+        "note": "目标只能由 provider_id → 服务器端注册 Adapter 决定",
+        "ignored_client_target_fields": [
+          "target_url"
+        ]
+      },
+      "trap_hits_after_call_total": 0,
+      "trap_delta": 0,
+      "pass": true
+    },
+    {
+      "name": "6. registered provider + base_url = file:// scheme",
+      "request_body": {
+        "provider_id": "provider_x_registered",
+        "base_url": "file:///C:/Windows/win.ini",
+        "payload": {}
+      },
+      "status": 200,
+      "response": {
+        "proxy": "THIN",
+        "resolved_by": "provider_id → registered adapter → fixed host",
+        "forwarded_to": "http://127.0.0.1:61959/v1/chat/completions",
+        "ignored_client_target_fields": [
+          "base_url"
+        ],
+        "target_url_followed": false,
+        "upstream_response": {
+          "upstream": "KNOWN_PROVIDER_MOCK",
+          "received_path": "/v1/chat/completions",
+          "received_host_header": "127.0.0.1:61959",
+          "ok": true
+        }
+      },
+      "trap_hits_after_call_total": 0,
+      "trap_delta": 0,
+      "pass": true
+    },
+    {
+      "name": "7. registered provider + host/scheme override attempt",
+      "request_body": {
+        "provider_id": "provider_x_registered",
+        "host": "evil.example.com",
+        "scheme": "http",
+        "url": "http://evil.example.com/x",
+        "endpoint": "http://evil.example.com/y",
+        "payload": {}
+      },
+      "status": 200,
+      "response": {
+        "proxy": "THIN",
+        "resolved_by": "provider_id → registered adapter → fixed host",
+        "forwarded_to": "http://127.0.0.1:61959/v1/chat/completions",
+        "ignored_client_target_fields": [
+          "host",
+          "scheme",
+          "url",
+          "endpoint"
+        ],
+        "target_url_followed": false,
+        "upstream_response": {
+          "upstream": "KNOWN_PROVIDER_MOCK",
+          "received_path": "/v1/chat/completions",
+          "received_host_header": "127.0.0.1:61959",
+          "ok": true
+        }
+      },
+      "trap_hits_after_call_total": 0,
+      "trap_delta": 0,
+      "pass": true
+    },
+    {
+      "name": "8. generic arbitrary-URL proxy endpoint",
+      "request": "POST /api/proxy-any?target_url=<loopback trap>",
+      "status": 404,
+      "expectation": "端点不存在（404）",
+      "pass": true,
+      "trap_hits_after_call_total": 0,
+      "trap_delta": 0
+    }
+  ],
+  "guard_unit_tests": [
+    {
+      "url": "http://localhost:8080/x",
+      "expected": "BLOCKED",
+      "verdict": "BLOCKED(HOST_NOT_IN_ALLOWLIST)",
+      "pass": true
+    },
+    {
+      "url": "http://127.0.0.1:8080/x",
+      "expected": "BLOCKED",
+      "verdict": "BLOCKED(HOST_NOT_IN_ALLOWLIST)",
+      "pass": true
+    },
+    {
+      "url": "http://[::1]:8080/x",
+      "expected": "BLOCKED",
+      "verdict": "BLOCKED(HOST_NOT_IN_ALLOWLIST)",
+      "pass": true
+    },
+    {
+      "url": "http://10.0.0.5/x",
+      "expected": "BLOCKED",
+      "verdict": "BLOCKED(HOST_NOT_IN_ALLOWLIST)",
+      "pass": true
+    },
+    {
+      "url": "http://172.16.5.5/x",
+      "expected": "BLOCKED",
+      "verdict": "BLOCKED(HOST_NOT_IN_ALLOWLIST)",
+      "pass": true
+    },
+    {
+      "url": "http://192.168.1.10/x",
+      "expected": "BLOCKED",
+      "verdict": "BLOCKED(HOST_NOT_IN_ALLOWLIST)",
+      "pass": true
+    },
+    {
+      "url": "http://169.254.169.254/latest/meta-data/",
+      "expected": "BLOCKED",
+      "verdict": "BLOCKED(HOST_NOT_IN_ALLOWLIST)",
+      "pass": true
+    },
+    {
+      "url": "file:///C:/Windows/win.ini",
+      "expected": "BLOCKED",
+      "verdict": "BLOCKED(SCHEME_NOT_HTTP_S)",
+      "pass": true
+    },
+    {
+      "url": "gopher://127.0.0.1:70/",
+      "expected": "BLOCKED",
+      "verdict": "BLOCKED(SCHEME_NOT_HTTP_S)",
+      "pass": true
+    },
+    {
+      "url": "http://example.com/x",
+      "expected": "BLOCKED (not in allowlist)",
+      "verdict": "BLOCKED(HOST_NOT_IN_ALLOWLIST)",
+      "pass": true
+    }
+  ],
+  "guard_positive_control": {
+    "note": "注册上游本身是回环 mock：默认语义下也应 BLOCKED（PRIVATE_OR_SPECIAL_HOST）；仅探针 flag 下放行",
+    "default_semantics": "BLOCKED(PRIVATE_OR_SPECIAL_HOST)",
+    "probe_flag": "ALLOWED",
+    "registry_pointing_to_non_allowlisted_host": "BLOCKED(HOST_NOT_IN_ALLOWLIST)"
+  },
+  "upstream_log": [
+    {
+      "at": "2026-09-24T07:56:54.560Z",
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "host_header": "127.0.0.1:61959",
+      "body_keys": [
+        "payload"
+      ]
+    },
+    {
+      "at": "2026-09-24T07:56:54.573Z",
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "host_header": "127.0.0.1:61959",
+      "body_keys": [
+        "payload"
+      ]
+    },
+    {
+      "at": "2026-09-24T07:56:54.577Z",
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "host_header": "127.0.0.1:61959",
+      "body_keys": [
+        "payload"
+      ]
+    },
+    {
+      "at": "2026-09-24T07:56:54.585Z",
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "host_header": "127.0.0.1:61959",
+      "body_keys": [
+        "payload"
+      ]
+    },
+    {
+      "at": "2026-09-24T07:56:54.590Z",
+      "method": "POST",
+      "url": "/v1/chat/completions",
+      "host_header": "127.0.0.1:61959",
+      "body_keys": [
+        "payload"
+      ]
+    }
+  ],
+  "trap_log": [],
+  "proxy_log": [
+    {
+      "at": "2026-09-24T07:56:54.555Z",
+      "provider_id": "provider_x_registered",
+      "clientTargetFields": []
+    },
+    {
+      "at": "2026-09-24T07:56:54.572Z",
+      "provider_id": "provider_x_registered",
+      "clientTargetFields": [
+        "target_url"
+      ]
+    },
+    {
+      "at": "2026-09-24T07:56:54.576Z",
+      "provider_id": "provider_x_registered",
+      "clientTargetFields": [
+        "target_url"
+      ]
+    },
+    {
+      "at": "2026-09-24T07:56:54.580Z",
+      "provider_id": "not_registered",
+      "clientTargetFields": [
+        "target_url"
+      ]
+    },
+    {
+      "at": "2026-09-24T07:56:54.581Z",
+      "provider_id": null,
+      "clientTargetFields": [
+        "target_url"
+      ]
+    },
+    {
+      "at": "2026-09-24T07:56:54.584Z",
+      "provider_id": "provider_x_registered",
+      "clientTargetFields": [
+        "base_url"
+      ]
+    },
+    {
+      "at": "2026-09-24T07:56:54.589Z",
+      "provider_id": "provider_x_registered",
+      "clientTargetFields": [
+        "host",
+        "scheme",
+        "url",
+        "endpoint"
+      ]
+    }
+  ],
+  "summary": {
+    "total_cases": 8,
+    "passed": 8,
+    "trap_hits_total": 0,
+    "arbitrary_target_followed_anywhere": false,
+    "guard_default_semantics": "BLOCKED(PRIVATE_OR_SPECIAL_HOST)",
+    "non_allowlisted_registry_target": "BLOCKED(HOST_NOT_IN_ALLOWLIST)",
+    "VERDICT": "PASS"
+  }
+}

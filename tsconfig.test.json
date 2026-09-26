@@ -1,0 +1,11 @@
+{
+  "//": "Test build. Emits src/domain + src/workspace + src/ai + src/tests to dist-test/ so the Node built-in test runner can execute plain ESM JavaScript. Used only by `npm test`. It keeps its own Node type environment (inherited `types: [node]`) and never gains DOM.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist-test",
+    "rootDir": "src",
+    "declaration": false,
+    "declarationMap": false
+  }
+}

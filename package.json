@@ -1,0 +1,31 @@
+{
+  "name": "failure-experience-incubator",
+  "private": true,
+  "description": "S01-01 project skeleton - framework-neutral TypeScript core (Domain + Workspace). No UI / no network / no database. Not an npm-published package.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "typecheck:core": "tsc -p tsconfig.core.json",
+    "typecheck:browser": "tsc -p tsconfig.browser.json",
+    "typecheck:server": "tsc -p tsconfig.server.json",
+    "typecheck:web": "tsc -p tsconfig.web.json --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "build:web": "tsc -p tsconfig.web.json && node scripts/build-web.mjs",
+    "dev:web": "npm run build:web && node scripts/serve-web.mjs",
+    "preview:web": "node scripts/serve-web.mjs",
+    "test": "tsc -p tsconfig.test.json && node --test \"dist-test/**/*.test.js\"",
+    "test:proxy": "tsc -p tsconfig.proxy-test.json && node --test \"dist-proxy-test/**/*.test.js\"",
+    "test:unit": "npm run test",
+    "demo:seed": "tsc -p tsconfig.test.json && node dist-test/demo/cli.js seed",
+    "demo:reset": "tsc -p tsconfig.test.json && node dist-test/demo/cli.js reset",
+    "demo:status": "tsc -p tsconfig.test.json && node dist-test/demo/cli.js status",
+    "demo:where": "node dist-test/demo/cli.js where"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "evidence_ref_id": "ER-0001",
+  "target_id": "ATT-0001",
+  "source_field_path": "level_a.condition",
+  "role": "grounding",
+  "owner_id": "HYP-SP06-0000",
+  "NOTE": "TEST FIXTURE / NOT PRODUCT DATA"
+}

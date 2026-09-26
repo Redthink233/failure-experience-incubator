@@ -1,0 +1,135 @@
+{
+  "NATURE": "DISPOSABLE / NON-PRODUCTION",
+  "LIMITATION": "🔴 未调用任何真实 LLM Provider（本机无模型凭据）；上游为本地 mock。CORS 的真实拦截行为由浏览器侧探针验证（S6-18），Node 侧只验证 Adapter 决策与调用形态。",
+  "code_call_site": "invoke(providerConfig) —— 对所有 provider 使用同一个函数（切换 provider 只改配置）",
+  "providers": [
+    {
+      "provider_id": "mock_browser_direct_capable",
+      "decision": {
+        "path": "BROWSER_DIRECT",
+        "reason": "ALL_FIVE_CONDITIONS_MET",
+        "credential_destination": "USER_SELECTED_PROVIDER"
+      },
+      "invoked": true,
+      "upstream_status": 200,
+      "upstream_target": "http://127.0.0.1:64145/v1/chat/completions"
+    },
+    {
+      "provider_id": "mock_proxy_required",
+      "decision": {
+        "path": "VERCEL_THIN_PROXY",
+        "reason": "BROWSER_DIRECT_NOT_FEASIBLE_AND_REGISTERED_ADAPTER_EXISTS",
+        "credential_destination": "REGISTERED_PROVIDER_ENDPOINT_ONLY",
+        "target_resolution": "provider_id → registered adapter → fixed/allowlisted host",
+        "thin_boundary": {
+          "allowed": [
+            "request normalization",
+            "provider adapter forwarding",
+            "response normalization",
+            "timeout/error mapping",
+            "schema transport"
+          ],
+          "forbidden": [
+            "Workspace persistence",
+            "Attempt persistence",
+            "Insight persistence",
+            "Hypothesis persistence",
+            "Experience database",
+            "Cloud user database"
+          ]
+        }
+      },
+      "invoked": true,
+      "upstream_status": 200,
+      "upstream_target": "http://127.0.0.1:64145/v1/chat/completions"
+    },
+    {
+      "provider_id": "mock_custom_base_url",
+      "decision": {
+        "path": "BROWSER_DIRECT",
+        "reason": "CUSTOM_BASE_URL_BROWSER_DIRECT_ONLY",
+        "credential_destination": "USER_SELECTED_BASE_URL"
+      },
+      "invoked": true,
+      "upstream_status": 0,
+      "upstream_target": "https://my-own-endpoint.example.invalid/v1"
+    },
+    {
+      "provider_id": "mock_custom_base_url_unsupported",
+      "decision": {
+        "path": "UNSUPPORTED",
+        "reason": "CUSTOM_BASE_URL_NOT_BROWSER_DIRECT_CAPABLE_AND_GENERIC_PROXY_FORBIDDEN",
+        "user_message": "Provider connection unsupported under current browser constraints",
+        "credential_destination": "NOT_SENT"
+      },
+      "invoked": false
+    },
+    {
+      "provider_id": "mock_direct_no_secret_requirement_met",
+      "decision": {
+        "path": "UNSUPPORTED",
+        "reason": "REQUIRES_SERVER_SIDE_FIXED_SECRET_WHICH_V1_DOES_NOT_PROVISION",
+        "user_message": "Provider connection unsupported under current browser constraints",
+        "credential_destination": "NOT_SENT",
+        "must_not": "不得为了支持该 Provider 而在产品侧预置固定 server secret；不得偷偷走通用 Vercel Proxy"
+      },
+      "invoked": false
+    }
+  ],
+  "unsupported_messages": [
+    {
+      "provider_id": "mock_custom_base_url_unsupported",
+      "message": "Provider connection unsupported under current browser constraints"
+    },
+    {
+      "provider_id": "mock_direct_no_secret_requirement_met",
+      "message": "Provider connection unsupported under current browser constraints",
+      "must_not": "不得为了支持该 Provider 而在产品侧预置固定 server secret；不得偷偷走通用 Vercel Proxy"
+    }
+  ],
+  "credential_leak_check": {
+    "credential_store_is_memory_only": true,
+    "credential_store_redacts_on_dump": "REDACTED(5 entries)",
+    "upstream_received_authorization_header": true,
+    "upstream_received_plaintext_token_in_this_run": false,
+    "our_records_masked": true,
+    "files_containing_fixture_token": [
+      "tools/provider_adapter_probe.mjs"
+    ],
+    "fixture_token_declared_in": [
+      "tools/provider_adapter_probe.mjs"
+    ],
+    "unexpected_hits": [],
+    "note": "SP06-FAKE-TOKEN… 是探针自带的**非机密**测试标记串（用于存储/日志泄漏检测），不属于凭据；🔴 它出现在声明它的探针源码内属预期。",
+    "no_durable_credential_leak": true
+  },
+  "switching_provider_requires_code_change": false,
+  "upstream_requests_seen": [
+    {
+      "url": "/v1/chat/completions",
+      "authorization_header_present": true,
+      "authorization_header_masked": "Bearer REDACTED"
+    },
+    {
+      "url": "/v1/chat/completions",
+      "authorization_header_present": true,
+      "authorization_header_masked": "Bearer REDACTED"
+    }
+  ],
+  "browser_direct_credential_destination": [
+    "mock_browser_direct_capable",
+    "mock_custom_base_url"
+  ],
+  "proxy_path_credential_destination": [
+    "mock_proxy_required"
+  ],
+  "unsupported_provider_count": 2,
+  "summary": {
+    "providers_tested": 5,
+    "direct_path": 2,
+    "proxy_path": 1,
+    "unsupported": 2,
+    "unsupported_never_silently_proxied": true,
+    "VERDICT": "PASS"
+  }
+}

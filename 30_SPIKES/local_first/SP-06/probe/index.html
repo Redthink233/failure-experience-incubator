@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>SP-06 Local-first Browser Probe（DISPOSABLE / NON-PRODUCTION）</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: ui-sans-serif, system-ui, "Segoe UI", "Microsoft YaHei", sans-serif; margin: 0; padding: 20px 24px 40px; line-height: 1.5; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h2 { font-size: 14px; margin: 20px 0 8px; }
+  .warn { background: #fff4d6; border: 1px solid #e0b84c; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin: 10px 0 18px; }
+  section { border: 1px solid #d8d8d8; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+  button { font: inherit; font-size: 12px; padding: 5px 10px; margin: 3px 4px 3px 0; border-radius: 6px; border: 1px solid #b9b9b9; background: #f7f7f7; cursor: pointer; }
+  button:hover { background: #ececec; }
+  pre { background: #0f1720; color: #d6e2ef; padding: 12px; border-radius: 8px; max-height: 420px; overflow: auto; font-size: 11.5px; }
+  ol { font-size: 12.5px; }
+</style>
+</head>
+<body>
+<h1>SP-06｜Local-first Browser Workspace &amp; Vercel Feasibility — 浏览器探针</h1>
+<div class="warn">
+  🔴 <strong>DISPOSABLE / NON-PRODUCTION</strong>：本页面是 disposable 探针，不是产品界面、不实现正式业务逻辑。
+  🔴 所有数据均为 <strong>TEST FIXTURE / NOT PRODUCT DATA</strong>。🔴 本页面不写入任何真实 API Key。
+</div>
+
+<section>
+  <h2>0. 一键自动化（不含需要原生 picker 的项）</h2>
+  <button id="run-auto">Run automated battery</button>
+  <button id="clearlog">Clear log</button>
+  <div style="font-size:12px;margin-top:6px">需要真实用户手势的项（Select Workspace / 读 / 建 / 改 / 改名）必须人工点击下方按钮并选择目录。</div>
+</section>
+
+<section>
+  <h2>1. 环境与能力检测（S6-01 / S6-02 / S6-03 的支撑证据）</h2>
+  <button id="detect">Detect</button>
+</section>
+
+<section>
+  <h2>2. Workspace（File System Access API）🔴 需人工手势</h2>
+  <ol>
+    <li>点 <em>Select Workspace</em> → 选择 <code>SP-06/fixture/ws20</code> 目录 → 系统授权框选「允许」</li>
+    <li>点 <em>Read workspace.json</em> / <em>List attempts</em></li>
+    <li>点 <em>Create attempt file</em> / <em>Modify file</em> → <strong>用外部文件管理器 / 编辑器核对磁盘确实变化</strong></li>
+    <li>点 <em>Rename for ref test</em> → 在应用侧重新解析引用（本探针只做改名动作）</li>
+    <li>刷新页面 → 点 <em>Permission state</em>（S6-08）；关闭浏览器重开 → 重复（S6-09）</li>
+    <li>在浏览器站点设置里撤销权限 → 回到页面点 <em>Read workspace.json</em>（S6-10）</li>
+    <li>把目录改名 / 移走 / 删除 → 回到页面点 <em>List attempts</em>（S6-12）</li>
+  </ol>
+  <button id="pick">Select Workspace</button>
+  <button id="read">Read workspace.json</button>
+  <button id="list">List attempts</button>
+  <button id="create">Create attempt file</button>
+  <button id="modify">Modify file</button>
+  <button id="rename">Rename for ref test</button>
+  <button id="perm">Permission state</button>
+  <button id="permreq">Request permission again</button>
+</section>
+
+<section>
+  <h2>3. 凭据（D-056：Session-only）</h2>
+  <div style="font-size:12px">使用探针自带的非机密标记串（🔴 不是凭据）。输入真实 Key 时请使用项目负责人提供的 disposable test credential，且 🔴 不得把真实 Key 截图 / 打印 / 记录。</div>
+  <button id="credset">Store marker in sessionStorage</button>
+  <button id="credget">Read (masked)</button>
+  <button id="credclear">Clear</button>
+  <button id="credafterreload">Read after reload</button>
+  <button id="leakscan">Durable leak scan (localStorage / IndexedDB / cookie / caches)</button>
+</section>
+
+<section>
+  <h2>4. 网络路径（D-055 / S6-18）</h2>
+  <button id="directcors">Direct → provider WITH CORS</button>
+  <button id="directnocors">Direct → provider WITHOUT CORS</button>
+  <button id="viaproxy">Via Thin Proxy (provider_id)</button>
+  <button id="arbitrary">Proxy: arbitrary target attempts</button>
+  <button id="minimal">Proxy: minimal-context check</button>
+  <button id="logscan">Server log scan</button>
+</section>
+
+<h2>观测记录（JSON）</h2>
+<pre id="log"></pre>
+<script src="/app.js"></script>
+</body>
+</html>

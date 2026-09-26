@@ -1,0 +1,16 @@
+{
+  "//": "PROXY TEST build (S01-W1-INTEGRATE). Its ONLY purpose is to make `api/proxy/**` importable from a test, which `tsconfig.test.json` cannot do: that config fixes `rootDir: \"src\"`, so a test importing `api/proxy/**` fails with `error TS6059: File '.../api/proxy/...' is not under 'rootDir' '.../src'`. Widening THAT config would relocate every emitted test (`dist-test/tests/**` -> `dist-test/src/tests/**`) and break the repo-root computation of the existing suite, so a SEPARATE scope with an INDEPENDENT output directory is used instead.",
+  "//isolation": "🔴 `dist-proxy-test/` is disjoint from `dist-test/`: the 224 pre-existing tests keep their exact output layout, and the cases in this scope are additive. Same type environment as the server scope (lib = ES2022, types = [node], NO DOM).",
+  "//scripts": "Consumed by `npm run test:proxy` only. Use this scope for tests that must import the Node transport shell; tests that only need the pure M12 policy keep building through `tsconfig.test.json`.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "noEmit": false,
+    "outDir": "dist-proxy-test",
+    "rootDir": ".",
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["api/proxy/**/*.ts"]
+}

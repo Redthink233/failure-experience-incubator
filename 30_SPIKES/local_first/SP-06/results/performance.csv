@@ -1,0 +1,5 @@
+scale,files,scan_ms,parse_ms,retrieval_ms,context_build_ms,corpus,hits,llm_network_ms
+20 Attempt,20,0.377,107.628,0.648,0.295,20,16,NOT_EXECUTED
+100 Attempt,100,0.442,421.917,1.559,0.145,89,57,NOT_EXECUTED
+# 说明：🔴 local deterministic 阶段与 LLM 网络耗时严格分开；LLM 未执行（本机无模型凭据）。
+# 说明：🔴 只记录耗时，不构成性能结论（SP-06 Plan §2）。

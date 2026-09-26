@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SP-01a MINIMAL ENVIRONMENT PROBE (DISPOSABLE / NON-PRODUCTION)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; margin: 24px; max-width: 980px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; background: #ffe9a8; color: #5a4200; }
+  fieldset { border: 1px solid #bbb; border-radius: 8px; margin: 16px 0; padding: 12px; }
+  legend { font-weight: 600; padding: 0 6px; }
+  input[type=text] { width: 100%; padding: 6px 8px; font-family: ui-monospace, Consolas, monospace; }
+  button { padding: 5px 10px; margin: 4px 4px 4px 0; cursor: pointer; }
+  pre { background: #f4f4f4; border: 1px solid #ddd; border-radius: 6px; padding: 10px; overflow: auto; max-height: 260px; }
+  .warn { color: #8a2b00; }
+</style>
+</head>
+<body>
+<!--
+  SP-01a MINIMAL ENVIRONMENT PROBE -- DISPOSABLE / NON-PRODUCTION
+  仅用于：S-01 可达性 / S-08 探针级完整链 / S-09 展示机不依赖本地服务 / CORS 真实行为
+  🔴 不含任何业务 UI、不含 D9 十步、不调用任何 AI 模型
+  🔴 由项目负责人在已存在的 CloudBase 环境中【初始化静态网站托管】后上传本文件
+  🔴 本页不硬编码 Function URL：在页面上填写，避免来回改文件
+-->
+<h1>SP-01a MINIMAL ENVIRONMENT PROBE</h1>
+<p class="tag">DISPOSABLE / NON-PRODUCTION</p>
+<p class="warn">仅测【环境】，不测【业务】。本页不含任何业务规则、不含 D9 十步逻辑、不含 AI 调用。</p>
+
+<fieldset>
+  <legend>① Function URL（R1 入口，构建期未知，运行时填写）</legend>
+  <input id="base" type="text" placeholder="https://xxxx.tencentscf.com" />
+  <div style="margin-top:6px">
+    <button data-p="/health">GET /health</button>
+    <button data-p="/db-health">GET /db-health</button>
+    <button data-p="/persist?note=demo-write">GET /persist?note=demo-write</button>
+    <button data-p="/persist-count">GET /persist-count</button>
+    <button data-p="/conn?n=8">GET /conn?n=8</button>
+    <button data-p="/env-keys">GET /env-keys</button>
+  </div>
+  <p style="margin:8px 0 0;color:#555">跨域说明：本页域为 CloudBase 静态托管默认域，Function URL 为 SCF 域 ⇒ 此处调用即为 <b>真实 CORS 行为</b>观测点。</p>
+</fieldset>
+
+<fieldset>
+  <legend>② 观测结果（含客户端侧耗时）</legend>
+  <pre id="out">（尚未调用）</pre>
+  <button id="clear">清空</button>
+  <button id="seq">顺序跑一遍（health → env-keys → db-health → conn → persist → persist-count）</button>
+</fieldset>
+
+<script>
+(function () {
+  var baseEl = document.getElementById('base');
+  var out = document.getElementById('out');
+  var log = [];
+
+  function render() { out.textContent = log.join('\n\n'); }
+
+  function endpoint(p) {
+    var b = (baseEl.value || '').trim().replace(/\/+$/, '');
+    if (!b) { throw new Error('请先填写 Function URL'); }
+    return b + p;
+  }
+
+  function call(p) {
+    var url = endpoint(p);
+    var t0 = performance.now();
+    return fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store' })
+      .then(function (r) {
+        return r.text().then(function (t) {
+          return { status: r.status, ms: Math.round(performance.now() - t0), body: t };
+        });
+      })
+      .then(function (res) {
+        log.push('### GET ' + p + '\nHTTP ' + res.status + '  |  wall_ms=' + res.ms + '\n' + res.body);
+      })
+      .catch(function (e) {
+        var ms = Math.round(performance.now() - t0);
+        log.push('### GET ' + p + '\n❌ FAILED  |  wall_ms=' + ms + '\n' + String(e) +
+          '\n（若为 CORS 报错，请记录为「真实 CORS 行为」观测值；不要写成"通过"）');
+      })
+      .then(function () { render(); });
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-p]'), function (btn) {
+    btn.addEventListener('click', function () { call(btn.getAttribute('data-p')); });
+  });
+
+  document.getElementById('clear').addEventListener('click', function () { log = []; render(); });
+
+  document.getElementById('seq').addEventListener('click', function () {
+    var seq = ['/health', '/env-keys', '/db-health', '/conn?n=8', '/persist?note=demo-write', '/persist-count'];
+    var i = 0;
+    (function next() {
+      if (i >= seq.length) { return; }
+      call(seq[i]).then(function () { i += 1; next(); });
+    })();
+  });
+})();
+</script>
+</body>
+</html>

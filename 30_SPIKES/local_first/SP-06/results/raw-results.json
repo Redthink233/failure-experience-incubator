@@ -1,0 +1,423 @@
+{
+  "SPIKE": "SP-06",
+  "NATURE": "DISPOSABLE / NON-PRODUCTION",
+  "FIXTURE_NOTICE": "TEST FIXTURE / NOT PRODUCT DATA",
+  "CHAIN_LIMITATION": "本探针在 ⑥⑦⑧⑨ 中使用的\"判定 / 生成\"步骤均为 deterministic stand-in；🔴 不是真实 LLM 调用（本机无任何模型 API 凭据）。SP-06 只验证架构链路可行性，不构成对判定准确率或生成质量的结论。",
+  "started_at": "2026-09-24T07:55:33.201Z",
+  "environment": {},
+  "tests": {
+    "S6-07": {
+      "target": "EvidenceRef / stable local ID 可追踪性（文件改名后引用仍可解析）",
+      "steps": [
+        {
+          "step": "baseline: refs pointing to ATT-0001",
+          "count": 4
+        },
+        {
+          "step": "after rename",
+          "old_file": "ATT-0001.md",
+          "new_file": "zzz-renamed-file-名字改了.md",
+          "ref_count_unchanged": true,
+          "resolved_ok": true,
+          "resolved_current_filename": "zzz-renamed-file-名字改了.md",
+          "content_item_identity_preserved": true,
+          "note": "解析按 attempt_id（文件内容）而非文件名 / 路径"
+        },
+        {
+          "step": "restore original filename",
+          "restored": true
+        }
+      ],
+      "status": "PASS",
+      "limitation": "Node/文件系统侧已验证；浏览器 File System Access API 侧的同类行为需人工观测（见 S6-04/S6-06 的 MANUAL OBSERVATION）"
+    },
+    "S6-11": {
+      "target": "Workspace 文件损坏（非法 JSON / 截断 Markdown）",
+      "steps": [
+        {
+          "step": "parse workspace containing 2 broken files",
+          "total_files": 8,
+          "parsed_ok": 6,
+          "errors": [
+            {
+              "file": "ATT-BAD-json.md",
+              "code": "PARSE_JSON",
+              "message": "levelA JSON parse failure: Expected double-quoted property name in JSON at position 37 (line 2 column 37)"
+            },
+            {
+              "file": "ATT-BAD-truncated.md",
+              "code": "PARSE_ERROR",
+              "message": "levelA block missing"
+            }
+          ],
+          "crashed": false,
+          "other_files_preserved": true,
+          "identifies_specific_file": true
+        }
+      ],
+      "status": "PASS"
+    },
+    "S6-12": {
+      "target": "Workspace 被移动 / 删除（应用不崩溃、可提示、可重新选择）",
+      "steps": [
+        {
+          "step": "point app at missing workspace",
+          "threw": true,
+          "code": "WORKSPACE_UNAVAILABLE",
+          "message": "workspace not accessible: C:\\Users\\Red16\\Desktop\\失败经验孵化助手\\30_SPIKES\\local_first\\SP-06\\fixture\\ws_does_not_exist\\attempts",
+          "app_crash": false,
+          "recoverable": "WORKSPACE_UNAVAILABLE ⇒ UI 须提示并允许重新选择（S6-10/S6-12 的可达恢复路径）"
+        }
+      ],
+      "status": "PASS",
+      "limitation": "逻辑层已验证；浏览器权限被撤销 / 目录被移走的原生行为需人工观测"
+    },
+    "S6-20": {
+      "target": "无 PostgreSQL 仍能跑通 D9（①→⑩）技术可行性",
+      "steps": [
+        {
+          "step": "① NL 输入",
+          "artifact": "ws_live/current_input.txt",
+          "ok": true
+        },
+        {
+          "step": "② AI 解析（stand-in，非真实 LLM）",
+          "artifact": "in-memory structure",
+          "ok": true,
+          "note": "NOT_A_REAL_LLM_OUTPUT"
+        },
+        {
+          "step": "③ 用户确认",
+          "artifact": "user_confirmed=true",
+          "ok": true
+        },
+        {
+          "step": "④ 候选失败原因（stand-in）",
+          "candidates": [
+            "升温速率过快导致表层先固化并收缩",
+            "局部温差导致应力集中"
+          ],
+          "note": "candidate only；置信度不定；NOT_A_REAL_LLM_OUTPUT",
+          "ok": true
+        },
+        {
+          "step": "⑤ 确认保存（真实落盘）",
+          "artifact": "ws_live/attempts/ATT-LIVE-0001.md",
+          "bytes": 978,
+          "ok": true
+        },
+        {
+          "step": "⑥ 检索历史 Attempt",
+          "n_retrieval": 57,
+          "ok": true
+        },
+        {
+          "step": "⑦ 相似点 / 差异点",
+          "rows": 57,
+          "numeric_similarity_present": false,
+          "ok": true
+        },
+        {
+          "step": "⑧ 提炼经验（Candidate Insight）",
+          "produced": true,
+          "basis": [
+            "goal",
+            "approach",
+            "condition",
+            "result_phenomenon"
+          ],
+          "ok": true
+        },
+        {
+          "step": "⑨ 可验证假设（Hypothesis）",
+          "produced": true,
+          "kind": "grounded",
+          "history_grounded": true,
+          "ok": true
+        },
+        {
+          "step": "⑩ 证据可追溯",
+          "refs": 149,
+          "all_resolved": true,
+          "ok": true
+        }
+      ],
+      "database_used": "NONE",
+      "status": "PASS",
+      "required_database": "NONE（无 PostgreSQL / 无 SQLite 云服务 / 无 Vector DB）",
+      "limitation": "②④⑧⑨ 为 stand-in 步骤；S6-20 只证明\"无数据库仍可承载 D9 的管道\""
+    },
+    "S6-13": {
+      "target": "20 条 Attempt retrieval",
+      "status": "PASS",
+      "evidence": {
+        "n_retrieval": 16,
+        "not_related_count": 4,
+        "internal_compared_not_matched_total": 18,
+        "numeric_similarity_present": false,
+        "timings_ms": {
+          "scan": 0.377,
+          "parse": 107.628,
+          "retrieval": 0.648,
+          "context_build": 0.295,
+          "llm_network": null,
+          "llm_network_note": "NOT EXECUTED（本机无模型凭据；🔴 不得与 local 阶段耗时合并）"
+        },
+        "sample_hits": [
+          {
+            "attempt_id": "ATT-0001",
+            "matched": [
+              "goal",
+              "approach",
+              "condition",
+              "result_phenomenon"
+            ],
+            "uncompared": [],
+            "file": "ATT-0001.md"
+          },
+          {
+            "attempt_id": "ATT-0002",
+            "matched": [
+              "goal",
+              "approach",
+              "condition",
+              "result_phenomenon"
+            ],
+            "uncompared": [],
+            "file": "ATT-0002.md"
+          },
+          {
+            "attempt_id": "ATT-0003",
+            "matched": [
+              "goal",
+              "approach",
+              "condition",
+              "result_phenomenon"
+            ],
+            "uncompared": [],
+            "file": "ATT-0003.md"
+          },
+          {
+            "attempt_id": "ATT-0004",
+            "matched": [
+              "goal",
+              "approach",
+              "condition",
+              "result_phenomenon"
+            ],
+            "uncompared": [],
+            "file": "ATT-0004.md"
+          },
+          {
+            "attempt_id": "ATT-0005",
+            "matched": [
+              "goal",
+              "approach",
+              "condition",
+              "result_phenomenon"
+            ],
+            "uncompared": [],
+            "file": "ATT-0005.md"
+          }
+        ]
+      },
+      "limitation": "判定为 deterministic stand-in；不评价准确率"
+    },
+    "S6-14": {
+      "target": "100 条 Attempt retrieval",
+      "status": "PASS",
+      "evidence": {
+        "n_retrieval": 57,
+        "not_related_count": 32,
+        "corpus_size": 89,
+        "excluded_draft_and_archived": 11,
+        "timings_ms": {
+          "scan": 0.442,
+          "parse": 421.917,
+          "retrieval": 1.559,
+          "context_build": 0.145,
+          "llm_network": null,
+          "llm_network_note": "NOT EXECUTED（本机无模型凭据；🔴 不得与 local 阶段耗时合并）"
+        },
+        "numeric_similarity_present": false
+      },
+      "limitation": "🔴 只记录耗时，不构成性能结论（SP-06 Plan §2 硬边界）"
+    },
+    "S6-15": {
+      "target": "Structured Experience RAG 在无数据库条件下完成全链",
+      "status": "PASS",
+      "evidence": {
+        "chain_20": {
+          "step6_retrieval": {
+            "produced": true,
+            "count": 16
+          },
+          "step7_comparison": {
+            "produced": true,
+            "rows": 16
+          },
+          "step8_candidate_insight": {
+            "produced": true,
+            "basis_dims": [
+              "goal",
+              "approach",
+              "condition",
+              "result_phenomenon"
+            ]
+          },
+          "step9_hypothesis": {
+            "produced": true,
+            "kind": "grounded",
+            "history_grounded": true
+          },
+          "step10_evidence_traceable": {
+            "produced": true,
+            "refs": 60,
+            "n_reference": 16
+          }
+        },
+        "chain_100": {
+          "step6_retrieval": {
+            "produced": true,
+            "count": 57
+          },
+          "step7_comparison": {
+            "produced": true,
+            "rows": 57
+          },
+          "step8_candidate_insight": {
+            "produced": true,
+            "basis_dims": [
+              "goal",
+              "approach",
+              "condition",
+              "result_phenomenon"
+            ]
+          },
+          "step9_hypothesis": {
+            "produced": true,
+            "kind": "grounded",
+            "history_grounded": true
+          },
+          "step10_evidence_traceable": {
+            "produced": true,
+            "refs": 149,
+            "n_reference": 57
+          }
+        },
+        "database_used": "NONE",
+        "evidence_ref_resolution_sample": [
+          {
+            "ref": "ER-0001",
+            "resolved": true,
+            "target_id": "ATT-0001",
+            "current_filename": "ATT-0001.md",
+            "source_field_path": "level_a.goal",
+            "content_item_id": "CI-ATT-0001-goal",
+            "content_item_id_matches": true,
+            "role": "grounding",
+            "archived_source": false
+          },
+          {
+            "ref": "ER-0002",
+            "resolved": true,
+            "target_id": "ATT-0001",
+            "current_filename": "ATT-0001.md",
+            "source_field_path": "level_a.approach",
+            "content_item_id": "CI-ATT-0001-approach",
+            "content_item_id_matches": true,
+            "role": "grounding",
+            "archived_source": false
+          },
+          {
+            "ref": "ER-0003",
+            "resolved": true,
+            "target_id": "ATT-0001",
+            "current_filename": "ATT-0001.md",
+            "source_field_path": "level_a.condition",
+            "content_item_id": "CI-ATT-0001-condition",
+            "content_item_id_matches": true,
+            "role": "grounding",
+            "archived_source": false
+          }
+        ],
+        "every_ref_resolved": true,
+        "refs_resolved_to_formal_attempt_and_content_item": true
+      },
+      "limitation": "⑧⑨ 的生成物为 deterministic extractive stand-in；🔴 非真实 LLM 输出"
+    },
+    "S6-16": {
+      "target": "R-A 技术路线在 Browser / application layer 是否可行",
+      "status": "PASS",
+      "evidence": {
+        "level_a_projection": [
+          "goal",
+          "approach",
+          "condition",
+          "result_phenomenon"
+        ],
+        "three_state_distinguishable": {
+          "matched": [
+            "goal",
+            "approach",
+            "condition",
+            "result_phenomenon"
+          ],
+          "compared_not_matched_present": true,
+          "uncompared_present": true
+        },
+        "d052_negative_case_check": {
+          "current_approach": "提高热风温度",
+          "candidate_approach": "提高送风温度",
+          "verdict": "compared_not_matched",
+          "expected": "compared_not_matched"
+        },
+        "d050_equivalence_check": [
+          {
+            "a": "缩短干燥时间",
+            "b": "缩短干燥时长",
+            "verdict": "matched",
+            "expected": "matched"
+          },
+          {
+            "a": "50°C",
+            "b": "50 摄氏度",
+            "verdict": "matched",
+            "expected": "matched"
+          },
+          {
+            "a": "出现明显开裂",
+            "b": "无明显开裂",
+            "verdict": "compared_not_matched",
+            "expected": "compared_not_matched"
+          },
+          {
+            "a": "50°C",
+            "b": null,
+            "verdict": "uncompared",
+            "expected": "uncompared"
+          }
+        ],
+        "related_rule": "matched_level_a_dimensions 非空 ⇒ related（不变）",
+        "numeric_similarity_absent": true,
+        "explicit_non_claims": [
+          "不评价准确率",
+          "不引入 embedding",
+          "不切换 R-B / R-C",
+          "不 CONFIRM TQ04"
+        ]
+      }
+    }
+  },
+  "summary": {
+    "S6_07": "PASS",
+    "S6_11": "PASS",
+    "S6_12": "PASS",
+    "S6_13": "PASS",
+    "S6_14": "PASS",
+    "S6_15": "PASS",
+    "S6_16": "PASS",
+    "S6_20": "PASS"
+  },
+  "finished_at": "2026-09-24T07:55:33.818Z"
+}

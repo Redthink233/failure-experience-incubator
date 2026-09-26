@@ -1,0 +1,32 @@
+{
+  "attempt_id": "ATT-CURRENT",
+  "status": "Formal",
+  "archive_state": "active",
+  "project_id": "PRJ-DRY",
+  "created_at": "2026-09-24T09:00:00+08:00",
+  "updated_at": "2026-09-24T09:00:00+08:00",
+  "data_source_nature": "TEST FIXTURE / NOT PRODUCT DATA",
+  "note": "SP-06 当前 Attempt（探针输入）",
+  "level_a": {
+    "goal": {
+      "content_item_id": "CI-ATT-CURRENT-goal",
+      "source_type": "Fact",
+      "value": "缩短干燥时间"
+    },
+    "approach": {
+      "content_item_id": "CI-ATT-CURRENT-approach",
+      "source_type": "Fact",
+      "value": "提高热风温度"
+    },
+    "condition": {
+      "content_item_id": "CI-ATT-CURRENT-condition",
+      "source_type": "Fact",
+      "value": "50°C"
+    },
+    "result_phenomenon": {
+      "content_item_id": "CI-ATT-CURRENT-result",
+      "source_type": "Fact",
+      "value": "出现明显开裂"
+    }
+  }
+}

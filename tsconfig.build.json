@@ -1,0 +1,9 @@
+{
+  "//": "Production build. Emits the framework-neutral CORE only (src/domain + src/workspace + the src/ai M10 contract + the src/application `D9` steps ①-⑤ layer, all inherited from tsconfig.core.json) to dist/. Tests, browser code (src/browser/**) and server code (api/proxy/**) are not part of the build output and are not in the core include list. Since S01-05-INTEGRATE the production build really contains src/application/**: the layer was only reachable through the test import graph before, so dist/ carried no application module at all.",
+  "extends": "./tsconfig.core.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "src"
+  }
+}

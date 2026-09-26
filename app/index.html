@@ -1,0 +1,29 @@
+<!doctype html>
+<!--
+  S01-06 ｜ App Shell HTML entry.
+
+  🔴 This file is authored in `app/` and COPIED to `dist-web/index.html` by `scripts/build-web.mjs`.
+     The two asset paths below are therefore written relative to the `dist-web/` root, which is what
+     the browser actually resolves at load time.
+  🔴 There is no inline script and no inline style: the page is markup plus one module entry, so the
+     build needs no transform step and no CSP exception.
+  🔴 A file protocol cannot serve ES modules with the right MIME type, so the app is opened through
+     the local preview server (`npm run dev:web`), which is also what lets `/api/proxy` be same-origin
+     later.
+-->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>失败经验累积及孵化助手</title>
+    <link rel="stylesheet" href="./src/ui/styles/app.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript>
+      这个页面需要启用 JavaScript 才能运行。没有脚本时不会读取任何本地文件。
+    </noscript>
+    <script type="module" src="./app/main.js"></script>
+  </body>
+</html>

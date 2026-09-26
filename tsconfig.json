@@ -1,0 +1,13 @@
+{
+  "//": "DEFAULT typecheck entry (= `npm run typecheck`). It is the CORE scope plus the Node-side test sources; DOM must still be absent. Since S01-05-INTEGRATE the application layer (src/application/**) is part of the SAME NO-DOM scope as the domain it orchestrates; since S01-03 the retrieval layer (src/retrieval/**) joins it for the same reason. Since M16 the Node-only DEMO TOOLING (src/demo/**: the eight-record demo workspace baseline, its seed / reset actions and the live-demo script registry) joins this Node-side scope as well - it is NOT product runtime, so it must stay OUT of tsconfig.core.json (framework-neutral core) and OUT of tsconfig.web.json (the browser bundle). Scope split: tsconfig.core.json = framework-neutral NO-DOM scope (domain + workspace + ai contract + application + retrieval), tsconfig.browser.json = DOM-enabled browser scope, tsconfig.server.json = Node-aware server scope (api/proxy), tsconfig.test.json = Node test build, tsconfig.build.json = production build. A browser file must NEVER be added to this include list.",
+  "extends": "./tsconfig.core.json",
+  "include": [
+    "src/domain/**/*.ts",
+    "src/workspace/**/*.ts",
+    "src/ai/**/*.ts",
+    "src/application/**/*.ts",
+    "src/retrieval/**/*.ts",
+    "src/demo/**/*.ts",
+    "src/tests/**/*.ts"
+  ]
+}

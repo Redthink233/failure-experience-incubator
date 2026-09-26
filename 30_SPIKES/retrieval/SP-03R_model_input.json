@@ -1,0 +1,168 @@
+{
+  "artifact_class": "DISPOSABLE / NON-PRODUCTION",
+  "spike_id": "SP-03R",
+  "purpose": "SP-03R 送判定会话的输入投影（仅 Level A 双方 present 且来源合法的维度）。",
+  "criterion": "docs/DECISIONS.md D-050（严格语义重叠，CONFIRMED）",
+  "projections": [
+    {
+      "case_id": "CASE-01",
+      "comparable_dimensions": {
+        "goal": {
+          "source_value": "将热风烘干后的药材含水率降低到目标范围",
+          "candidate_value": "把药材干燥到目标含水率"
+        },
+        "actual_attempt": {
+          "source_value": "60°C 热风并提高风速",
+          "candidate_value": "采用真空冷冻干燥"
+        },
+        "condition": {
+          "source_value": "60°C，风速 2 m/s",
+          "candidate_value": "-40°C 冻结后真空干燥"
+        },
+        "actual_result": {
+          "source_value": "表面出现开裂，最终含水率仍偏高",
+          "candidate_value": "无明显开裂，含水率达到要求"
+        }
+      }
+    },
+    {
+      "case_id": "CASE-02",
+      "comparable_dimensions": {
+        "goal": {
+          "source_value": "降低药材颜色变化",
+          "candidate_value": "缩短整体干燥时间"
+        },
+        "actual_attempt": {
+          "source_value": "60°C 热风干燥，风速 2 m/s",
+          "candidate_value": "采用 60°C 热风干燥并保持 2 m/s 风速"
+        },
+        "condition": {
+          "source_value": "温度 60°C，风速 2 m/s",
+          "candidate_value": "60°C，2 m/s"
+        },
+        "actual_result": {
+          "source_value": "颜色明显变深",
+          "candidate_value": "干燥时间有所下降"
+        }
+      }
+    },
+    {
+      "case_id": "CASE-03",
+      "comparable_dimensions": {
+        "goal": {
+          "source_value": "降低烘干后含水率",
+          "candidate_value": "提高图像分类准确率"
+        },
+        "actual_attempt": {
+          "source_value": "热风干燥",
+          "candidate_value": "训练卷积神经网络"
+        },
+        "condition": {
+          "source_value": "60°C",
+          "candidate_value": "batch size 32"
+        },
+        "actual_result": {
+          "source_value": "含水率下降不足",
+          "candidate_value": "验证集准确率提高"
+        }
+      }
+    },
+    {
+      "case_id": "CASE-04",
+      "comparable_dimensions": {
+        "goal": {
+          "source_value": "降低模型幻觉引用",
+          "candidate_value": "避免系统引用不存在的历史记录"
+        },
+        "actual_attempt": {
+          "source_value": "限制模型只能引用候选 ID",
+          "candidate_value": "增加引用后校验"
+        },
+        "actual_result": {
+          "source_value": "错误引用次数减少",
+          "candidate_value": "仍偶尔出现无效引用"
+        }
+      }
+    },
+    {
+      "case_id": "CASE-05",
+      "comparable_dimensions": {
+        "goal": {
+          "source_value": "验证新干燥方案是否能改善过程",
+          "candidate_value": "分析后半程失水速度变化"
+        },
+        "actual_attempt": {
+          "source_value": "调整热风参数",
+          "candidate_value": "调整送风参数"
+        },
+        "condition": {
+          "source_value": "55°C",
+          "candidate_value": "50°C"
+        },
+        "actual_result": {
+          "source_value": "后半程干燥速度明显下降",
+          "candidate_value": "后半程干燥速度明显下降"
+        }
+      }
+    },
+    {
+      "case_id": "CASE-06",
+      "comparable_dimensions": {
+        "goal": {
+          "source_value": "降低药材干燥后的含水率",
+          "candidate_value": "提升语音识别在嘈杂环境下的准确率"
+        },
+        "actual_attempt": {
+          "source_value": "热风循环干燥",
+          "candidate_value": "加入降噪前端模块"
+        },
+        "condition": {
+          "source_value": "60°C",
+          "candidate_value": "信噪比 5dB"
+        },
+        "actual_result": {
+          "source_value": "含水率下降不足",
+          "candidate_value": "识别错误率下降"
+        }
+      }
+    },
+    {
+      "case_id": "CASE-07",
+      "comparable_dimensions": {
+        "goal": {
+          "source_value": "避免 AI 引用并不存在的历史 Attempt",
+          "candidate_value": "让系统不要生成虚假的历史记录引用"
+        },
+        "actual_attempt": {
+          "source_value": "把允许引用的 Attempt ID 列表传给模型并限制输出",
+          "candidate_value": "要求模型只能从给定的候选记录 ID 中选择引用"
+        },
+        "condition": {
+          "source_value": "固定候选集合",
+          "candidate_value": "模型只能看到预先给出的候选记录集合"
+        },
+        "actual_result": {
+          "source_value": "无效引用明显减少",
+          "candidate_value": "幻觉引用减少"
+        }
+      }
+    },
+    {
+      "case_id": "CASE-08",
+      "comparable_dimensions": {
+        "goal": {
+          "source_value": "降低干燥过程表面开裂",
+          "candidate_value": "缩短干燥时间"
+        },
+        "actual_attempt": {
+          "source_value": "降低热风温度",
+          "candidate_value": "降低干燥温度"
+        },
+        "condition": {
+          "source_value": "50°C",
+          "candidate_value": "70°C"
+        }
+      }
+    }
+  ]
+}
