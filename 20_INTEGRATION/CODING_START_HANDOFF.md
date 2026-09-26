@@ -2582,3 +2582,148 @@ SAFE NEXT（🔴 需人工裁决，未授权自动启动）
 🔴 本轮完成后停止；不得自动继续 PSA。
 ```
 
+---
+
+## 27. `FINAL-M8-M9-INTEGRATION-DEPLOY-GATE` ｜ 合并最后两处 Correction 并 push（🚩 `PRE-SUBMISSION` Final Integration Gate，2026-09-26｜🔴 追加，不改写历史）
+
+> 🔴 **本节只做追加。§1–§26 及之前任何一字未被修改。**
+> 🔴 本轮**未新增任何 `Decision` ／ `AC` ／ `CCR` 编号**；未改 `Frozen Contract` ／ `Retrieval` ／ `Provider` ／ `UI` ／ `Demo` ／ `AC`。
+> 🔴 本轮只做**合并 ／ 验证 ／ push**：未重审全库、未继续 `PSA`、未改 UI、未真实调用 Provider。**禁止 force**。
+
+### 27.1 任务性质与基线
+
+```
+任务      = Final Integration Gate（单机串行）：把最后两处有界 Correction 合入 main 并 push
+主仓库    = C:\Users\Red16\Desktop\失败经验孵化助手_RECOVERED_REPO
+Baseline  = 54f9bbd03d37bac6af8c9ef627375dd1273d4b77
+Baseline Gate（只读）：working tree CLEAN ✅；local HEAD == remote main == 54f9bbd… ✅ ⇒ 无 BASELINE DRIFT
+🔴 同步判定只看 `git rev-parse HEAD` + `git ls-remote origin refs/heads/main`（不依赖 `origin/main` 引用缓存）
+```
+
+### 27.2 合并（cherry-pick｜🔴 逐项实测，无 conflict）
+
+```
+① 4bd852715b6e61fe8d1f5f7161a8c0a0af37a748  fix: allow m8 replay after insight decisions
+   ⇒ b06f4d298129eac0610c7200b1f32f388b2771b8   clean（4 files changed, 771 insertions(+), 9 deletions(-)）
+② d95166afcfb9692a581bdf951f2aa94bb511cee8  fix: encode hypothesis batch persistence paths
+   ⇒ 8da80fe57ef84b4731ff627b45062f290e349d00   clean（2 files changed, 558 insertions(+), 5 deletions(-)）
+```
+
+两个提交均为 `54f9bbd` 的**直接子提交**，且改动文件集**不重叠**（① 只改 `src/application/insight/**`，② 只改 `src/application/hypothesis/**`）⇒ 结构上不可能冲突，实测亦**无**冲突标记。
+🔴 cherry-pick 全程以 `-c core.autocrlf=false` 执行 ⇒ 落盘仍为 **LF**，与主工作树既有行尾一致（**未**引入 CRLF）。
+🔴 合并后**无 integration-only 代码变更** ⇒ 按任务 §6，**未**产生 `fix: integrate final m8 and m9 corrections` 提交（无内容可提交，不是跳过）。
+
+### 27.3 `M8 recovery` = **CLOSED**（`PSA-A-CORRECTION-M8-RECOVERY-02`）
+
+**唯一根因（承接 §26.10「缺陷②」）**：`createIfAbsent` 以**整个文档**做等价比较，因此用户合法裁决（`E5` accept ／ `candidate → rejected`）造成的 `state` + `updated_at` 变化被误判为 `PLAN_MISMATCH` ⇒ `PERSISTENCE_RECOVERY_BLOCKED` ⇒ **该 operation 永久不可恢复**。
+
+**修法（单点，🔴 未放宽到「同 `insight_id` 即兼容」）**：新增单点 helper `sameInsightGenesis`（`src/application/insight/persistence.ts`，配套 `INSIGHT_REPLAY_MUTABLE_FIELDS = ['state','updated_at']` 显式闭集声明），**只比较不可变 genesis**（identity ／ `attempt_id` ／ `created_at` ／ `generation_batch` ／ ①②④ 生成期内容 ／ `evidence_refs` ／ `gate_checks` ／ `comparison_ref` ／ display-only meta）；genesis 相同 ⇒ 返回**磁盘记录**（**绝不回写 `candidate`**），genesis 不同 ⇒ 仍 **FAIL CLOSED**。首次创建语义、`recordBatchIfAbsent`、`M8-PATH-01` 的路径格式均**未动**。
+
+### 27.4 `M9 Windows batch path` = **CLOSED**（`PSA-A-CORRECTION-M9-PATH-01`）
+
+即 §26.8 ① 登记的**相邻未处理缺陷**：`hypothesisBatchPath` 同样原样插值含 `:` 的 `batch_id`（`newHypothesisBatchId` 用 `:` 分隔），Windows 上 ⑨ 的 batch 记录同样无法落盘。
+
+**修法**：物理文件名改走 `M9` **已有的、可逆的** `~HH` codec（`encodeOperationIdToken`，**不是第二套 sanitize 规则**）；**逻辑 `batch_id` 处处不变**（domain 对象 ／ batch JSON ／ operation anchor ／ `planned_batch` ／ 引用）；发现永远**按内容**读取，文件名从不作为业务 ID 真源（§3.2 rule 3 / AC-137）。
+🔴 `hypothesisOperationAnchorPath` **故意不加编码**（其入参已由 `hypothesisOperationKey` 编好），否则会移动既有 anchor 并让待恢复操作失锚。
+
+### 27.5 验证（🔴 全部实测）
+
+```
+Main Tests   = 1181 passed / 0 failed   ← 0 FAIL（基线 1159 ＋ M8 +11 ＋ M9 +11 = 1181，逐项对齐）
+Proxy Tests  =   15 passed / 0 failed   ← 0 FAIL（基线 15）
+typecheck ×5 = PASS（tsconfig / core / browser / server / web --noEmit）
+build        = PASS（tsconfig.build.json，exit 0）
+build:web    = PASS（147 modules ＋ 1 stylesheet ＋ index.html；`dist-web/app/main.js` ／ `dist-web/index.html` ／ `dist-web/src/ui/styles/app.css` 均就位）
+Secret Scan  = PASS（变更集 6 个文件：`sk-*` ／ `AKIA*` ／ `Authorization` ／ `Bearer` ／ `api_key` ／ `secret` ／ `password` ／ `PRIVATE KEY` 等 12 类模式命中 = 0）
+禁止路径     = 0（dist* ／ node_modules ／ .learnbuddy ／ demo-workspace ／ recovery-copy 均不在变更集内）
+Real Provider Calls = 0（全部用例与 smoke 均为 fake／mock provider）
+```
+
+**定向证据（M8／M9 关键不变量，37/37 PASS 单独先行复跑）**
+
+```
+M8-R2-04 / AC-130  accepted 仍 accepted、rejected 仍 rejected（replay 不覆盖人工裁决）      PASS
+M8-R2-08 / AC-130  同 operation 重试 ⇒ 缺失 batch 落盘 ⇒ anchor 收口 `complete`            PASS
+M8-R2-09           recovery **ZERO** additional provider calls（`insight_calls` 仍为 1）    PASS
+M8-R2-10           第二次重试无新记录 ／ 无新 batch ／ 无新事件 ／ 无 provider 调用        PASS
+M9-PATH-01/02      含两个 `:` 的逻辑 id 永不到达物理名；物理名满足完整 Windows 文件名契约   PASS
+M9-PATH-06 / AC-137 持久化文档保留**原始**逻辑 `batch_id`                                   PASS
+M9-PATH-10 / AC-137 重载后仍可从编码文件名按内容发现                                        PASS
+M9-PATH-11         codec golden 值与 anchor 路径格式未变（无二次编码）                       PASS
+```
+
+**极短 fake smoke（🔴 真实服务链 ＋ 真实本地工作区，provider = 手写 fixture，`Real Provider Calls = 0`）**
+
+```
+① Formal Attempt → ⑧ generation 中断（anchor=in_progress / batch 缺失 / 2 条 insight 已落盘）
+→ ⑨ 此时 locked=true → 人工裁决 accepted + rejected（均 applied）
+→ 同 operation 重试 ⇒ anchor=complete、batch=1、**provider 调用增量 = 0**
+→ 两条裁决仍为 accepted／rejected（未被回写 candidate）
+→ ⑨ unlocked（step8=done, step9.locked=false）
+→ ⑨ generation ⇒ batch 落盘，物理名 ATT_…~3Ahypothesis-batch~3A….json（Windows 合法、可逆）
+→ reload discover ⇒ 按逻辑 id ＋ operation id 双路径解析成功
+SMOKE_RESULT = PASS（9/9 检查点；FAKE_PROVIDER_CALLS = 4，REAL_PROVIDER_CALLS = 0）
+```
+
+### 27.6 Git（🔴 事实登记）
+
+```
+push 前：HEAD = 8da80fe…（工作树 CLEAN，无 integration-only 代码变更 ⇒ 无需 fix commit）
+git push origin main  ⇒ exit 0（**未** force，**未** force-with-lease）
+push 后：git rev-parse HEAD              = 8da80fe57ef84b4731ff627b45062f290e349d00
+         git ls-remote origin refs/heads/main = 8da80fe57ef84b4731ff627b45062f290e349d00  ⇒ 一致 ✅
+```
+
+### 27.7 `PSA-A` 状态（🔴 未变）
+
+```
+PSA-A = INTERRUPTED
+🔴 保持 INTERRUPTED；**不得**记为 PASS，也**不**登记为 READY TO RESUME。
+🔴 本轮未执行任何 PSA 步骤；`PASS` 只能由真实 PSA 重跑取得。
+```
+
+### 27.8 `DEPLOYMENT CODE BASELINE`
+
+```
+DEPLOYMENT CODE BASELINE = 8da80fe57ef84b4731ff627b45062f290e349d00
+                           （= 纯代码集成 HEAD ＝ 远端 main；Handoff 本节由其后的 `chore:` 提交记录，不改动代码基线）
+```
+
+### 27.9 🚩 环境事实补注（🔴 就地补注 §26.8 ②，不改写其原文；非产品缺陷）
+
+§26.8 ② 曾记 `scripts/build-web.mjs`「在本机沙箱内无声终止（递归删除 `dist-web` 触发沙箱限制）」。本轮**实测修正该归因**：
+
+```
+事实：在**前台**直接运行 `node scripts/build-web.mjs` ⇒ **成功**（147 modules ＋ 1 stylesheet，exit 0）。
+事实：把该脚本的 stdout 接入 PowerShell **输出捕获管道**（如 `& node scripts/build-web.mjs 2>&1` 赋值给变量）
+      ⇒ 该步骤**挂起**（12 秒内 dist-web 文件数零变化、CPU 不再增长，本次已观测）。
+推断（低置信度，未定论）：脚本以 `stdio: 'inherit'` spawn 子 `tsc`，子进程继承 PowerShell 管道后被父进程等待，
+      可能在管道语义下死锁；**与中文路径无关**，也**不是**产品缺陷。
+⇒ 操作规程（本机）：`build-web.mjs` 一律**前台直跑**，或按其自身步骤等价执行（wipe → `tsc -p tsconfig.web.json`
+  → 复制 `app/index.html` 与 `src/ui/styles/app.css`）。`node --test` 的输出捕获不受影响，可正常重定向。
+```
+
+### 27.10 边界登记（🔴 本轮未做）
+
+```
+- 未重审全库；未新增 ／ 修改任何 `Decision` ／ `AC` ／ `CCR`
+- 未继续 `PSA`（`PSA-A` 仍 INTERRUPTED）；未对真实 Provider 发起任何调用
+- 未改 UI ／ Retrieval ／ Provider ／ Demo ／ Frozen Contract
+- 未处理 §26.8 ① 之外的其它相邻项；未做浏览器 recovery-copy 复验（属 PSA 重跑范畴）
+```
+
+### 27.11 状态汇总与下一波
+
+```
+M8 recovery              = CLOSED
+M9 Windows batch path    = CLOSED
+Main / Proxy             = 1181 / 0 ｜ 15 / 0
+typecheck ×5 / build     = PASS ｜ PASS
+build:web                = PASS（147 ＋ 1）
+Secret Scan              = PASS
+Final HEAD = Remote main = 8da80fe57ef84b4731ff627b45062f290e349d00
+PSA-A                    = INTERRUPTED（🔴 不得改 PASS）
+DEPLOYMENT GATE          = OPEN
+下一任务（🔴 已由人工在本轮指令中授权）：直接进入 Vercel 部署；**不得**再启动代码审查。
+```
+
