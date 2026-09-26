@@ -1,6 +1,11 @@
 # S01-01A .gitignore
 # 🔴 Deliberately NOT ignored (they are project deliverables / authoritative records):
 #    docs/  20_INTEGRATION/  30_SPIKES/  src/  package.json  package-lock.json  .learnbuddy/  tsconfig*.json
+# 🚩 2026-09-26 FINAL-RAPID-PARALLEL-PREP｜就地补注（保留上文原文，不删除、不改写，以留痕）：
+#    经人工裁决 ①，`.learnbuddy/` 由「有意不忽略」**改为有意移出版本库** ——
+#    依据：提交 d3f51e1「Remove something」已删除 `.learnbuddy/memory/**`（9 文件 / 5136 行）。
+#    ⇒ 上述清单中的 `.learnbuddy/` 条目**已失效（SUPERSEDED）**；其 ignore 规则见本文件末尾。
+#    ⇒ 磁盘上的 `.learnbuddy/`（含 memory/ 全部文件）**未被删除**，仅脱离版本追踪。
 
 # --- Dependencies ---
 node_modules/
@@ -69,3 +74,12 @@ $RECYCLE.BIN/
 *.swp
 *~
 ~$*
+
+# --- AI assistant working memory (NOT version-controlled) ---
+# 🚩 2026-09-26 FINAL-RAPID-PARALLEL-PREP 人工裁决 ①：`.learnbuddy/` 有意移出版本库。
+# 🔴 编码事故（同日，已修）：本文件曾被本地追加 **UTF-16LE** 字节（NUL 间隔的 `.learnbuddy/`），
+#    导致 Git 将本文件判定为 binary（`Binary files ... differ`），且该行因含 NUL **不是有效
+#    ignore 规则** ⇒ `.learnbuddy/` 仍以 `??` 出现，忽略意图实际未生效。
+#    现按 HEAD（blob 70a6302）逐字节还原后，改用 UTF-8 重写本规则。
+#    损坏副本留证：lb-parallel/gitignore.corrupted.bin（1909 B，SHA256 F2890E7B…6D8A）。
+.learnbuddy/
