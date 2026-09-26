@@ -9,8 +9,13 @@
  * 🔴 THE RULE ITSELF IS NOT HERE (task §3). `captureFocus` / `restoreFocus` are the framework-neutral
  *    functions in `./settings/control-identity.js`; this file only supplies the two-method DOM adapter
  *    (`document.activeElement` / `root.querySelector`). Keeping the rule out of the DOM scope is what
- *    makes "the focused control is the one the snapshot names" testable without a browser - and that
- *    property is the fix for the lost-focus defect, which was a duplicated control id.
+ *    makes "the focused control is the one the snapshot names" testable without a browser.
+ *    ⚠️ TWO SEPARATE FACTS, KEPT APART (`CORRECTION-02` §7, aligning with §23.2):
+ *      · OBSERVED ROOT CAUSE of the lost caret = the pre-authorization render path below returned
+ *        BEFORE restoring the focus it had captured (mechanism 1);
+ *      · EXPLICIT CONTROL IDENTITY = PREVENTIVE HARDENING. The label-derived scheme it replaced was a
+ *        duplicate-id factory, but the ids that actually shipped were built from ASCII labels and did
+ *        not collide, so it was never established as the cause of the symptom.
  * 🔴 ESCAPE CLOSES THE SETTINGS PANEL AND NOTHING ELSE (task §6). The listener is bound once for the
  *    lifetime of the shell - not per render, and not on the panel - so it cannot accumulate; it acts
  *    only while the panel is open, and it cannot clear a key, save a draft or touch the workspace.

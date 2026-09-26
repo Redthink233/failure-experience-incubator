@@ -154,12 +154,22 @@ interface Harness {
  */
 function buildApplication(tab: BrowserTab): Harness {
   const credentials = bootstrapCredentialStore(tab);
+  /*
+   * 🔴 THE SAME TWO-METHOD PORT `src/ui/bootstrap.ts` HANDS THE SESSION (`CORRECTION-02`): `has`
+   *    answers whether this provider has a credential and `clear` removes it, and neither can return a
+   *    value. Wiring it here keeps this harness a faithful stand-in for the shipped bootstrap.
+   */
+  const credentialPort = {
+    has: (provider_id: string): boolean => credentials.has(credentialRefForProvider(provider_id)),
+    clear: (provider_id: string): void => credentials.remove(credentialRefForProvider(provider_id)),
+  };
   const storage = new InMemoryWorkspaceStorage({
     [SEEDED_WORKSPACE_FILE]: SEEDED_WORKSPACE_BODY,
   });
   const transport = createMockTransport(() => okResponse(providerShapedBody()));
 
   const session = createAppSession({
+    credentials: credentialPort,
     attachStorage: () => null,
     initial_draft: deepseekDraft(''),
     createGateway: ({ config, api_key }) => {

@@ -114,6 +114,16 @@ export const SETTINGS_CUSTOM_BASE_URL = 'Custom Base URL';
 export const SETTINGS_CUSTOM_BASE_URL_NOTE =
   '仅在你主动填写时使用，且只会用于浏览器直连的模型服务。';
 export const SETTINGS_SAVE = '保存配置';
+/**
+ * The SECOND way to remove the key - and the one that really removes it (`CORRECTION-02` §1).
+ *
+ * 🔴 IT IS NOT A FORM RESET. Pressing it calls `session.clearCredential()`, which deletes the value
+ *    from the session credential store for the provider the form is currently showing. A button that
+ *    merely emptied the input box would leave a working key behind and turn this sentence into a lie -
+ *    the exact defect this correction fixes.
+ * 🔴 IT NAMES THE SCOPE («本次会话») because the session store is the only place a credential can be,
+ *    and it names ONE provider: clearing never reaches another provider's credential.
+ */
 export const SETTINGS_CLEAR_KEY = '清除本次会话的 API Key';
 /** The top-right 「×」. Rendered as an icon, so this string is its accessible name. */
 export const SETTINGS_CLOSE = '关闭';
@@ -156,6 +166,22 @@ export const SETTINGS_BASE_URL_REQUIRED = '这个 Provider 需要填写 Custom B
 export const SETTINGS_BASE_URL_FORBIDDEN =
   '这个 Provider 的访问地址由产品提供，不能填写 Custom Base URL。';
 export const SETTINGS_KEY_REQUIRED = '请填写 API Key（仅当前会话使用）。';
+/**
+ * Shown INSTEAD of `SETTINGS_KEY_REQUIRED` when this browser session already holds a credential for
+ * the selected provider (`CORRECTION-02` §3).
+ *
+ * 🔴 WHY THE OLD SENTENCE WAS WRONG IN THIS STATE: after a page refresh the API Key field is empty
+ *    BY DESIGN - nothing rehydrates the stored value into the form (`CORRECTION-02` §4) - while the
+ *    credential IS still in the session and a save will succeed using it. 「请填写 API Key」 therefore
+ *    described a requirement that no longer existed and invited the user to retype a key they had
+ *    already given. This sentence states the fact and the two available actions instead.
+ * 🔴 STILL NON-BLOCKING ADVICE, NOT AN ERROR, exactly like the string it replaces. A missing key has
+ *    never prevented composing a provider (see `validateSettingsDraft`), and this copy does not
+ *    change that rule - it only stops misdescribing the situation.
+ * 🔴 IT MUST NOT ECHO THE KEY. It says a credential EXISTS; it never shows it, not even in part.
+ */
+export const SETTINGS_KEY_PRESENT_IN_SESSION =
+  '当前浏览器会话已有 API Key，可直接保存配置；如需替换，请重新输入。';
 export const SETTINGS_MODEL_REQUIRED = '请填写 Model。';
 
 /* ------------------------------------------------------------------ *

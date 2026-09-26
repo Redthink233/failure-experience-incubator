@@ -31,6 +31,7 @@ import {
   SETTINGS_BASE_URL_REQUIRED,
   SETTINGS_CONNECTION_DIRECT,
   SETTINGS_CONNECTION_PROXY,
+  SETTINGS_KEY_PRESENT_IN_SESSION,
   SETTINGS_KEY_REQUIRED,
   SETTINGS_MODEL_REQUIRED,
   SETTINGS_UNSUPPORTED,
@@ -211,9 +212,29 @@ export function validateSettingsDraft(draft: SettingsDraft): readonly string[] {
   return messages;
 }
 
-/** Non-blocking advice: true, and worth saying, but not a reason to refuse the configuration. */
-export function settingsWarnings(draft: SettingsDraft): readonly string[] {
-  return draft.api_key.trim().length === 0 ? [SETTINGS_KEY_REQUIRED] : [];
+/**
+ * Non-blocking advice about the credential: true, and worth saying, but never a reason to refuse the
+ * configuration.
+ *
+ * 🔴 THE ADVICE DEPENDS ON A FACT THE DRAFT DOES NOT CARRY: whether this browser session ALREADY holds
+ *    a credential for the selected provider (`CORRECTION-02` §3). After a refresh the field is empty
+ *    while the session still holds the key, and in that state 「请填写 API Key」 is false advice -
+ *    the user can save and the stored key will be used. The caller therefore passes the session fact
+ *    in; this function stays pure and reads no store itself.
+ * 🔴 IT NEVER PREVENTS A SAVE. Both outcomes are ADVICE. A missing key is not a blocking error -
+ *    the composed object graph only needs a provider config, so the workspace can be read, and history
+ *    browsed, before a key exists.
+ */
+export function settingsWarnings(
+  draft: SettingsDraft,
+  options: { readonly session_credential_present?: boolean } = {},
+): readonly string[] {
+  if (draft.api_key.trim().length > 0) {
+    return [];
+  }
+  return options.session_credential_present === true
+    ? [SETTINGS_KEY_PRESENT_IN_SESSION]
+    : [SETTINGS_KEY_REQUIRED];
 }
 
 /**

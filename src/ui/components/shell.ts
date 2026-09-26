@@ -15,9 +15,12 @@
  *    (`D-056` / `CORRECTION-01` - the note quotes the session boundary, NOT a refresh), and there is
  *    NO "remember me", NO "save to workspace" and NO auto-restore control anywhere (task §12).
  * 🔴 EVERY CONTROL CARRIES AN EXPLICIT LOGICAL ID from `SETTINGS_CONTROL_IDS`. A control id is NEVER
- *    derived from a label: doing so produced duplicate ids (all-Chinese labels stripped to the same
- *    string) and made the whole-tree rebuild lose the user's focus on every keystroke. See
- *    `src/ui/settings/control-identity.ts` for the defect and the rule.
+ *    derived from a label. ⚠️ **The label-derived scheme was NOT the cause of the reported symptom**
+ *    (`PRE-PSA-BLOCKER-01` §23.2 / `CORRECTION-02` §7): the ids that actually shipped were built from
+ *    ASCII labels and did not collide. The OBSERVED root cause of the lost caret was a render path that
+ *    returned before restoring focus; the explicit id is PREVENTIVE HARDENING - it removes the
+ *    duplicate-id class and makes focus restoration identity-based instead of positional. See
+ *    `src/ui/settings/control-identity.ts` for both mechanisms, stated with that distinction.
  *
  * DOM scope only.
  */
@@ -208,7 +211,15 @@ export function settingsCenter(context: ViewContext): HTMLElement | null {
   const draft = state.settings_draft;
   const preset = findPreset(draft.provider_id);
   const blocking = validateSettingsDraft(draft);
-  const warnings = settingsWarnings(draft);
+  /*
+   * 🔴 THE CREDENTIAL ADVICE NEEDS A FACT THE DRAFT DOES NOT CARRY (`CORRECTION-02` §3): after a
+   *    refresh the API Key field is empty while the session still HOLDS the key, and asking for a key
+   *    the user already gave is what the correction removes. The fact comes from `state`, so this
+   *    component stays a pure function of the state it was handed.
+   */
+  const warnings = settingsWarnings(draft, {
+    session_credential_present: state.settings_key_in_session,
+  });
   const offers_base_url = preset === null || preset.allows_custom_base_url;
 
   return el(
@@ -340,10 +351,13 @@ function presetSelector(context: ViewContext): HTMLElement {
 /**
  * One labelled input.
  *
- * 🔴 `id` IS A REQUIRED, EXPLICIT PARAMETER AND IS NEVER DERIVED FROM `label`. This is the whole fix
- *    for the lost-focus defect: the id is the control's identity for focus restoration, while the
- *    label is text a human reads - and the two must be able to change independently. Deriving one
- *    from the other is what produced duplicate ids and dropped the caret once per keystroke.
+ * 🔴 `id` IS A REQUIRED, EXPLICIT PARAMETER AND IS NEVER DERIVED FROM `label`. The id IS the control's
+ *    identity for focus restoration, while the label is text a human reads - and the two must be able
+ *    to change independently. ⚠️ **Deriving one from the other was NOT what caused the lost caret**
+ *    (`CORRECTION-02` §7): the shipped ids came from ASCII labels and never collided, and the OBSERVED
+ *    cause was a render path that returned before restoring focus. Explicit identity is PREVENTIVE
+ *    HARDENING: it removes the duplicate-id class outright rather than relying on the labels staying
+ *    ASCII. Recorded with that distinction in `src/ui/settings/control-identity.ts`.
  * 🔴 `label` is still associated through `for=`, so the control keeps its accessible name.
  */
 export interface LabelInputSpec {

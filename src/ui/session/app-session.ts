@@ -59,6 +59,27 @@ export interface GatewayRequest {
 
 export type GatewayFactory = (request: GatewayRequest) => BrowserUiGatewayResult;
 
+/**
+ * The session-credential facts the App Shell needs that are **not secrets** (`CORRECTION-02`).
+ *
+ * 🔴 THERE IS DELIBERATELY NO `resolve` HERE, AND NO `put`. The App Shell must be able to (a) learn
+ *    whether the session already holds a credential for a provider, so it stops asking for one it
+ *    already has, and (b) REMOVE that credential, so the 「清除本次会话的 API Key」 button does what
+ *    it says. Neither operation needs the secret, and neither may expose it: adding a read path here
+ *    is how a plaintext key would end up back in the input box.
+ * 🔴 THE VALUE ITSELF IS STILL WRITTEN BY THE BOOTSTRAP, at the single `put` site inside
+ *    `createGateway`. This port only makes that same store OBSERVABLE and REMOVABLE by provider id.
+ * 🔴 BOTH METHODS TAKE A PROVIDER ID AND DERIVE THE REF WITH `credentialRefForProvider`, so clearing
+ *    can only ever name the one provider the caller asked about - there is no iteration, no "clear
+ *    all", and no way to reach a second provider's credential from here.
+ */
+export interface SessionCredentialPort {
+  /** `true` when this session holds a credential for exactly this provider. Never returns a value. */
+  has(provider_id: string): boolean;
+  /** Removes this provider's credential from the session store. Removes nothing else. */
+  clear(provider_id: string): void;
+}
+
 /* ------------------------------------------------------------------ *
  * State
  * ------------------------------------------------------------------ */
@@ -142,6 +163,18 @@ export interface AppSessionState {
    *    field - exactly like `retrieval_expanded` / `ai_requires_model`.
    */
   readonly settings_save_error: string | null;
+  /**
+   * `true` when the SESSION STORE already holds a credential for the draft's provider.
+   *
+   * 🔴 WHY IT IS STATE AND NOT A RENDER-TIME CALL: the panel's advice block is derived from `state`
+   *    like everything else, so the fact has to live here. It is refreshed at the four moments it can
+   *    change (open the panel, switch provider, save, clear) and nowhere else.
+   * 🔴 IT IS A BOOLEAN ON PURPOSE. The credential itself is never part of the view state - a field
+   *    that could hold a key is a field that could be rendered, and the input value must stay empty
+   *    even when this flag is `true` (`CORRECTION-02` §4).
+   * 🔴 TRANSIENT UI STATE, like `settings_save_error`: never persisted, never sent to the workspace.
+   */
+  readonly settings_key_in_session: boolean;
   readonly retrieval_expanded: boolean;
   readonly evidence: EvidenceState | null;
   readonly flash: string | null;
@@ -192,6 +225,7 @@ function initialState(draft: SettingsDraft = EMPTY_SETTINGS_DRAFT): AppSessionSt
     settings_draft: draft,
     settings_errors: [],
     settings_save_error: null,
+    settings_key_in_session: false,
     retrieval_expanded: false,
     evidence: null,
     flash: null,
@@ -303,6 +337,14 @@ export interface AppSessionDeps {
    */
   readonly attachStorage?: (label: string) => UiReadPort | null;
   readonly initial_draft?: SettingsDraft;
+  /**
+   * The session credential store, seen through its two non-secret operations (`CORRECTION-02`).
+   *
+   * 🔴 OPTIONAL: a caller that does not supply it keeps the previous behaviour exactly - the clear
+   *    button can only empty the form, and the panel always asks for a key. The DOM bootstrap DOES
+   *    supply it, so the shipped product always has the real semantics.
+   */
+  readonly credentials?: SessionCredentialPort;
 }
 
 export function createAppSession(deps: AppSessionDeps): AppSession {
@@ -346,6 +388,18 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
 
   function pushNotice(notice: WorkflowNotice): void {
     set({ notices: [...state.notices, notice], flash: null });
+  }
+
+  /**
+   * Whether the session store currently holds a credential for this provider (`CORRECTION-02`).
+   *
+   * 🔴 A PURE QUESTION WITH A BOOLEAN ANSWER. No secret crosses this boundary, which is what keeps
+   *    the API Key input empty even when the answer is `true`.
+   * 🔴 Called at the four moments the answer can change - open the panel, switch provider, save,
+   *    clear - and never during rendering, so the panel's advice is derived from `state` alone.
+   */
+  function credentialInSession(provider_id: string): boolean {
+    return deps.credentials?.has(provider_id) ?? false;
   }
 
   /**
@@ -444,6 +498,14 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       return;
     }
     const result = deps.createGateway({ config, api_key: draft.api_key });
+    /*
+     * 🔴 THE SESSION FACT IS RE-READ *AFTER* THE GATEWAY WAS BUILT, because the factory's `put` (the
+     *    ONE place a key enters the store) happens inside that call. Asking before would report the
+     *    state of the previous save. The `api_key` clause keeps the answer correct for a caller that
+     *    supplies no credential port at all.
+     */
+    const key_in_session =
+      draft.api_key.trim().length > 0 || credentialInSession(String(config.provider_id));
     if (result.kind !== 'ready') {
       /*
        * 🔴 AN UNSUPPORTED / FAILED MODEL CONFIGURATION IS CONFINED TO THE COMMAND PATH. The workspace
@@ -457,6 +519,7 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       set({
         settings_errors: [],
         settings_save_error: result.message,
+        settings_key_in_session: key_in_session,
         provider: {
           status: 'unsupported',
           provider_id: String(config.provider_id),
@@ -473,6 +536,7 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
     set({
       settings_errors: [],
       settings_save_error: null,
+      settings_key_in_session: key_in_session,
       settings_open: false,
       ai_requires_model: false,
       provider: {
@@ -571,8 +635,16 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
     },
 
     openSettings() {
-      /* 🔴 Opening the panel IS the user following the guidance, so the prompt is cleared. */
-      set({ settings_open: true, settings_errors: [], settings_save_error: null, ai_requires_model: false });
+      /* 🔴 Opening the panel IS the user following the guidance, so the prompt is cleared.
+       *    The credential question is re-asked here because the session store can have changed since
+       *    the panel was last built (a save, a clear, or a whole page reload). */
+      set({
+        settings_open: true,
+        settings_errors: [],
+        settings_save_error: null,
+        settings_key_in_session: credentialInSession(state.settings_draft.provider_id),
+        ai_requires_model: false,
+      });
     },
 
     closeSettings() {
@@ -586,8 +658,16 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
     },
 
     updateSettingsDraft(patch) {
-      /* 🔴 A draft edit invalidates BOTH statements: they described the previous draft. */
-      set({ settings_draft: { ...state.settings_draft, ...patch }, settings_errors: [], settings_save_error: null });
+      /* 🔴 A draft edit invalidates BOTH statements: they described the previous draft.
+       *    Switching the provider also changes WHICH credential is being talked about, so the
+       *    session fact is re-read from the merged draft rather than from the patch. */
+      const draft = { ...state.settings_draft, ...patch };
+      set({
+        settings_draft: draft,
+        settings_errors: [],
+        settings_save_error: null,
+        settings_key_in_session: credentialInSession(draft.provider_id),
+      });
     },
 
     chooseSettingsPreset(provider_id) {
@@ -595,10 +675,12 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
       if (preset === null) {
         return;
       }
+      const draft = draftForPreset(preset, state.settings_draft);
       set({
-        settings_draft: draftForPreset(preset, state.settings_draft),
+        settings_draft: draft,
         settings_errors: [],
         settings_save_error: null,
+        settings_key_in_session: credentialInSession(draft.provider_id),
       });
     },
 
@@ -616,8 +698,38 @@ export function createAppSession(deps: AppSessionDeps): AppSession {
     },
 
     clearCredential() {
-      /* 🔴 The session store is owned by the bootstrap; clearing it clears the whole session. */
-      set({ settings_draft: { ...state.settings_draft, api_key: '' } });
+      /*
+       * 🔴 THE ACT THAT MAKES THE BUTTON'S SENTENCE TRUE (`CORRECTION-02` §1). Everything about it is
+       *    deliberately narrow:
+       *    · ONE PROVIDER - the one the form is showing, resolved through `credentialRefForProvider`
+       *      inside the port. There is no iteration and no "clear everything", so a second provider's
+       *      credential cannot be caught by accident.
+       *    · the WORKSPACE IS UNTOUCHED - this is a credential act, not a storage act.
+       *    · the DRAFT KEEPS ITS PROVIDER AND MODEL, so the user only has to supply a new key.
+       *    · the COMMAND PORT IS DROPPED, because a composition whose provider can no longer
+       *      authenticate must not keep reporting `ready` (§2). The provider falls back to the
+       *      CANONICAL `unconfigured` state - 「模型服务未配置」 - and the next model action asks for
+       *      settings again through the existing `ai_requires_model` path. No new state is invented.
+       *    · the READER IS UNTOUCHED, so browsing existing records keeps working.
+       */
+      const provider_id = state.settings_draft.provider_id;
+      deps.credentials?.clear(provider_id);
+      port = null;
+      set({
+        settings_draft: { ...state.settings_draft, api_key: '' },
+        settings_errors: [],
+        settings_save_error: null,
+        settings_key_in_session: credentialInSession(provider_id),
+        provider: {
+          status: 'unconfigured',
+          provider_id: null,
+          display_name: null,
+          model: null,
+          connection_label: null,
+          message: null,
+          key_present: false,
+        },
+      });
     },
 
     /* ---------------------------------------------------------------- *
