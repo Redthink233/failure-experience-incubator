@@ -2668,10 +2668,14 @@ SMOKE_RESULT = PASS（9/9 检查点；FAKE_PROVIDER_CALLS = 4，REAL_PROVIDER_CA
 ### 27.6 Git（🔴 事实登记）
 
 ```
-push 前：HEAD = 8da80fe…（工作树 CLEAN，无 integration-only 代码变更 ⇒ 无需 fix commit）
-git push origin main  ⇒ exit 0（**未** force，**未** force-with-lease）
-push 后：git rev-parse HEAD              = 8da80fe57ef84b4731ff627b45062f290e349d00
-         git ls-remote origin refs/heads/main = 8da80fe57ef84b4731ff627b45062f290e349d00  ⇒ 一致 ✅
+push ①（代码）：HEAD = 8da80fe…（工作树 CLEAN，无 integration-only 代码变更 ⇒ 无需 fix commit）
+               git push origin main ⇒ exit 0（**未** force，**未** force-with-lease）
+               `git rev-parse HEAD` == `git ls-remote origin refs/heads/main` == 8da80fe… ⇒ 一致 ✅
+push ②（文档）：Handoff 本节登记提交 = 18a7701（`chore:`，+145 行，纯追加）
+               🔴 首次推送遇**瞬时** SSL 失败：`schannel: failed to receive handshake, SSL/TLS connection failed`（exit 128）
+               ⇒ **未** force，直接重试 ⇒ exit 0
+🔴 最终一致性口径：`git rev-parse HEAD` == `git ls-remote origin refs/heads/main`（两者同为**含本节登记**的 Handoff 提交）；
+   代码基线仍为 8da80fe…，其后提交**只追加本文档**。
 ```
 
 ### 27.7 `PSA-A` 状态（🔴 未变）
@@ -2686,7 +2690,8 @@ PSA-A = INTERRUPTED
 
 ```
 DEPLOYMENT CODE BASELINE = 8da80fe57ef84b4731ff627b45062f290e349d00
-                           （= 纯代码集成 HEAD ＝ 远端 main；Handoff 本节由其后的 `chore:` 提交记录，不改动代码基线）
+                           （= **纯代码集成 HEAD**；Handoff 本节由其后的 `chore:` 提交记录，**不改动**代码基线）
+🔴 文档登记提交（`chore:`）不构成部署基线变更 ⇒ 部署以 8da80fe… 的代码状态为准。
 ```
 
 ### 27.9 🚩 环境事实补注（🔴 就地补注 §26.8 ②，不改写其原文；非产品缺陷）
@@ -2725,5 +2730,17 @@ Final HEAD = Remote main = 8da80fe57ef84b4731ff627b45062f290e349d00
 PSA-A                    = INTERRUPTED（🔴 不得改 PASS）
 DEPLOYMENT GATE          = OPEN
 下一任务（🔴 已由人工在本轮指令中授权）：直接进入 Vercel 部署；**不得**再启动代码审查。
+```
+
+### 27.12 Git 收口（🔴 事后补注，**不**改写 27.1–27.11 的判断）
+
+```
+序列：54f9bbd（baseline）→ b06f4d2（M8 recovery）→ 8da80fe（M9 path）→ 18a7701（Handoff §27 登记）
+      → 本节补注的 `chore:` 提交
+🔴 最终判定：`git rev-parse HEAD` == `git ls-remote origin refs/heads/main`（实测一致）；
+   **全程未使用任何 `--force` ／ `--force-with-lease`**，未改写任何已推送历史。
+🔴 唯一一次非零退出 = push ② 首次的**瞬时** SSL 握手失败，重试即成功 ⇒ **不是**权限、**不是**历史冲突问题。
+🔴 `DEPLOYMENT CODE BASELINE`（代码）= 8da80fe…（未变）；其后提交**只**追加本文档。
+🔴 `PSA-A` = `INTERRUPTED`（未变；**不得**改 `PASS`）。
 ```
 
