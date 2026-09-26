@@ -204,3 +204,103 @@ workspace  : C:\Users\Red16\Desktop\fei-psa-a-workspace-2（25 文件：8/8 Demo
 过程记账   : .learnbuddy/memory/2026-09-26.md（PSA-A 全过程的逐步取证与就地补注）
 commit     : fc472b0 → bc2b13d → f1a493c → 2b447bf → 8b43a9a → 25ca05e（origin/main 同步）
 ```
+
+
+---
+
+## 8. `PSA-A FINAL RUN` 执行结果登记（2026-09-26 18:20–18:54｜真实 Chrome ＋ 原生 FSA ＋ DeepSeek Browser Direct）
+
+> 🔴 本节**只追加**。§7（`ORIGINAL / INTERRUPTED`）**未改动一字**，其 baseline 作为历史保留。
+> 🔴 **不得**把 §7 的 `INTERRUPTED` 改写为 `PASS`；本次是**另一次**运行，结论另记。
+
+```
+ORIGINAL INTERRUPTED BASELINE = fc472b0 + bc2b13d（HEAD 25ca05e）        ← 历史记录，保留不改
+FINAL RESUME BASELINE         = 374f3f497aaad14fa4732860a478a03e6b1db678
+PRODUCT FIX COMMIT            = ceb993b0cb987e826ecfb821576f8737a6980fa8
+本轮结论                       = 🔴 PSA-A FINAL RUN = INTERRUPTED ｜ CORRECTION REQUIRED ｜ BLOCKER = YES
+环境                          = Chrome 154.0.8037.57（CDP :9333，全新 profile）｜原生 FSA（真实用户手势）
+disposable workspace          = C:\Users\Red16\Desktop\fei-psa-final-workspace（repo 外；起始 21 文件）
+provider / 连接                = DeepSeek `deepseek-flash` ｜ **浏览器直连**（https://api.deepseek.com/chat/completions）
+真实 Provider 请求             = **4** 笔（②④⑥⑧ 各 1 笔 POST，各带 1 笔 preflight；全部 200 ｜ loadingFailed = 0）
+费用护栏                       = 上限 25 笔 ／ SOFT STOP ≥ RMB 0.80 ／ HARD CAP RMB 1.00 ⇒ **未触发**（实际 4 笔）
+产品源码改动                    = **0**（本轮为纯验收：未改任何源码 ／ copy ／ prompt ／ retrieval ／ UI ／ fixture ／ test）
+```
+
+### 8.1 主链推进到哪一步（真实结果优先）
+
+| 步 | 结果 | 真实证据（可复核） |
+|---|---|---|
+| ① | ✅ | `raw_text` 与用户输入**逐字一致** |
+| ② | ✅（含 1 处字段归属偏差） | 1 笔 POST 200；`goal` ／ `actual_attempt` ／ `actual_result` ／ `version_env` 忠实于原文；原文未提供项 = `未知 ／ 未提供`。🔴 偏差：`50 摄氏度` 被归入 `key_parameter` 而**非 `condition`**（§9 的字面期望未满足）——**事实未丢失**，且 ③ 完成后 ② 面板已渲染「关键参数 1」。人工裁定 = **保持原样** |
+| ③ | ✅ | `result_status.decision_state`：`unresolved → **accepted**`；`draft_state.parse_state`：`pending_user_confirm → extracted` ⇒ **人工确认成立（HUMAN CONFIRMATION = YES）** |
+| ④ | ✅ | 1 笔 POST 200；**4 条**候选原因，全部标注 `AI 推断 · 候选原因` ／ `source_type = Inference`，措辞均为「可能…有关」；**无杜撰因果**；**无自动接受** |
+| ⑤ | ✅ | `state`：`Draft → **Formal**`；`{json, md}` 磁盘真实变化（见 §8.5 哈希）⇒ **`PSA-05` 成立**；`candidate_causes` 落盘 = `accepted ／ accepted ／ rejected ／ unresolved` ⇒ **④ 裁决已真实持久化（§12）**，三种状态齐备 |
+| ⑥ | ✅ 🔴 **关键回归** | **`RETRIEVAL_PROVIDER_REQUEST_COUNT = 1`**（`postDataLength 4475`）——**不是 32 笔** ⇒ 「单次 batch 判定」在**真实浏览器 ＋ 真实 Provider** 上实测成立；`retrievals/<live_attempt>.json` 真实落盘；`eligible_history_count = **7**` ⇒ **`DEMO-07` 被排除于 default Retrieval**；`uncompared_dimensions = []` |
+| ⑦ | ✅ | Evidence Rail 类别映射**正确、无串类**：点「差异点」→ `ATT_DEM0A04…｜条件`「条件不同（该维度已比对，但不构成严格语义重叠）…」；点「相同点」→ `ATT_DEM0A01…｜结果 ／ 现象 ／ 结论方向`「相同或语义等价…」 |
+| ⑧（生成 + 裁决） | ✅ | 1 笔 POST 200；**3 条**候选经验，全部 `state = "candidate"`（**未自动升级为 Experience Asset**），`evidence_refs` 指向真实历史记录、`comparison_ref` 指回 ⑥；人工裁决 = **2 接受 ／ 1 拒绝** ⇒ **`HUMAN INSIGHT ACCEPTANCE = YES`**；UI「可复用经验」区出现 2 条 `is-asset` |
+| ⑧（收口） | 🔴 **未完成** | 见 §8.2 —— ⑧ 恒为 `current`，永不 `done` |
+| ⑨ ⑩ | 🔴 **不可达** | 均为 `todo`（锁定，显示「完成前一步后可继续」）⇒ **`D9 ①→⑩` 未完成** |
+
+### 8.2 🔴 阻塞缺陷（真实、稳定复现；**修复前现场已冻结，未行使产品自带重试**）
+
+**现场（只读观测；18:43:31 与 18:50:48 两次一致）**
+
+```
+① insights/batches/                          目录已创建但【为空】（0 条）
+② insights/operations/ATT_…__op-insight-generation-…~23insight-generation.json
+                                             "status": "in_progress"（mtime 冻结在 18:43:31）
+                                             锚内【已带完整 planned_batch】，但该 batch 从未落盘
+③ ⇒ 写入序列停在 M8 `applyPlan` 的【步骤③（batch 记录）】；步骤④（`status: complete`）从未执行
+```
+
+**机制（读码核实，不是推测）**：`discoverBatches()` 只枚举 `insights/batches/*.json` ⇒ `[]` ⇒ `read-model` 的 `batches = []` ⇒ `presenters/steps.ts` 的 `insights_generated = batches.length > 0` = `false` ⇒ ⑧ 恒为 `current`；而 `locked: status === 'todo'` ⇒ ⑨⑩ 锁定。
+
+**候选根因（`PROPOSED`／推断，已被实测支持）**
+
+`batch_id = ATT_…:insight-batch:01M3EN…` **含 2 个冒号**；`persistence.ts#insightBatchPath()` **原样插值、未做路径安全编码**；而 **Windows 文件名不允许 `:`**。
+实测（`%TEMP%` 探针，**未触碰产品与工作区**）：含冒号文件名 **create 失败**；其 `~3A` 编码等价名**创建成功**（`:` = 0x3A）。
+旁证：operation anchor 的 key 里 `#` 已被编码为 `~23`（既有 reversible path-safe codec，见 HANDOFF §15.4）——**同一套约定存在，但 batch 路径未走它**。
+⚠️ 仍标**候选**：**未**直接捕获浏览器侧抛出的异常对象。
+
+**✅ 一条正面的产品行为（不改变阻塞结论）**：产品**未静默卡死** —— DOM 中存在 `notice-card notice-runtime`：「**系统本次没有完成**｜写入没有完成，已经写入的部分被保留；用同一次操作重试即可补齐剩余部分。｜已有内容保持不变，可以重试。」并提供按钮「**重新提炼经验**」。与 `M8-HARDENING-01` 的设计一致（披露部分写入 ＋ 幂等重试）。
+⚠️ 但「重试即可补齐」在**本环境可能永远补不齐**（同名非法文件名会再次失败）。
+
+> 🔴 **人工裁决（2026-09-26 18:54）= 选择 (a)：不点击「重新提炼经验」；保持失败 Workspace 与现场不动，作为修复前证据保留。**
+
+### 8.3 本节未执行的项（🔴 一律**不得**记为 `PASS`）
+
+`⑨` 假设 ／ `⑩` Traceability ／ `PSA-06` ／ `PSA-07` ／ `PSA-08` ／ `PSA-09` ／ `PSA-10` ／ `PSA-X9` 的「会话结束后清除」终局。
+`PSA-01` ／ `02` ／ `11` ／ `12` ／ `13` ／ `X1` ／ `X3` ／ `X8` ／ `X11` 仍属 `PSA-B`（**未启动**）。
+
+### 8.4 两个既有口径的更正登记（🔴 不改写历史，仅就地补注）
+
+1. **`PSA-X10`（Workspace upload）本轮只能记 `PARTIAL`**：`POST` #1（②）／#2（④）两个 containment boolean 全 `false`；但 **`POST` #3（⑥）`bodyMentionsDemoAttemptId = true`**、**#4（⑧）亦为 `true`**（二者都携带候选历史记录 —— retrieval grounding 的设计语义），`bodyMentionsWorkspaceId` **恒为 `false`**。⇒ 上一轮基于 ①②④ 类调用得出的 `PASS` **不覆盖 ⑥⑧**，🔴 不得过度声称。
+2. **`PSA-X9`**：`localStorage` = `[]`、`indexedDB.databases()` = `[]`、cookie 长度 0、`sessionStorage` 仅 `fei.ai.session-credential/{index, provider%3Adeepseek}`（**只读键名，未读任何值**）—— 与上一轮一致；「会话结束后清除」**仍未测**。
+
+### 8.5 证据索引（工作区内 ＋ 临时观测产物）
+
+```
+frozen workspace : C:\Users\Red16\Desktop\fei-psa-final-workspace（32 文件；🔴 保持现场不动）
+  attempts  projects\_unassigned\attempts\ATT_01M3EM88546T5WADTX4N1AT0M8.json
+            7109 B  2829E271395B242B6DA7FF168667A75E1804D3AD9CD326541F5CA195646771BC
+            ATT_01M3EM88546T5WADTX4N1AT0M8.md   3016 B  2DA32A8AE6DB1D4DC2857A2EA818AFD4E5B51FB37F9858FDA607F0923B8BF0DE
+  retrieval retrievals\ATT_01M3EM88546T5WADTX4N1AT0M8.json
+            10967 B  60BF28FA5E63FBED5831CA66C5D8D6B3F64F12445FCE179C5AE33635D8DE90BD
+  insights  insights\INS_01M3EN08DK0XYQRGGPY0TQQJZK.json  2761 B  72CD5D4243509D9BC89873EB1F6FD39C0F7881A54541BC214FE299C27B80EEA5  → accepted
+            insights\INS_01M3EN08DM2A01S60GHYW27HQH.json  3342 B  6C68462C028C5A21416C856A806866F2B17B7F80F1396FEE723C70A58776F2E5  → rejected
+            insights\INS_01M3EN08DM2A01S60GHYW27HQQ.json  2940 B  6ABD9B7F9EE1EC6C36C551B6627F716E3B674DF003334796FFFFF57044EF54ED  → accepted
+  anchor    insights\operations\ATT_…~23insight-generation.json
+            11024 B  D3E6EA021B37A3ACCDD6CC7C82FC624B01A4AB2F751535901CDF0C5E11076207
+            "status": "in_progress"   ← 缺陷现场
+  events    events\insight-state-events.jsonl  476 B  6A56F0F4B0C34FA1EFB7D035BA5EB39795A5A28F0F6D75851E38BC77F5A48BF4
+  🔴 insights\batches\  = 空（0 条）   ← 缺陷现场
+观测产物 : %TEMP%\pfa-call1.json（逐调用记录器：4 POST ／ 4 preflight ／ 8 × 200 ／ loadingFailed 0）
+           %TEMP%\pfa-{step2,step3,step5,step7,step8,step9,blocked}.png（逐步界面取证）
+           %TEMP%\pfa-colon-probe-out.json（Windows 文件名含冒号的实测探针结果）
+过程记账 : .learnbuddy/memory/2026-09-26.md（节 1–12）
+```
+
+### 8.6 后续（🔴 尚未执行）
+
+`CORRECTION REQUIRED` —— 有界 Correction：修复 `M8` insight batch 的**文件路径安全编码**。范围与 8 项验收口径见 `CODING_START_HANDOFF.md §25`。
+🔴 **本轮到此停止**：未进入 correction，未开始 `PSA-B`，`PSA-*` 其余项保持原状态。

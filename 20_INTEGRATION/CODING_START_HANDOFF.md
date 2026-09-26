@@ -2336,3 +2336,92 @@ local/remote= **MATCH**
    （仓库无 `.gitattributes`），**非错误**；blob 内容未受影响（`git diff --check` 为空）。
 ```
 
+
+
+---
+
+## 25. `PSA-A FINAL RUN` ｜ 真实 Chrome ＋ 原生 FSA ＋ DeepSeek Browser Direct（🚩 `PRE-SUBMISSION-PSA-A-FINAL`，2026-09-26｜🔴 追加，不改写历史）
+
+### 25.1 任务性质与边界
+
+纯验收（`Final Real Acceptance Run`）。🔴 **不是开发任务**：本轮**未改**任何源码 ／ copy ／ prompt ／ retrieval ／ UI ／ fixture ／ test；**产品源码改动 = 0**。
+
+### 25.2 baseline 裁决（人工 `CONFIRMED`）
+
+```
+PSA-A FINAL RESUME BASELINE = 374f3f497aaad14fa4732860a478a03e6b1db678
+PRODUCT FIX COMMIT          = ceb993b0cb987e826ecfb821576f8737a6980fa8
+旧 fc472b0 + bc2b13d（HEAD 25ca05e）→ 仅作 PSA-A ORIGINAL / INTERRUPTED BASELINE（保留历史，不得改 PASS）
+
+Baseline Gate（只读）：local HEAD == remote main == 374f3f4…；working tree CLEAN；tracked = 572；禁止路径命中 = 0
+🔴 同步判定只看 `git rev-parse HEAD` + `git ls-remote origin refs/heads/main`，**不依赖** `origin/main`
+   （本机 `refs/remotes/**` 无法落盘 ⇒ §21.3 ／ §24.8 同类环境限制）。
+🔴 计数校正（就地补注）：`MEMORY.md §7` 旧记「tracked = 568」是 `374f3f4` **之前**的测量；在 `374f3f4` 处实测 = **572**。
+```
+
+### 25.3 执行结果（一句话）
+
+**`PSA-A FINAL RUN = INTERRUPTED` ｜ `CORRECTION REQUIRED` ｜ `BLOCKER = YES`。**
+
+①→⑦ **全部真跑通**（含 🔴 **⑥ = 1 笔 batch 调用，`32 → 1` 实测成立**；`DEMO-07` 被排除：`eligible_history_count = 7`）；⑧ 的**生成与人工裁决成功**；**⑧ 收口失败 ⇒ ⑨⑩ 不可达 ⇒ `D9 ①→⑩` 未完成**。
+逐项证据与哈希 → `PRE_SUBMISSION_DEPLOYMENT_ACCEPTANCE.md §8`；过程记账 → `.learnbuddy/memory/2026-09-26.md` 节 1–12。
+
+### 25.4 🔴 新登记缺陷（🔴 本节**未修**；**未新增任何 `Decision` ／ `AC` ／ `CCR` 编号**）
+
+**缺陷**：`⑧` 的 insight batch 记录**无法在 Windows 上落盘** ⇒ `insights/batches/` 恒为空 ⇒ `insights_generated = false` ⇒ ⑧ 永不 `done` ⇒ ⑨⑩ 锁定。
+
+**现场（真实、稳定复现；18:43:31 与 18:50:48 两次一致）**
+
+```
+insights/batches/                                = 空（目录已建、0 条）
+insights/operations/…~23insight-generation.json   "status": "in_progress"（mtime 冻结在 18:43:31）
+                                                  锚内【已带完整 planned_batch】，但 batch 从未落盘
+⇒ 写入序列停在 M8 `applyPlan` 的步骤③（batch 记录）；步骤④（`status: complete`）从未执行
+```
+
+**候选根因（`PROPOSED`，推断；已被实测支持）**
+
+`batch_id` 含 `:`（`ATT_…:insight-batch:01M3EN…`）；`persistence.ts#insightBatchPath()` **原样插值、未过路径安全 codec**；而 **Windows 文件名不允许 `:`**。
+实测（`%TEMP%` 探针，未触碰产品与工作区）：含冒号名 **create 失败**；`~3A` 编码等价名 **创建成功**。
+旁证：operation anchor key 里 `#` 已被编码为 `~23`（§15.4 的既有 reversible codec）⇒ **同一约定已存在于 `M8` ／ `M9`，但 batch 路径未走它**。
+⚠️ **未**直接捕获浏览器侧抛出的异常对象 ⇒ 保持 **候选**，🔴 **不得写成已确认根因**。
+
+**✅ 正面行为（保留在结论里，不改变阻塞判定）**：产品**未静默卡死** —— 主动披露 `notice-card notice-runtime`「系统本次没有完成｜写入没有完成，已经写入的部分被保留；用同一次操作重试即可补齐剩余部分」并给出「**重新提炼经验**」按钮（`M8-HARDENING-01` 的「披露部分写入 ＋ 幂等重试」设计在起作用）。⚠️ 但该重试承诺在本环境**可能永不成立**（同名非法文件名会再次失败）。
+
+**🔴 人工裁决（2026-09-26 18:54）= 选择 (a)**：**不**点击「重新提炼经验」；**保持失败 Workspace 与现场不动**，作为**修复前证据**保留。
+
+### 25.5 下一任务（🔴 尚未启动；本轮**不得**自行进入）
+
+**有界 Correction：修复 `M8` insight batch 的**文件路径安全编码**。**
+
+已定位的修复面（🔴 **仅定位，未改**）：
+
+```
+persistence.ts#insightBatchPath(batch_id)  →  `${INSIGHT_BATCHES_DIRECTORY}/${batch_id}.json`
+                                               ↑ 未编码；应对 batch_id 施加既有 reversible path-safe codec
+（对照：operation anchor key 已把 '#' 编成 '~23' ⇒ 同一约定已在 M8 / M9 存在，见 §15.4）
+```
+
+**8 项验收口径（人工给定，原文保留）**
+
+1. 含 `:` 的 `batch_id` 可以安全持久化；
+2. **不改变逻辑 `batch_id`**；
+3. batch 文件名使用**既有 reversible path-safe codec 或等价实现**；
+4. operation anchor 中 `planned_batch` **保持逻辑 ID**；
+5. retry 使用**同一 operation** 可以从 `in_progress` **补齐 batch 并标 `complete`**；
+6. **不重新调用模型**；
+7. 修复后用**当前失败 Workspace** 做一次 recovery 验证；
+8. 再建立**新的 `PSA-A RESUME` baseline**。
+
+🔴 本轮**未执行**上述任何一项；`PSA-B` 亦**未启动**。
+
+### 25.6 新增环境事实（🔴 影响证据可靠性）
+
+1. **Bash 工具的后台启动不可信**：同一轮内返回 `Running in background with task_id: …`，但 `TaskOutput` 显示
+   `Status: failed ／ Duration 728ms`，stderr = ``unexpected EOF while looking for matching `}'``，**且无进程、无产物**
+   （`Get-CimInstance` 查不到、输出文件不存在）。若据此假设「观测窗口已打开」，会**安静丢掉整段证据**
+   —— 与上一轮 ⑥ 被刷新打断后「观测窗口随进程消失」属同一类故障。
+   ✅ 可用替代：`Start-Process -FilePath <node> -ArgumentList … -WindowStyle Hidden`，实测进程真实存活且 5–12 s 内增量落盘。
+   🔴 推论：**任何「后台观测器已启动」的断言必须同时有「进程 ＋ 产物」双重实证**，不能只信工具回执。
+2. **`ConvertFrom-Json` 在本机对这些证据 JSON 反复静默失败**（`$j.value` 恒为空 ⇒ 解析结果为 `$null`）
+   ⇒ 解析证据 JSON 一律走 `Read` 工具或 node，**不用** PowerShell 的 `ConvertFrom-Json`。
