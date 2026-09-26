@@ -1958,3 +1958,153 @@ SAFE NEXT = PRE-SUBMISSION PSA-A
 🔴 未授权自动启动 —— 本次完成后停止（不得自动使用真实 API Key / 不得自动开始 PSA）
 ```
 
+### 23.10 CORRECTION-03 ｜ CREDENTIAL-REQUIRED MODEL CONFIGURATION SAVE GATE（🚩 `PRE-PSA-BLOCKER-01 / CORRECTION-03`，2026-09-26｜🔴 追加，不改写历史）
+
+> 人工决策 = **`PSA-D2 = B`（CONFIRMED）**：没有可用 Credential 时，不得把模型服务保存为已配置。
+> 🔴 **本节只做追加，不改动 §23.1–§23.9 及之前任何一字**（§23.9 登记的 `ADJACENT-04` 在本节记录为 **CLOSED**，§23.9 原文保持原样）。
+> 🔴 这是 **PSA 前最后一个 Settings 语义修复**；`PRE-PSA-BLOCKER-01` 至此 **CLOSED**，不再衍生普通产品修复。
+
+```
+PSA-D2 = CONFIRMED（B）                     Missing Credential Save Gate = CLOSED
+No Credential → Ready            = FORBIDDEN
+Session Credential + Empty Input = SAVE ALLOWED
+Typed Credential                 = SAVE ALLOWED
+Providerless Workspace Browse    = UNCHANGED
+ADJACENT-04                      = CLOSED
+Real Provider Calls = 0   PSA = PENDING   BLOCKER = NO
+Decision Added = 0   AC Added = 0   CCR = NO   Frozen Contract Modified = NO
+State Drift = NONE（开工 HEAD = remote main = 53f82d66e60adebdee38cc2388a588c695e3a186；工作树 CLEAN）
+```
+
+**① 被收敛的规则（🔴 明确 SUPERSEDE，不改写历史）**
+
+```
+旧实现假设（见 §23.9 及 `provider-presets.ts` 原文）：
+  「A missing API KEY IS NOT A BLOCKING ERROR」——缺 Key 不阻断**保存模型配置**。
+新规则（`PSA-D2 = B`，人工正式裁决）：
+  credential_available = typed_api_key_present OR session_credential_present
+  两者皆无 ⇒ **拒绝保存**：不 compose、不关面板、provider 保持 unconfigured、顶栏保持「模型服务未配置」。
+🔴 `PSA-D2` **supersedes** 前者**仅限「保存模型配置」**这一动作；
+   🔴 **「缺 Key 不阻断 Workspace 浏览」仍然成立**（`S01-06-D1` 未变，见 ④）。
+```
+
+**② 实现位置（§10：在保存阶段拦住，不塞进 Adapter）**
+
+```
+M src/ui/settings/provider-presets.ts
+   · 新增 `CredentialPresence { session_credential_present?: boolean }`（校验器保持**纯函数**，自己不读 store）；
+   · `validateSettingsDraft(draft, options)` 新增 `draft.api_key 空 && session_credential_present !== true`
+     ⇒ 追加 `SETTINGS_KEY_REQUIRED`（**阻断理由**）；
+   · `providerConfigOf(draft, options)` 透传同一事实；
+   · `settingsWarnings(draft, options)` **收窄为只剩正向**：仅「会话已有 Key」时给 `SETTINGS_KEY_PRESENT_IN_SESSION`，
+     否则返回 `[]`（缺 Key 已升级为阻断，不再重复出现在 advice 块）。
+M src/ui/session/app-session.ts   `composeGateway()` 在建 config / 调用 gateway **之前**应用同一校验 ⇒ 自然落入既有
+                                  outcome A（`settings_errors` + 面板保持打开）。**未新增任何状态**。
+M src/ui/components/shell.ts      面板把同一 credential 事实同时交给 blocking 与 advice 两个块。
+M src/ui/copy.ts                  `SETTINGS_KEY_REQUIRED` 注释改为「阻断理由」；`SETTINGS_KEY_PRESENT_IN_SESSION`
+                                  注释改为「唯一仍属 advice 的凭据文案」。
+🔴 **未改**：`ProviderAdapter` / `BrowserDirectAdapter` / Credential Store schema / Workspace schema / Attempt schema /
+   冻结合同。Adapter 层的 `PROVIDER_CREDENTIAL_MISSING` 作为**最后一道 runtime defense 保留**（G13 断言）。
+```
+
+**③ 新增测试（12 例，全 `IMPLEMENTATION INVARIANT`；🔴 `AC Added = 0`）**
+
+```
+A src/tests/ui/session-credential-save-gate.test.ts
+  G1 无 typed Key + 无 session credential ⇒ 保存被拒、`settings_open = true`
+  G2 provider.status = `unconfigured`（**未新增状态**）
+  G3 缺 Key 理由出现在**面板内**（并静态断言面板确实渲染 blocking 块）
+  G4 未 compose gateway（计数不变）｜G5 Provider call = 0
+  G6 **清除后直接保存仍被拒**（本任务核心回归）｜G7 顶栏仍「模型服务未配置」
+  G8 刷新后字段为空 + 会话有 Key ⇒ **允许保存并通过**
+  G9 本次输入新 Key（会话无凭据）⇒ 允许保存并通过
+  G10 新 Key **精确覆盖**旧 Key（整值比较；单 slot）
+  G11 无 Provider / 无 Key 时 Workspace 仍可列出记录（真实 read composition + 已 seed 语料）
+  G12 被拒保存与成功保存**都不会重选目录**（授权计数恒为 1）
+  G13 Adapter 运行时 `PROVIDER_CREDENTIAL_MISSING` 防线**仍在**
+  G14 未新增 Provider 状态（status 联合仍是三值；四个被禁名全树 0 命中）
+M src/tests/ui/settings-usability.test.ts  S1 / S2 的 `settings_errors` 期望加入 `SETTINGS_KEY_REQUIRED`（§13 语义收敛，非回归破坏）
+M src/tests/ui/wiring.test.ts              §14 改为**按顺序展示两种拒绝**：先凭证门（unconfigured），给 Key 后才是 unsupported
+M src/tests/ui/session-credential-clear.test.ts   N2 改为断言「阻断理由含请填写 API Key」；U6 追加「此状态下 blocking 必须为空」
+M src/tests/ui/session-credential-refresh.test.ts / `session-credential-clear.test.ts` 的 `providerConfigOf(空字段)`
+                                            显式传入 `{ session_credential_present: true }`（该事实在当时为真）
+```
+
+**④ 验证（🔴 全部实测）**
+
+```
+npm run typecheck / typecheck:core / typecheck:browser / typecheck:server / typecheck:web  = PASS
+npm run build / npm run build:web（144 modules + 1 stylesheet）                            = PASS
+npm test                     = **1053 passed / 0 failed**（基线 1041；本轮 +12 = G）
+npm run test:proxy           = 15 passed / 0 failed
+Secret Scan（556 个非产物文件）= PASS —— 40 命中：37 条为显式假值 `sk-fixture-*`；另 3 条为
+  `api_key: 'settings-api-key'`（**DOM 控件 id**，其中 2 条是 handoff 自身引用）⇒ **真实 credential = 0**
+Visual Smoke（本机真实 Chrome 154.0.8037.57，headless=new + CDP）**A–M 全 PASS（43/43 判据 true）**
+  · fixture = `demo-workspace/**` 的 %TEMP% 副本（21 文件）；**未写入**提交基线
+  · 🔴 **仅替换 `showDirectoryPicker` 一个函数**；FSA 读写 / 应用逻辑 / 渲染 / 事件 / **真实键鼠输入** /
+    **真实 `Page.reload`** 全部为生产代码
+  · A 选择 Workspace ⇒ 8 条 Demo 可见｜B 选 DeepSeek｜C Key 保持空
+  · D **不填 Key 点保存** ⇒ 面板**不关闭**、「还不能保存 / 请填写 API Key（仅当前会话使用）。」**面板内**可见、
+       badge = 「模型服务未配置」、sessionStorage 无凭据 ⇒ **核心要求达成**
+  · E 输入假 Key → 保存 ⇒ 面板关闭、badge = `DeepSeek｜deepseek-flash｜连接方式：浏览器直连`、凭据落 sessionStorage
+  · F 点「清除本次会话的 API Key」⇒ badge = 「模型服务未配置」、凭据 slot 消失（index = `[]`）
+  · G **清除后不填 Key 再次保存** ⇒ 面板保持打开、缺 Key 提示仍在、badge 仍「模型服务未配置」、
+       **未再出现假 ready** ⇒ `ADJACENT-04` 的真实浏览器关闭证据
+  · H 输入 `sk-fixture-NOT-A-REAL-KEY-PSA-2` → 保存 ⇒ badge 恢复，且该 provider **只有一个** slot（整值 = 新 Key）
+  · I 刷新 ⇒ 凭据仍在｜J 重开面板：Key 字段为空 + 显示「当前浏览器会话已有 API Key…」且**不再**索要 Key
+  · K **不重新输入 Key 直接保存** ⇒ 成功 ⇒ 刷新路径未被误伤
+  · L Workspace **8 条记录全程保留**（A/E/G/末次各检查点均为 8）
+  · M 出站请求合计 312：**`llm_endpoint = 0`**、`other_external = 0`、页面脚本错误 0；
+       31 条属装机安全套件 `gc.kis.v2.scr.kaspersky-labs.com`，**按 host 单独归类，不计为 Provider Call**
+  · L（载体）`localStorage = {}`、IndexedDB `databases() = []`、`caches = []`、cookie `""`；工作区扫描
+       **21 文件 / 0 命中**；sessionStorage 内**唯一** provider slot 值 = 当前 Key（整值比较）
+  · 证据：%TEMP%\psa-correction03-smoke\out\（smoke-report.json + 8 张截图，均 > 147KB）
+  · ⚠️ 探针 v1 的 1 个 FAIL **是探针自身断言错误**（把 `…/index` 记账键当成凭据残留）⇒ **产品缺陷 = 0**；修正后复跑 43/43。
+```
+
+**⑤ Git（🔴 事实登记）**
+
+```
+fix commit = 7ce1b852a61b26f4dd5bc630f605a486a4dc8353
+  message  = 「fix: require a usable credential before model configuration is ready」
+  files    = 9（A src/tests/ui/session-credential-save-gate.test.ts +485 /
+              M src/ui/settings/provider-presets.ts +80 / M src/ui/session/app-session.ts ±21 /
+              M src/tests/ui/settings-usability.test.ts ±24 / M src/ui/copy.ts ±22 /
+              M src/ui/components/shell.ts ±14 / M src/tests/ui/wiring.test.ts +12 /
+              M src/tests/ui/session-credential-clear.test.ts ±46 /
+              M src/tests/ui/session-credential-refresh.test.ts ±3）
+  force    = **未使用**（🔴 禁止 force / force-with-lease）
+  push     = PASS（首次即成功）
+  remote   = refs/heads/main = 7ce1b852a61b26f4dd5bc630f605a486a4dc8353（`git ls-remote origin` 实核）
+  local/remote = MATCH
+本节的 handoff 记录与 session memory 由紧随其后的 `chore:` commit 记录（不改动上述 fix commit）。
+```
+
+**⑥ 边界登记（🔴 本轮未做 / 不越界）**
+
+```
+❌ 未新增 Provider 状态（无 `configured_missing_key` / `credential_required` / `partial_ready` / `auth_pending`）
+❌ 未改 `ProviderAdapter` / `BrowserDirectAdapter` / Credential Store schema / Workspace schema / Attempt schema / 冻结合同
+❌ 未把规则塞进 `BrowserDirectAdapter.execute()`（§10）—— 保存阶段即拦住，adapter 只留最后一道 runtime defense
+❌ 未新增 Decision / `AC` / `CCR`；`PSA-D2` 是**人工已决**事项，本节只**登记**其落地，不自行升级
+❌ 未开始真实 Provider 调用（0 次）；未开始 PSA；未部署 Vercel；未使用真实 API Key
+❌ 未改动 §23.1–§23.9 任何一字
+```
+
+🔴 **本节追加禁写项**：不得把本轮写成「新增了 Credential 校验机制」（只是把**已决**规则落到保存门槛）；
+不得写「缺 Key 现在也阻止 Workspace 浏览」；不得把 `ADJACENT-04` 写成 OPEN；不得把 `PSA-D2` 写成 AI 自行决定；
+不得把本轮 providerless 视觉冒烟写成「真实浏览器人工验收已通过」/「Chrome / FSA verified」；
+不得把 DeepSeek 候选配置写成「已验证 / 可用 / CORS 已支持 / Browser Direct 已通过」；
+不得写「PRE-PSA-BLOCKER-01 之后仍可继续追加普通产品修复」——该任务已 CLOSED。
+
+```
+PRE-PSA-BLOCKER-01 = CLOSED
+SAFE NEXT = PRE-SUBMISSION PSA-A
+            ｜ Real Chrome
+            ｜ Real Workspace FSA
+            ｜ DeepSeek Browser Direct
+            ｜ TE-DEMO-LIVE-01 Full Rehearsal
+            ｜ Billing Cap ≤ RMB 1
+🔴 未授权自动启动 —— 本次完成后停止（不得自动输入真实 Key / 不得自动启动真实 Provider / 不得自动开始 PSA）
+```
+
