@@ -4,18 +4,21 @@
 文档 ID      : PRE_SUBMISSION_DEPLOYMENT_ACCEPTANCE
 阶段         : S00-03｜技术架构与实现方案收敛
 性质         : Release / Submission Acceptance Checklist（🔴 不是产品 AC、不是 Spike、不是实现依据）
-状态         : PLANNED ｜ NOT EXECUTED
+状态         : 🔴 `IN PROGRESS`（首次登记 = `PLANNED` ｜ `NOT EXECUTED`；**2026-09-26 起 `PSA-A` 已在真实 Chrome 上执行**，逐项结果见 §7）
 执行时点     : 开发完成后 / 提交前（Gate C 之后、提交之前）
 依据         : docs/DECISIONS.md `D-057`（`CONFIRMED`，2026-09-24）
 上游证据     : 30_SPIKES/local_first/SP-06/SP-06_EXECUTION_REPORT.md（`CONDITIONAL PASS` + 7 项 PENDING MANUAL OBSERVATION）
               + 30_SPIKES/local_first/SP-06/MANUAL_OBSERVATION_CHECKLIST.md
-授权状态     : 🔴 本轮未执行任何一项；执行前须由项目负责人另行启动
+授权状态     : 🔴 首次登记时「本轮未执行任何一项；执行前须由项目负责人另行启动」（保留原口径）
+              🔴 **2026-09-26 更新**：项目负责人已启动并完成 `PSA-A`（真实 Chrome ＋ 原生 FSA ＋ DeepSeek Browser Direct）；`PSA-B`（Vercel / Edge / Thin Proxy）**仍未启动**
 费用边界     : 🔴 只允许 0 元 / free-tier / disposable；触发付费即 `BILLING AUTH REQUIRED` + 停止
 ```
 
 > 🔴 **本文件是"清单 + 计划"，当前 `PLANNED` / `NOT EXECUTED`。**
 > 🔴 **本轮没有执行其中任何一项，也没有创建任何 Vercel 资源、没有完成任何人工观测。**
 > 🔴 **本文件不得被引用为实现依据**；**不是 Gate B / Gate C 的输入**（`D-057` 已把这两类验证从 Gate 前置位置移出）。
+>
+> 🔴 **2026-09-26 就地补注（不改写上文）**：上面三句描述的是**首次登记时**的状态。此后 `PSA-A` 已在真实 Chrome 上执行完毕，**逐项真实结果见 §7**（§2 / §3 表格的状态单元格已同步更新，**未改动任何一行验收项文字**）。`PSA-B`（Vercel / Edge / Thin Proxy）**仍未启动**，仍未创建任何 Vercel 资源。
 
 ---
 
@@ -61,20 +64,22 @@ D-057 的处置：
 
 ---
 
-## 2. `PSA-01` – `PSA-13`（逐项，🔴 当前全部 `PENDING`）
+## 2. `PSA-01` – `PSA-13`（逐项，🔴 **首次登记时 = 全部 `PENDING`**；2026-09-26 `PSA-A` 后的当前状态见下表与 §7）
 
 > **状态取值**：`PENDING`（未执行）/ `IN PROGRESS` / `PASS` / `FAIL` / `BLOCKED`。
 > 🔴 **当前全部 = `PENDING`**；🔴 **禁止预填结果、禁止据"应该可以"推断 `PASS`**。
+>
+> 🔴 **2026-09-26 就地补注**：下表**已按 `PSA-A` 的真实执行结果更新状态单元格**（每个结果都有证据，见 §7）；**任何验收项文字均未改动**；未执行项仍标 `PENDING`（绝不预填）。
 
 | # | 验收项 | 对应 `SP-06` 项 | 判定口径（可操作） | 状态 |
 |---|---|---|---|---|
 | `PSA-01` | **Vercel HTTPS 页面可打开** | `S6-01`（前置） | 在真实部署 URL 上页面正常加载、无阻断性错误、`isSecureContext = true` | 🔴 `PENDING` |
 | `PSA-02` | **Vercel HTTPS 下可唤起 Workspace folder picker** | `S6-01` | 在该 HTTPS 域名 + 目标浏览器下，用户手势能唤起系统目录选择器（不报 `SecurityError` / 不静默失败） | 🔴 `PENDING` |
-| `PSA-03` | **Chrome 真实目录授权** | `S6-02` / `S6-04` | Chrome 中完成一次真实目录选择并授予读写权限 | 🔴 `PENDING` |
-| `PSA-04` | **真实读取本地 Workspace** | `S6-04` | 从用户选定目录读取既有对象并正确解析（含至少 1 条 `Formal Attempt`） | 🔴 `PENDING` |
-| `PSA-05` | **真实创建文件并磁盘可见** | `S6-05` | 通过产品写入 1 条对象；**在文件资源管理器中肉眼确认该文件存在** | 🔴 `PENDING` |
-| `PSA-06` | **真实修改文件并磁盘落盘** | `S6-06` | 修改 1 条既有对象；磁盘上内容实际变化（非仅内存） | 🔴 `PENDING` |
-| `PSA-07` | **刷新后的 Workspace 恢复 / 重新授权行为** | `S6-08` | 记录实际行为二选一：① 可直接继续使用；② 需用户重新授权（**两种都算通过，但必须如实记录是哪一种**） | 🔴 `PENDING` |
+| `PSA-03` | **Chrome 真实目录授权** | `S6-02` / `S6-04` | Chrome 中完成一次真实目录选择并授予读写权限 | ✅ `PASS`（§7.1） |
+| `PSA-04` | **真实读取本地 Workspace** | `S6-04` | 从用户选定目录读取既有对象并正确解析（含至少 1 条 `Formal Attempt`） | ✅ `PASS`（§7.1） |
+| `PSA-05` | **真实创建文件并磁盘可见** | `S6-05` | 通过产品写入 1 条对象；**在文件资源管理器中肉眼确认该文件存在** | ✅ `PASS`（🔴 口径注记见 §7.1） |
+| `PSA-06` | **真实修改文件并磁盘落盘** | `S6-06` | 修改 1 条既有对象；磁盘上内容实际变化（非仅内存） | 🟡 `IN PROGRESS`（证据已具备，口径待人工裁量 · §7.1） |
+| `PSA-07` | **刷新后的 Workspace 恢复 / 重新授权行为** | `S6-08` | 记录实际行为二选一：① 可直接继续使用；② 需用户重新授权（**两种都算通过，但必须如实记录是哪一种**） | ✅ `PASS`（记录 = **① 可直接继续使用** · §7.1） |
 | `PSA-08` | **关闭浏览器再打开后的恢复行为** | `S6-09` | 完整关闭浏览器后重开：记录 handle 是否可恢复 / 是否需重新选择目录（**结果记录制**） | 🔴 `PENDING` |
 | `PSA-09` | **撤销权限后不能继续绕过权限访问** | `S6-10` | 在浏览器站点设置中撤销权限后，应用**必须失败或要求重新授权**，🔴 不得继续读写 | 🔴 `PENDING` |
 | `PSA-10` | **重新授权后可恢复工作** | `S6-10` | 重新授权后应用恢复正常读写（不卡死、不静默失败） | 🔴 `PENDING` |
@@ -84,20 +89,20 @@ D-057 的处置：
 
 ---
 
-## 3. 附加核对位（与 `PSA` 同批执行，🔴 同样全部 `PENDING`）
+## 3. 附加核对位（与 `PSA` 同批执行，🔴 **首次登记时同样全部 `PENDING`**；2026-09-26 `PSA-A` 后的当前状态见下表与 §7）
 
 | # | 核对项 | 口径 | 状态 |
 |---|---|---|---|
 | `PSA-X1` | **最终 Demo URL** | 记录产品名称 / Deployment URL / Deployment ID / 是否持续计费 | 🔴 `PENDING` |
-| `PSA-X2` | **Chrome** | 版本号 + 上表 `PSA-02`–`PSA-10` 的实际结果 | 🔴 `PENDING` |
+| `PSA-X2` | **Chrome** | 版本号 + 上表 `PSA-02`–`PSA-10` 的实际结果 | 🟡 `IN PROGRESS`（版本 = **154.0.8037.57**；`PSA-02`/`08`/`09`/`10` 未执行 · §7.1） |
 | `PSA-X3` | **Edge** | 版本号 + 上表 `PSA-02`–`PSA-10` 的实际结果（🔴 Safari / Firefox **不声称**） | 🔴 `PENDING` |
-| `PSA-X4` | **Workspace picker** | 是否可由用户手势正常唤起（含取消 / 重试路径） | 🔴 `PENDING` |
-| `PSA-X5` | **read / write / refresh / reopen** | 四条路径的实测记录（与 `PSA-04`–`PSA-08` 合并记录） | 🔴 `PENDING` |
+| `PSA-X4` | **Workspace picker** | 是否可由用户手势正常唤起（含取消 / 重试路径） | ✅ `PASS`（由**真实用户手势**唤起成功；取消 / 重试路径未单独记录 · §7.1） |
+| `PSA-X5` | **read / write / refresh / reopen** | 四条路径的实测记录（与 `PSA-04`–`PSA-08` 合并记录） | 🟡 `IN PROGRESS`（`read` ✅ ／ `write` ✅ ／ `refresh` ✅ ／ `reopen` ❌ · §7.1） |
 | `PSA-X6` | **permission revoke** | 与 `PSA-09` / `PSA-10` 合并记录 | 🔴 `PENDING` |
-| `PSA-X7` | **LLM provider** | 至少 1 个 `Browser Direct` provider 真实调用成功；unsupported provider **明确失败**（无静默 proxy 回退） | 🔴 `PENDING` |
+| `PSA-X7` | **LLM provider** | 至少 1 个 `Browser Direct` provider 真实调用成功；unsupported provider **明确失败**（无静默 proxy 回退） | ✅ `PASS`（真实抓包直接观测 · §7.1） |
 | `PSA-X8` | **Thin Proxy** | 与 `PSA-12` 合并记录；并确认 proxy **无持久化**（不写 DB / 文件 / KV / cache / durable log） | 🔴 `PENDING` |
-| `PSA-X9` | **Credential leak** | 凭据未出现在 `localStorage` / `IndexedDB` / cookie / Workspace 文件 / 仓库 / 日志 / 前端 Bundle；会话结束后清除 | 🔴 `PENDING` |
-| `PSA-X10` | **Workspace upload** | 确认未把整个 Workspace 上传到服务端（最小上下文原则） | 🔴 `PENDING` |
+| `PSA-X9` | **Credential leak** | 凭据未出现在 `localStorage` / `IndexedDB` / cookie / Workspace 文件 / 仓库 / 日志 / 前端 Bundle；会话结束后清除 | 🟡 `IN PROGRESS`（三处存储实测为空 ＋ 仓库/日志扫描无真实凭据；❌「会话结束后清除」未测 · §7.1） |
+| `PSA-X10` | **Workspace upload** | 确认未把整个 Workspace 上传到服务端（最小上下文原则） | ✅ `PASS`（真实调用抓包 4 次成立 · §7.1） |
 | `PSA-X11` | **Vercel billing** | 确认费用 = 0 元 / 免费计划；记录是否存在任何持续计费项 | 🔴 `PENDING` |
 
 ---
@@ -132,12 +137,65 @@ D-057 的处置：
 ## 6. 状态
 
 ```
-PRE-SUBMISSION DEPLOYMENT ACCEPTANCE : PLANNED / NOT EXECUTED
-PSA-01 – PSA-13                      : 全部 PENDING
-附加核对位 PSA-X1 – PSA-X11          : 全部 PENDING
+首次登记状态（原口径，保留）         : PLANNED / NOT EXECUTED
+当前状态（2026-09-26 `PSA-A` 之后）  : `IN PROGRESS`
+PSA-01 – PSA-13                      : ✅ PASS 4（`03`/`04`/`05`/`07`）／🟡 IN PROGRESS 1（`06`）／🔴 PENDING 8（`01`/`02`/`08`/`09`/`10`/`11`/`12`/`13`）
+附加核对位 PSA-X1 – PSA-X11          : ✅ PASS 3（`X4`/`X7`/`X10`）／🟡 IN PROGRESS 3（`X2`/`X5`/`X9`）／🔴 PENDING 5（`X1`/`X3`/`X6`/`X8`/`X11`）
+PSA-A baseline                       : `fc472b0` ＋ `bc2b13d`（HEAD `25ca05e`；`origin/main` 已同步）
+TE-DEMO-LIVE-01 完整性               : 🔴 `BLOCKED`（⑥ 在 25 / ≈32 笔处被页面刷新打断；检索产物不落盘 ⇒ ⑦–⑩ 不可达）
+本轮未修缺陷（另行登记）             : 2 项（① 检索产物不落盘；② ⑥ 的成本 / 交互与护栏冲突。见 §7.3）
 执行时点                             : 开发完成后 / 提交前
 新增产品 AC                          : 0（连续 canonical AC = 162 ／ 独立 AC-Q06 = 6 ／ 全部有效验收点 = 168，均不变）
 File System fallback                 : NO DECISION REQUIRED（触发条件 = F1–F4）
 BLOCKER                              : NO（本清单为"后置必做项"，非阻塞项；🔴 D-057 已明确）
-BILLING AUTH REQUIRED                : NO（当前未执行，费用 0 元）
+                                       🔴 另有 1 项**待人工裁量**：`PSA-06` 的判定口径（见 §7.1）
+BILLING AUTH REQUIRED                : NO（本轮未创建任何 Vercel / 付费资源；费用 0 元）
+```
+
+---
+
+## 7. `PSA-A` 执行结果登记（2026-09-26｜真实 Chrome ＋ 原生 FSA ＋ DeepSeek Browser Direct）
+
+> 🔴 本节是 `PSA-*` 的**当前有效结论**；§2 / §3 的**状态单元格**已按本节更新（**未改动任何一行验收项文字**）。
+> 🔴 **记账口径（不得简化为「一次跑通」）**：`PSA-A` = 原运行 → **`INTERRUPTED`**（观测窗口随会话重启丢失）→ **有界 correction**（`CORRECTION-01` ④裁决落盘 ／ `CORRECTION-01-D3` locked 步骤文案 ／ `CORRECTION-02` judge prompt 缺 `json`）→ **新 baseline** → **`RESUME`**。
+> 🔴 **baseline**：`fc472b0` ＋ `bc2b13d`（HEAD `25ca05e`，已推送 `origin/main`）；构建产物 `dist-web`（15:02:42）**已实测包含**修复内容。
+> 🔴 **环境**：Chrome **154.0.8037.57**｜disposable 工作区 `C:\Users\Red16\Desktop\fei-psa-a-workspace-2`（8/8 Demo ＋ 2 条 Live 对象；`DEMO-07` 已归档）｜provider = DeepSeek `deepseek-flash`｜连接方式 = **Browser Direct**。
+
+### 7.1 已具备真实证据的项
+
+| # | 状态 | 真实证据（可复核） |
+|---|---|---|
+| `PSA-03` | ✅ `PASS` | 用户**原生手势**完成一次真实目录授权（Chrome 154.0.8037.57）；未以任何自动化替代人机手势 |
+| `PSA-04` | ✅ `PASS` | 真实读取该工作区，并在 UI 对 `DEMO-01` 逐项核对：①原文正确／②结构化字段正确／`result_status = Failed`／无预置原因／已 `Formal`／baseline 无 Retrieval |
+| `PSA-05` | ✅ `PASS`（🔴 口径注记） | 产品写入的 2 条 Live 对象**磁盘实测存在**：`ATT_01M3E78D3H54V8NDMN3E44VEM0.{json,md}`（14:56:24）、`ATT_01M3E8KS1WZXDFSGKR7K82EDTR.{json,md}`（15:15:33）。🔴 口径偏差 = 以**目录枚举 ＋ mtime** 替代「文件资源管理器肉眼确认」；如需补足，为一步可选动作 |
+| `PSA-06` | 🟡 `IN PROGRESS` | 既有对象**被真实修改**的证据已具备：`ATT_…EDTR` 内部 `created_at = 15:06:59` → `updated_at = 15:15:33`，且内容含 3 条 `accepted / rejected / accepted` 裁决。🔴 **是否据此判 `PASS` 需人工裁量**；更干净的口径（对既有记录做 归档 → 取消归档，**0 真实调用、可逆**）尚未执行 |
+| `PSA-07` | ✅ `PASS`（记录 = **①**） | 真实刷新（`navigationType = "reload"`、`timeOrigin = 15:16:32`）之后：工作区**无需重新授权**仍可读（列表正常渲染 Live / Demo 卡片）、会话凭据仍在（`sessionStorage` 的 `…/session-credential/index` ＋ `…/provider:deepseek`）；`localStorage` **0 键**／`indexedDB.databases()` = **[]**／`document.cookie` 长度 **0** |
+| `PSA-X2` | 🟡 `IN PROGRESS` | Chrome 版本已记录（154.0.8037.57）；`PSA-02`（Vercel）／`PSA-08`／`PSA-09`／`PSA-10` **尚未执行** |
+| `PSA-X4` | ✅ `PASS` | picker 由**真实用户手势**唤起成功（与 `PSA-03` 同源）；取消 / 重试路径未单独记录 |
+| `PSA-X5` | 🟡 `IN PROGRESS` | `read` ✅（`PSA-04`）／`write` ✅（`PSA-05`）／`refresh` ✅（`PSA-07`）／`reopen` ❌ 未执行（`PSA-08`） |
+| `PSA-X7` | ✅ `PASS` | **Browser Direct 真实调用成功（直接观测）**：`POST https://api.deepseek.com/chat/completions` ＋ `OPTIONS` preflight，真实抓包（其中一轮 = **25 笔 POST ／ 8 笔 preflight**，响应 `200`）；`loadingFailed = 0`。🔴 **未发生任何静默 proxy 回退** |
+| `PSA-X9` | 🟡 `IN PROGRESS` | 已测：`localStorage` ／ `IndexedDB` ／ cookie **全部为空**；仓库与日志扫描**未见真实凭据**（历史 Secret Scan 的 40 命中全为口径文档文本 ＋ `sk-fixture-*` 假值）。❌ 未测：「**会话结束后清除**」的真实浏览器观测 |
+| `PSA-X10` | ✅ `PASS`（4 次成立） | 真实调用抓包中 `bodyMentionsDemoAttemptId = false`、`bodyMentionsWorkspaceId = false` ⇒ **未见整个 Workspace 被上传**；记录器按契约**不采集 header / body** |
+
+### 7.2 未观测 / 被阻断的项（🔴 不得写成 `PASS`）
+
+| # | 状态 | 说明 |
+|---|---|---|
+| `PSA-08` / `PSA-09` / `PSA-10` | 🔴 `PENDING` | 未执行（关闭浏览器重开 ／ 撤销权限 ／ 重新授权）。均为**人工操作项**、**0 真实调用**，可随时执行 |
+| `PSA-01` / `PSA-02` / `PSA-11` / `PSA-12` / `PSA-13` / `PSA-X1` / `PSA-X3` / `PSA-X8` / `PSA-X11` | 🔴 `PENDING` | 全部属 **`PSA-B`**（Vercel ／ Edge ／ Thin Proxy）。🔴 本轮**未创建任何 Vercel 资源** |
+| `⑦`–`⑩` ／ `TE-DEMO-LIVE-01` 完整性 | 🔴 `BLOCKED` | `⑥` 在 **25 / ≈32 笔**判定调用处**被页面刷新打断**（Level A = 4 维度 ⇒ 预期 = 4 × 候选数 ≥ 28 笔；实测 24 笔拿到 `200`，第 25 笔发出后无响应）⇒ `⑦` **从未产出**；且**检索产物不落盘** ⇒ 刷新后 `⑥` 在本会话内**没有任何入口**可重跑 |
+
+### 7.3 本轮登记的两个产品级缺陷（🔴 未修，另行登记；**不属产品 `AC`**）
+
+1. 🔴 **检索产物不落盘**：`⑥` 的结果**不写入 Workspace** ⇒ 刷新 / 重新选择记录后，一条 `Formal` 记录的 `⑥` 永远显示「这条记录还没有做过历史检索。」且**无任何入口**可再次触发（`src/application/workflow/retrieval-freshness.ts:43-59` ＋ `src/ui/presenters/retrieval.ts:207-213`）⇒ `⑦⑧⑨⑩` **不可达**。与 `§21`「右侧证据栏必须来自真实 persisted Retrieval」冲突。**根因 = 实现缺口**（读模型已按「已存比较 ＋ `created_at`」设计 stale 推导，但没有任何写入方）。
+2. 🔴 **`⑥` 的成本 / 交互与护栏冲突**：一次 `⑥` = **4 × 候选数** 笔真实调用（本轮实测发出 25 笔、耗时 ≈ 58 s），**在一个用户动作内连发、中途无法拦截**，且**界面无进度反馈** ⇒ 越过当轮「上限 25 笔」，用户侧看起来像「卡住」。
+
+### 7.4 本节的证据索引（工作区内 + 临时取证产物）
+
+```
+workspace  : C:\Users\Red16\Desktop\fei-psa-a-workspace-2（25 文件：8/8 Demo ＋ 2 条 Live × {json, md} ＋ project / workspace / marker）
+观测产物   : %TEMP%\psa-a-watch4.json（900 s 窗口，25 POST / 8 preflight / 32 × 200）
+             %TEMP%\psa-a-watch5.json、%TEMP%\psa-a-watch6.json（增量落盘版记录器）
+过程记账   : .learnbuddy/memory/2026-09-26.md（PSA-A 全过程的逐步取证与就地补注）
+commit     : fc472b0 → bc2b13d → f1a493c → 2b447bf → 8b43a9a → 25ca05e（origin/main 同步）
 ```
